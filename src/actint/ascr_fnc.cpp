@@ -5261,6 +5261,9 @@ void acsPrepareSlotNameInput(int id,int slot_num)
 
 #if defined(__APPLE__) || __GNUC__ < 9
 void createDirIfNotExist(const char* dirName) {
+#if defined(__APPLE__) && defined(MOBILE)
+	create_directory_if_not_exists(dirName);
+#else
 	struct stat info;
 	if (stat(dirName, &info) != 0) {
 		std::cout<<"Directory "<<dirName<<" not found. Created it..."<< std::endl;
@@ -5273,6 +5276,7 @@ void createDirIfNotExist(const char* dirName) {
 			return;
 		}
 	}
+#endif
 }
 #else
 void createDirIfNotExist(const fs::path& dirName) {

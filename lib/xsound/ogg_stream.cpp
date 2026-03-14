@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <stdexcept>
 
+#if defined(__APPLE__) && defined(MOBILE)
+#include "port.h"
+#endif
+
 static size_t stream_read_func  (void *ptr, size_t size, size_t nmemb, void *datasource) {
 	//LOG_DEBUG(("read(%p, %u, %u)", ptr, (unsigned)size, (unsigned)nmemb));
 	assert(datasource != NULL);
@@ -38,7 +42,11 @@ static long   stream_tell_func  (void *datasource) {
 }
 
 OggStream::OggStream(const std::string &fname) {
+#if defined(__APPLE__) && defined(MOBILE)
+	_file = fopen(get_platform_path(fname.c_str()), "rb");
+#else
 	_file = fopen(fname.c_str(), "rb");
+#endif
 	if (_file == NULL) {
 		perror("fopen");
 		throw std::runtime_error("cannot open file");

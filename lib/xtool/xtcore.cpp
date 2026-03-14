@@ -5,6 +5,10 @@
 #include "xt_list.h"
 #include "../xgraph/xgraph.h"
 
+#if defined(__APPLE__) && defined(MOBILE)
+#include "virtual_joystick.h"
+#endif
+
 extern void sys_initScripts(const char* folder);
 extern bool sys_readyQuant();
 extern void sys_tickQuant();
@@ -619,6 +623,17 @@ void xtClearMessageQueue(void)
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
 		//std::cout<<"event "<<event.type<<std::endl;
+#if defined(__APPLE__) && defined(MOBILE)
+		if (event.type == SDL_FINGERUP || event.type == SDL_FINGERDOWN || event.type == SDL_FINGERMOTION) {
+			VirtualJoystick::get().process(event.tfinger);
+		} else {
+			if (XRec.CheckMessage(event.type)) {
+				xtDispatchMessage(&event);
+			} else {
+				XMsgBuf -> put(&event);
+			}
+		}
+#else
 		if(XRec.CheckMessage(event.type)) {
 			xtDispatchMessage(&event);
 //			if(!xtDispatchMessage(&event))
@@ -626,6 +641,17 @@ void xtClearMessageQueue(void)
 		} else {
 			XMsgBuf -> put(&event);
 		}
+#endif
+
+#if defined(__APPLE__) && defined(MOBILE)
+		VirtualJoystick::get().apply([](SDL_Event event) {
+			if (XRec.CheckMessage(event.type)) {
+				xtDispatchMessage(&event);
+			} else {
+				XMsgBuf -> put(&event);
+			}
+		});
+#endif
 	}
 }
 

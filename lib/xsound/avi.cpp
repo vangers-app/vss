@@ -53,7 +53,11 @@ int AVIFile::open(char* aviname, int initFlags, int channel)
 	// Open video file
 	pFormatCtx = NULL;
 
+#if defined(__APPLE__) && defined(MOBILE)
+	int ret = avformat_open_input(&pFormatCtx, get_platform_path(aviname), NULL, NULL);
+#else
 	int ret = avformat_open_input(&pFormatCtx, aviname, NULL, NULL);
+#endif
 	if(ret != 0) {
 		char error_message[256];
 		av_strerror(ret, error_message, 256);
@@ -182,7 +186,7 @@ void AVIFile::draw(void) {
 				//av_close_input_file(pFormatCtx);
 				avformat_close_input(&pFormatCtx);
 				// Open video file
-				int ret = avformat_open_input(&pFormatCtx, filename.c_str(), NULL, NULL);
+				int ret = avformat_open_input(&pFormatCtx, get_platform_path(filename.c_str()), NULL, NULL);
 				if(ret != 0) {
 					std::cout<<"Couldn't open video file"<<std::endl;
 					return; // Couldn't open file

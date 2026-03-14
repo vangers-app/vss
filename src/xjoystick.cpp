@@ -98,6 +98,9 @@ static bool inputPrepareDevice(void)
 bool XJoystickInit() {
 	int i;
 	
+#if defined(__APPLE__) && defined(MOBILE)
+	SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
+#endif
 	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
 	SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
 	SDL_JoystickEventState(SDL_ENABLE);

@@ -702,8 +702,8 @@ MLTableSize = 0;
 	std::string tmp = path_to_world+"data.vot/";
 	struct dirent **namelist;
 	int n;
-	n = scandir(tmp.c_str(), &namelist, 0, alphasort); 
-	if (n < 0) 
+	n = scandir(get_platform_path(tmp.c_str()), &namelist, 0, alphasort); 
+	if (n < 0)
 		perror("scandir"); 
 	else { 
 		while(n--) { 
@@ -747,7 +747,7 @@ MLTableSize = 0;
 	};
 #else
 	struct dirent **namelist2;
-	n = scandir(tmp.c_str(), &namelist2, 0, alphasort); 
+	n = scandir(get_platform_path(tmp.c_str()), &namelist2, 0, alphasort); 
 	if (n < 0) 
 		perror("scandir"); 
 	else { 
