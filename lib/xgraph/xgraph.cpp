@@ -8,8 +8,12 @@
 
 #include <assert.h>
 
-#if defined(__APPLE__) && !defined(MOBILE)
+#if defined(__APPLE__)
+#ifndef MOBILE
 #include "ApplicationServices/ApplicationServices.h"
+#else
+#include "virtual_joystick.h"
+#endif
 #endif
 
 /* ----------------------------- STRUCT SECTION ----------------------------- */
@@ -151,6 +155,37 @@ int XGR_Screen::init(int flags_in)
 		SDL_DestroyWindow(sdlWindow);
 	}
 
+#if defined(__APPLE__) && defined(MOBILE)
+	std::cout<<"SDL_CreateWindowAndRenderer"<<std::endl;
+	if (SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI, &sdlWindow, &sdlRenderer) < 0) {
+		std::cout<<"ERROR1"<<std::endl;
+		ErrH.Abort(SDL_GetError(),XERR_USER, 0);
+	}
+
+	int maxWidth = 0;
+	int maxHeight = 0;
+	SDL_GetRendererOutputSize(sdlRenderer, &maxWidth, &maxHeight);
+
+	const float maxAspect = 1280.0f / 600;
+	float aspect = (float) maxWidth / (float) maxHeight;
+	if (aspect < 4/3.f) {
+		aspect = 4/3.f;
+	}
+
+	if (aspect > maxAspect) {
+		aspect = maxAspect;
+	}
+
+	this->hdWidth = 1280;
+	this->hdHeight = round(1280 / aspect);
+
+	std::cout << "SDL_Window created: " << this->hdWidth << "x" << this->hdHeight << std::endl;
+
+	screen_scale_x = (float)this->hdWidth / 800;
+	screen_scale_y = (float)this->hdHeight / 600;
+
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+#else
 	SDL_DisplayMode displayMode;
 	SDL_GetCurrentDisplayMode(0, &displayMode);
 	int maxWidth = displayMode.w;
@@ -196,6 +231,7 @@ int XGR_Screen::init(int flags_in)
 	} else {
 		std::cout<<"Can't load icon vangers.bmp"<<std::endl;
 	}
+#endif
 	std::cout<<"SDL_SetRenderDrawColor"<<std::endl;
 	SDL_SetRenderDrawColor(sdlRenderer, 0, 0, 0, 255);
 	std::cout<<"SDL_RenderClear"<<std::endl;
@@ -207,6 +243,23 @@ int XGR_Screen::init(int flags_in)
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");  // "linear" make the scaled rendering look smoother.
 
 	create_surfaces(this->hdWidth, this->hdHeight);
+
+#if defined(__APPLE__) && defined(MOBILE)
+	const int scale = [&]() -> int {
+		int windowWidth = 0;
+		int windowHeight = 0;
+		SDL_GetWindowSize(sdlWindow, &windowWidth, &windowHeight);
+		return maxWidth / windowWidth;
+	}();
+
+	SDL_Rect safeArea;
+	SDL_GetWindowSafeArea(sdlWindow, &safeArea);
+	safeArea.x *= scale;
+	safeArea.y *= scale;
+	safeArea.w *= scale;
+	safeArea.h *= scale;
+	VirtualJoystick::get().setup(sdlRenderer, maxWidth, maxHeight, safeArea);
+#endif
 
 	std::cout<<"SDL_ShowCursor"<<std::endl;
 	//SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -278,6 +331,9 @@ void XGR_Screen::create_surfaces(int width, int height) {
 	set_default_render_buffer();
 }
 
+#if defined(__APPLE__) && defined(MOBILE)
+void XGR_Screen::set_resolution(int width, int height) {}
+#else
 void XGR_Screen::set_resolution(int width, int height){
 	std::cout << "XGR_Screen::set_resolution: " << width << ", " << height << std::endl;
 
@@ -299,6 +355,7 @@ void XGR_Screen::set_resolution(int width, int height){
 	SDL_SetWindowSize(sdlWindow, width, height);
 	create_surfaces(width, height);
 }
+#endif
 
 const float XGR_Screen::get_screen_scale_x() {
 	return screen_scale_x;
@@ -324,6 +381,9 @@ void XGR_Screen::destroy_surfaces() {
 	XGR32_ScreenSurface = nullptr;
 }
 
+#if defined(__APPLE__) && defined(MOBILE)
+void XGR_Screen::set_fullscreen(bool fullscreen) {}
+#else
 void XGR_Screen::set_fullscreen(bool fullscreen) {
 	if (fullscreen!=XGR_FULL_SCREEN) {
 		SDL_SetWindowFullscreen(sdlWindow, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
@@ -340,6 +400,7 @@ void XGR_Screen::set_fullscreen(bool fullscreen) {
 #endif
 	} 
 }
+#endif
 
 void XGR_Screen::set_is_scaled_renderer(bool is_scaled_renderer)
 {
@@ -982,6 +1043,9 @@ void XGR_Screen::flip()
 			SDL_RenderCopy(sdlRenderer, sdlTexture, NULL, NULL);
 		}
 
+#if defined(__APPLE__) && defined(MOBILE)
+		VirtualJoystick::get().draw();
+#endif
 		SDL_RenderPresent(sdlRenderer);
 
 		set_2d_render_buffer();

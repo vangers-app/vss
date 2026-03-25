@@ -15,7 +15,11 @@ std::fstream *open_file(const char* name, unsigned f)
 	if (f & XS_APPEND)
 		mode |= std::ios::app;
 
+#if defined(__APPLE__) && defined(MOBILE)
+	return new std::fstream(get_platform_path(name), mode);
+#else
 	return new std::fstream(name, mode);
+#endif
 }
 
 int XStream::open(const char* _name, unsigned f)

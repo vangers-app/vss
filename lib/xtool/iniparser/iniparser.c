@@ -17,6 +17,10 @@
 #include <ctype.h>
 #include "iniparser.h"
 
+#if defined(__APPLE__) && defined(MOBILE)
+#include "port.h"
+#endif
+
 extern const char* sys_fileOpenQuant(const char* file, unsigned flags);
 
 /*---------------------------- Defines -------------------------------------*/
@@ -547,10 +551,17 @@ dictionary * iniparser_load(const char * _ininame)
 
     dictionary * dict ;
 
+#if defined(__APPLE__) && defined(MOBILE)
+    if ((in=fopen(get_platform_path(ininame), "r"))==NULL) {
+        fprintf(stderr, "iniparser: cannot open %s\n", ininame);
+        return NULL ;
+    }
+#else
     if ((in=fopen(ininame, "r"))==NULL) {
         fprintf(stderr, "iniparser: cannot open %s\n", ininame);
         return NULL ;
     }
+#endif
 
     dict = dictionary_new(0) ;
     if (!dict) {

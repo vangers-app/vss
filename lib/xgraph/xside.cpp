@@ -2,10 +2,14 @@
 // Created by caiiiycuk on 25.06.2021.
 //
 
-#include "xbmp.h"
+#include "xside.h"
+
 #include <algorithm>
 #include <functional>
 #include <utility>
+
+#include "port.h"
+#include "xbmp.h"
 
 extern int xgrScreenSizeX;
 extern int xgrScreenSizeY;
@@ -90,14 +94,14 @@ void XGR_RenderSides(SDL_Renderer *renderer, int renderWidth) {
 	if (sideNames.first != activeSides.first) {
 		SDL_DestroyTexture(HDLeftSideTexture);
 		HDLeftSideTexture =
-			sideNames.first ? BMP_CreateTexture(sideNames.first, renderer) : nullptr;
+			sideNames.first ? BMP_CreateTexture(get_platform_path(sideNames.first), renderer) : nullptr;
 		activeSides.first = sideNames.first;
 	}
 
 	if (sideNames.second != activeSides.second) {
 		SDL_DestroyTexture(HDRightSideTexture);
 		HDRightSideTexture =
-			sideNames.second ? BMP_CreateTexture(sideNames.second, renderer) : nullptr;
+			sideNames.second ? BMP_CreateTexture(get_platform_path(sideNames.second), renderer) : nullptr;
 		activeSides.second = sideNames.second;
 	}
 
