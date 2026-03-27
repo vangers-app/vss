@@ -9,6 +9,10 @@
 #include "ikeys.h"
 #include "controls.h"
 
+#if defined(__APPLE__) && defined(MOBILE)
+#include "virtual_joystick.h"
+#endif
+
 /* ----------------------------- STRUCT SECTION ----------------------------- */
 
 // flags...
@@ -283,9 +287,17 @@ int iKeyPressed(int id)
 			} else if (code & SDLK_JOYSTICK_HAT_MASK && joy) {
 				state = SDL_JoystickGetHat(joy, (code ^ SDLK_JOYSTICK_HAT_MASK) / 10 ) == (code ^ SDLK_JOYSTICK_HAT_MASK) % 10;
 			} else if (code & SDLK_SCANCODE_MASK) {
+#if defined(__APPLE__) && defined(MOBILE)
+				state = VirtualJoystick::get().isKeyPressed(SDL_GetScancodeFromKey(code));
+#else
 				state = SDL_GetKeyboardState(NULL)[SDL_GetScancodeFromKey(code)];
+#endif
 			} else {
+#if defined(__APPLE__) && defined(MOBILE)
+				state = VirtualJoystick::get().isKeyPressed(code);
+#else
 				state = SDL_GetKeyboardState(NULL)[code];
+#endif
 			}
 			if (state) {
 				return state;

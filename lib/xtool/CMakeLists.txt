@@ -24,6 +24,12 @@ SET(xtool_SRCS
 	lang.cpp
 )
 
+IF(APPLE)
+	SET(xtool_SRCS ${xtool_SRCS}
+		virtual_joystick.cpp
+	)
+ENDIF(APPLE)
+
 IF(DXSTREAM_DEBUG)
 	ADD_DEFINITIONS(-DXSTREAM_DEBUG)
 ENDIF(DXSTREAM_DEBUG)
