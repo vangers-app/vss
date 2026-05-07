@@ -45,3 +45,12 @@ void DummyVisualBackend::map_update_palette(uint32_t *palette, int32_t palette_s
 
 }
 
+void DummyVisualBackend::set_screen_resolution(int32_t width, int32_t height)
+{
+
+}
+
+void DummyVisualBackend::destroy()
+{
+
+}

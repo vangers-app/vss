@@ -23,6 +23,10 @@ namespace renderer::visualbackend::dummy {
 		void camera_set_transform(const Transform &transform) override;
 
 		void map_update_palette(uint32_t *palette, int32_t palette_size) override;
+
+		void set_screen_resolution(int32_t width, int32_t height) override;
+
+		void destroy() override;
 	};
 
 }

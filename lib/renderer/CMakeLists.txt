@@ -23,10 +23,15 @@ SET(renderer_SRCS
 	src/renderer/visualbackend/VisualBackendContext.h
 	src/renderer/visualbackend/dummy/DummyVisualBackend.cpp
 	src/renderer/visualbackend/dummy/DummyVisualBackend.h
+	)
+
+if (NOT EMSCRIPTEN)
+	list(APPEND renderer_SRCS
 	src/renderer/visualbackend/rust/RustVisualBackend.cpp
 	src/renderer/visualbackend/rust/RustVisualBackend.h
 	src/renderer/visualbackend/rust/vange_rs.h
 	)
+endif()
 
 if (ANDROID)
 	ADD_LIBRARY(renderer OBJECT ${renderer_SRCS})

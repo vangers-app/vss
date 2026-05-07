@@ -9,7 +9,6 @@ SET(xsound_SRCS
 	ogg_stream.cpp
 )
 
-
 if(FFMPEG)
 	list(APPEND xsound_SRCS avi.cpp)
 else()
@@ -18,3 +17,6 @@ endif()
 
 
 ADD_LIBRARY(xsound OBJECT ${xsound_SRCS})
+if(CLUNK_EXTERNAL_TARGET)
+	add_dependencies(xsound ${CLUNK_EXTERNAL_TARGET})
+endif()
