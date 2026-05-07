@@ -6,3 +6,11 @@ The code style in this project is primarily based on compactness.
 - Prefer inline functions and expressions where they keep the code readable.
 - Create new functions only for code reuse.
 - Prefer `if/then/else` blocks over early returns.
+
+# Verification
+
+WEB:
+Run ninja build in emscripten folder with target `vangers` to verify that the project builds.
+
+Native:
+Run ninja build with target `vangers` to verify that the project builds.
