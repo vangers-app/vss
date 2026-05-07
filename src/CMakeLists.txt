@@ -132,4 +132,8 @@ else()
 		xgraph
 		xsound
 	)
+	IF(EMSCRIPTEN)
+		target_link_options(vangers PRIVATE "--preload-file" "${PROJECT_SOURCE_DIR}/res_gen@/")
+		set_target_properties(vangers PROPERTIES SUFFIX ".html")
+	ENDIF(EMSCRIPTEN)
 endif(ANDROID)
