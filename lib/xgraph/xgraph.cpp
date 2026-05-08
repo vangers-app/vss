@@ -208,6 +208,14 @@ SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
 
 	std::cout<<"SDL_GL_CreateContext"<<std::endl;
 	openGlContext = SDL_GL_CreateContext(sdlWindow);
+	if (openGlContext == nullptr) {
+		std::cerr << "SDL_GL_CreateContext failed: " << SDL_GetError() << std::endl;
+		ErrH.Abort(SDL_GetError(),XERR_USER, 0);
+	}
+	if (SDL_GL_MakeCurrent(sdlWindow, openGlContext) < 0) {
+		std::cerr << "SDL_GL_MakeCurrent failed: " << SDL_GetError() << std::endl;
+		ErrH.Abort(SDL_GetError(),XERR_USER, 0);
+	}
 
 	std::cout<<"Load and set icon"<<std::endl;
 #ifdef __APPLE__

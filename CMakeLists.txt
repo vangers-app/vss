@@ -55,8 +55,8 @@ ELSE(EMSCRIPTEN)
 ENDIF(EMSCRIPTEN)
 
 ExternalDependency(Clunk
-	GIT_REPOSITORY https://github.com/stalkerg/clunk.git
-	GIT_TAG master
+	GIT_REPOSITORY https://github.com/caiiiycuk/clunk.git
+	GIT_TAG 638e7675b7152715cd3cc45a72954dc6b5f1aff6
 	TARGET Clunk::clunk
 	CMAKE_ARGS -DWITH_SSE=OFF ${CLUNK_CMAKE_ARGS}
 )

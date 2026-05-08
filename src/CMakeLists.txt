@@ -133,7 +133,15 @@ else()
 		xsound
 	)
 	IF(EMSCRIPTEN)
-		target_link_options(vangers PRIVATE "--preload-file" "${PROJECT_SOURCE_DIR}/res_gen@/")
+		target_link_options(vangers PRIVATE
+			"--preload-file" "${PROJECT_SOURCE_DIR}/res_gen@/"
+			"-sMIN_WEBGL_VERSION=2"
+			"-sMAX_WEBGL_VERSION=2"
+			"-sDISABLE_EXCEPTION_CATCHING=0"
+			"-sINITIAL_MEMORY=256MB"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"--profiling-funcs"
+		)
 		set_target_properties(vangers PROPERTIES SUFFIX ".html")
 	ENDIF(EMSCRIPTEN)
 endif(ANDROID)
