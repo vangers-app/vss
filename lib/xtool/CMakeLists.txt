@@ -21,6 +21,7 @@ SET(xtool_SRCS
 	xutil/xclock.cpp
 	iniparser/dictionary.c
 	iniparser/iniparser.c
+	html5.cpp
 	lang.cpp
 )
 

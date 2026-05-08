@@ -4,6 +4,9 @@
 
 #include "xsocket.h"
 #include "multiplayer.h"
+#ifdef EMSCRIPTEN
+#include "html5.h"
+#endif
 
 #define DEFAULT_SERVER_PORT	2197
 
@@ -278,7 +281,11 @@ struct NetRndType
 //#define age_of_current_game() (((int)((SDL_GetTicks()/1000.0) - global_clock_tau) - (int)game_birth_time_offset) >> 8)
 
 #define START_TIMER(interval)	unsigned int _end_time_ = SDL_GetTicks() + interval;
+#ifdef EMSCRIPTEN
+#define CHECK_TIMER()		(html::emSleep() && ((int)(SDL_GetTicks() - _end_time_) < 0))
+#else
 #define CHECK_TIMER()		((int)(SDL_GetTicks() - _end_time_) < 0)
+#endif
 #define IS_FUTURE(time)		((int)((time) - SDL_GetTicks()) > 0)
 #define IS_PAST(time)		((int)(SDL_GetTicks() - (time)) > 0)
 

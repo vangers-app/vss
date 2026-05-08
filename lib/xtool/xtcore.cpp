@@ -1,5 +1,9 @@
 /* ---------------------------- INCLUDE SECTION ----------------------------- */
 
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
+
 #include "../xgraph/xgraph.h"
 #include "lang.h"
 #include "renderer/visualbackend/VisualBackendContext.h"
@@ -107,9 +111,98 @@ bool autoconnectJoinGame = false;
 int  autoconnectGameID;
 
 XRuntimeObject* XObj = nullptr;
+int xtLoopId = 0;
+int xtLoopPrevID = 0;
+int xtLoopClockCnt = 0;
+int xtLoopClockCntGlobal = 0;
+int xtLoopResumeAt = 0;
+bool xtLoopObjectStarted = false;
 
 int getCurRtoId() {
 	return XObj == nullptr ? 0 : XObj->ID;
+}
+
+bool normal_loop()
+{
+	int clockDelta, clockNow, clockNowGlobal;
+	if(!XObj)
+		return false;
+
+	if(!xtLoopObjectStarted){
+		XObj -> Init(xtLoopPrevID);
+		xtLoopPrevID = xtLoopId;
+		xtLoopId = 0;
+		xtLoopClockCnt = clocki();
+		xtLoopClockCntGlobal = xtLoopClockCnt;
+		xtLoopObjectStarted = true;
+	}
+
+#ifdef EMSCRIPTEN
+	if(xtLoopResumeAt > 0){
+		if(xtLoopResumeAt > clocki())
+			return true;
+		xtLoopResumeAt = 0;
+		xtLoopClockCnt = clocki();
+		if(!xtSysQuantDisabled)
+			XRec.Quant(); // впускает внешние события, записывает их или воспроизводит
+		return true;
+	}
+#endif
+
+	if(!xtLoopId) {
+		if(XObj->Timer) {
+			xtLoopId = XObj -> Quant();
+			clockNow = clockNowGlobal = clocki();
+			clockDelta = clockNow - xtLoopClockCnt;
+			XTCORE_FRAME_DELTA = (clockNowGlobal - xtLoopClockCntGlobal) / 1000.0;
+			XTCORE_FRAME_NORMAL = XTCORE_FRAME_DELTA / 0.050; //20FPS
+			xtLoopClockCntGlobal = clockNowGlobal;
+
+			if (clockDelta < XObj->Timer) {
+#ifdef EMSCRIPTEN
+				xtLoopResumeAt = clocki() + XObj->Timer - clockDelta;
+				XGR_Flip();
+				return true;
+#else
+				SDL_Delay(XObj->Timer - clockDelta);
+#endif
+			} else {
+				std::cout<<"Strange deltas clockDelta:"<<clockDelta<<" Timer:"<<XObj->Timer<<std::endl;
+				if (clockDelta > 300) {
+					XTCORE_FRAME_NORMAL = 1.0;
+				}
+			}
+			xtLoopClockCnt = clocki();
+		} else {
+			xtLoopId = XObj -> Quant();
+		}
+
+		if(!xtSysQuantDisabled)
+			XRec.Quant(); // впускает внешние события, записывает их или воспроизводит
+		XGR_Flip();
+		return true;
+	}
+
+	XObj -> Finit();
+#ifdef _RTO_LOG_
+	xtRTO_Log < "\r\nChange RTO: " <= XObj -> ID < " -> " <= xtLoopId < " frame -> " <= XRec.frameCount;
+#endif
+	XObj = xtGetRuntimeObject(xtLoopId);
+	if (XObj) {
+		sys_runtimeObjectQuant(XObj->ID);
+	}
+	xtLoopResumeAt = 0;
+	xtLoopObjectStarted = false;
+	return XObj != nullptr;
+}
+
+void em_normal_loop()
+{
+	if(!normal_loop()){
+#ifdef EMSCRIPTEN
+		emscripten_cancel_main_loop();
+#endif
+	}
 }
 
 #ifdef ANDROID
@@ -118,7 +211,6 @@ extern int vangers_main(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-	int id, prevID, clockDelta, clockCnt, clockNow, clockCntGlobal, clockNowGlobal;
 	__internal_argc = argc;
 	__internal_argv = argv;
 
@@ -190,11 +282,11 @@ int main(int argc, char *argv[])
 	XMsgBuf = new XMessageBuffer;
 
 	initclock();
-	prevID = 0;
+	xtLoopPrevID = 0;
 	#ifdef _WIN32
 		set_signal_handler();
 	#endif
-	id = xtInitApplication();
+	xtLoopId = xtInitApplication();
 
 	if (!sys_readyQuant()) {
 		xtDoneApplication();
@@ -202,7 +294,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	XObj = xtGetRuntimeObject(id);
+	XObj = xtGetRuntimeObject(xtLoopId);
 	sys_runtimeObjectQuant(XObj->ID);
 #ifdef _RTO_LOG_
 	if(XRec.flags & XRC_PLAY_MODE)
@@ -211,54 +303,12 @@ int main(int argc, char *argv[])
 		xtRTO_Log.open("xt_rto_w.log",XS_OUT);
 #endif
 
-	while(XObj){
-		XObj -> Init(prevID);
-		prevID = id;
-		id = 0;
-
-		clockCnt = clocki();
-		clockCntGlobal = clockCnt;
-		while(!id) {
-			if(XObj->Timer) {
-				id = XObj -> Quant();
-				clockNow = clockNowGlobal = clocki();
-				clockDelta = clockNow - clockCnt;
-				XTCORE_FRAME_DELTA = (clockNowGlobal - clockCntGlobal) / 1000.0;
-				XTCORE_FRAME_NORMAL = XTCORE_FRAME_DELTA / 0.050; //20FPS
-				clockCntGlobal = clockNowGlobal;
-				// std::cout<<"XTCORE_FRAME_DELTA:"<<XTCORE_FRAME_DELTA
-				// 		 <<" XTCORE_FRAME_NORMAL:"<<XTCORE_FRAME_NORMAL
-				// 		 <<" clockDelta:"<<clockDelta<<std::endl;
-
-				if (clockDelta < XObj->Timer) {
-					// std::cout<<"clockDelta:"<<clockDelta<<" Timer:"<<XObj->Timer<<std::endl;
-					SDL_Delay(XObj->Timer - clockDelta);
-				} else {
-					std::cout<<"Strange deltas clockDelta:"<<clockDelta<<" Timer:"<<XObj->Timer<<std::endl;
-					if (clockDelta > 300) {
-						// something wrong and for preventing abnormal physics set something neutral
-						XTCORE_FRAME_NORMAL = 1.0;
-					}
-				}
-				clockCnt = clocki();
-			} else {
-				id = XObj -> Quant();
-			}
-
-			if(!xtSysQuantDisabled)
-				XRec.Quant(); // впускает внешние события, записывает их или воспроизводит
-			XGR_Flip();
-		}
-
-		XObj -> Finit();
-#ifdef _RTO_LOG_
-		xtRTO_Log < "\r\nChange RTO: " <= XObj -> ID < " -> " <= id < " frame -> " <= XRec.frameCount;
-#endif
-		XObj = xtGetRuntimeObject(id);
-		if (XObj) {
-			sys_runtimeObjectQuant(XObj->ID);
-		}
+#ifdef EMSCRIPTEN
+	emscripten_set_main_loop(em_normal_loop, 0, true);
+#else
+	while(normal_loop()){
 	}
+#endif
 	xtDoneApplication();
 	xtSysFinit();
 
