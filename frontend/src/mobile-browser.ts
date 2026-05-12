@@ -1,5 +1,5 @@
 import { toHex } from "./encoder";
-import { isAddonEnabled } from "./inventory/storage";
+import { isAddonEnabled, readCustomProp, writeCustomProp } from "./inventory/storage";
 import type { NativeBridge } from "./ui/native-bridge";
 
 type UiAddonBridge = {
@@ -99,6 +99,14 @@ class BrowserMobileBridge implements NativeBridge {
     setStorageItem(key: string, value: string): void {
         window.localStorage.setItem(key, value);
         this.storageUpdates.push(key, value);
+    }
+
+    getCustomProp(name: string): string {
+        return readCustomProp(name);
+    }
+
+    setCustomProp(name: string, value: string): void {
+        writeCustomProp(name, value);
     }
 
     rendererWidth(): number {

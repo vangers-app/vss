@@ -22,6 +22,13 @@ export class NoopNativeBrige implements NativeBridge {
         // ignore
     }
 
+    getCustomProp(name: string): string {
+        return "";
+    }
+
+    setCustomProp(name: string, value: string): void {
+    }
+
     rendererWidth(): number {
         return window.innerWidth;
     }

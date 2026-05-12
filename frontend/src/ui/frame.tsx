@@ -62,18 +62,6 @@ function FrameWithBridge(props: { bridge: Bridge }) {
     }
 
     async function setUiType(newUiType: UIType) {
-        if (newUiType === "inapp") {
-            let token: string | null = null;
-            try {
-                token = await bridge.getToken(true);
-            } catch (e) {
-                console.error("can't get token", e);
-            }
-
-            if (token === null) {
-                return;
-            }
-        }
         if (uiType !== "inapp" && uiType !== "credits" && uiType !== "calendar") {
             prevUiType = uiType;
         }

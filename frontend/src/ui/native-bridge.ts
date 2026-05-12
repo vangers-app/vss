@@ -38,6 +38,8 @@ export interface NativeBridge {
     artifactoryUrl(): string;
 
     setStorageItem(key: string, value: string): void;
+    getCustomProp(name: string): string;
+    setCustomProp(name: string, value: string): void;
 
     rendererWidth(): number;
     rendererHeight(): number;
