@@ -45,3 +45,11 @@ cmake-build-debug/
 
 res_linux
 cmake-build-*
+
+vangers.data
+vangers.mjs
+vangers.wasm
+
+
+res_gen
+emscripten

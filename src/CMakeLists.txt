@@ -142,11 +142,12 @@ else()
 			"-sMAX_WEBGL_VERSION=2"
 			"-sFULL_ES3=1"
 			"-sASYNCIFY=0"
+			"-sINVOKE_RUN=0"
+			"-sEXPORT_ES6=1"
 			"-sNO_EXIT_RUNTIME=1"
 			"-sFORCE_FILESYSTEM=1"
 			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free','FS', 'GL']"
 			"-sEXPORTED_RUNTIME_METHODS=['FS_createPath','FS_createDataFile','FS_cwd','FS_chdir','FS_writeFile','lengthBytesUTF8','stringToUTF8','callMain','run']"
-			"-sDISABLE_EXCEPTION_CATCHING=0"
 			"-sINITIAL_MEMORY=512MB"
 			"-sALLOW_MEMORY_GROWTH=1"
 			"-sABORTING_MALLOC=0"
@@ -154,11 +155,17 @@ else()
 			"-sGL_ENABLE_GET_PROC_ADDRESS=1"
 			"-sGL_EXTENSIONS_IN_PREFIXED_FORMAT=0"
 			"-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=1"
+			"-fwasm-exceptions"
 			# "-sSAFE_HEAP=2"
-			# "-sASSERTIONS=1"
+			"-sASSERTIONS=1"
 			# "-O0"
-			# "--profiling-funcs"
+			"--profiling-funcs"
 		)
-		set_target_properties(vangers PROPERTIES SUFFIX ".html")
+		set_target_properties(vangers PROPERTIES
+			RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/frontend/src"
+			SUFFIX ".mjs")
+		add_custom_command(TARGET vangers POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/frontend/public"
+			COMMAND ${CMAKE_COMMAND} -E rename "$<TARGET_FILE_DIR:vangers>/vangers.data" "${PROJECT_SOURCE_DIR}/frontend/public/vangers.data")
 	ENDIF(EMSCRIPTEN)
 endif(ANDROID)
