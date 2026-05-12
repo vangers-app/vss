@@ -79,7 +79,7 @@ typedef void* rv_context;
 extern "C" {
 #endif
 #ifdef RV_API_3
-	extern int32_t rv_api_3;
+	int32_t rv_api_version();
 #endif
 
 	rv_context rv_init(rv_init_descriptor desc);

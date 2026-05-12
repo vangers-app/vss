@@ -2,3 +2,7 @@
 	path = vange-rs
 	url = https://github.com/kvark/vange-rs
 	branch = master
+[submodule "wgpu"]
+	path = wgpu
+	url = git@github.com:caiiiycuk/wgpu.git
+	branch = fix-emscripten-default-framebuffer

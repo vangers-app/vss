@@ -25,7 +25,7 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 #endif
 
 #ifdef RV_API_3
-	if(rv_api_3 != 2){
+	if(rv_api_version() != 2){
 		throw RendererException("Invalid libvangers_ffi version");
 	}
 #endif

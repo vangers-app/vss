@@ -29,7 +29,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # depends
 IF(EMSCRIPTEN)
-	ADD_DEFINITIONS(-DEMSCRIPTEN)
+	ADD_DEFINITIONS(-DEMSCRIPTEN -DRV_API_3)
 	SET(FFMPEG OFF)
 	SET(SDL2_LIBRARY "-sUSE_SDL=2")
 	SET(SDL2_NET_LIBRARY "-sUSE_SDL_NET=2")
@@ -39,7 +39,7 @@ IF(EMSCRIPTEN)
 	SET(ZLIB_LIBRARIES "-sUSE_ZLIB=1")
 	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/wasm32-unknown-emscripten/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers Emscripten static library" FORCE)
 	ADD_CUSTOM_TARGET(rusty_vangers
-		COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release
+		COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release --config patch.crates-io.naga.path='${PROJECT_SOURCE_DIR}/wgpu/naga' --config patch.crates-io.wgpu-hal.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-hal' --config patch.crates-io.wgpu-naga-bridge.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-naga-bridge' --config patch.crates-io.wgpu-types.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-types'
 		BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
 		WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}
 		COMMENT "Building rusty-vangers with cargo for wasm32-unknown-emscripten"
@@ -65,7 +65,7 @@ ENDIF(EMSCRIPTEN)
 
 ExternalDependency(Clunk
 	GIT_REPOSITORY https://github.com/stalkerg/clunk.git
-	GIT_TAG a84074bca50d63258c34de523d253fd957f1874e
+	GIT_TAG d7d94324c7c2e869dc504ae6bd31dc2a07ccca2f
 	TARGET Clunk::clunk
 	CMAKE_ARGS -DWITH_SSE=OFF ${CLUNK_CMAKE_ARGS}
 )
