@@ -16,6 +16,7 @@ OPTION(DIAGEN_TEST "Dialog generator and test subsystem" OFF)
 OPTION(ACTINT "Actint user interface in road game" ON)
 
 OPTION(FFMPEG "Build with ffmpeg" ON)
+OPTION(ENABLE_ASAN "Native: compile and link with AddressSanitizer (Clang/GCC)" OFF)
 
 SET(CMAKE_CONFIGURATION_TYPES "Release;Debug;MinSizeRel;RelWithDebInfo")
 IF(MINGW)
@@ -36,7 +37,14 @@ IF(EMSCRIPTEN)
 	SET(VORBIS_LIBRARY "-sUSE_VORBIS=1")
 	SET(VORBISFILE_LIBRARY "-sUSE_VORBIS=1")
 	SET(ZLIB_LIBRARIES "-sUSE_ZLIB=1")
-	SET(RUSTYVANGERS_LIBRARY "")
+	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/wasm32-unknown-emscripten/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers Emscripten static library" FORCE)
+	ADD_CUSTOM_TARGET(rusty_vangers
+		COMMAND cargo +1.63 build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release
+		BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
+		WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}
+		COMMENT "Building rusty-vangers with cargo +1.63 for wasm32-unknown-emscripten"
+		VERBATIM
+	)
 	string(REPLACE "/cmake/Modules/Platform/Emscripten.cmake" "/cache/sysroot" EMSCRIPTEN_SYSROOT "${CMAKE_TOOLCHAIN_FILE}")
 	SET(CLUNK_CMAKE_ARGS
 		-DSDL2_INCLUDE_DIR=${EMSCRIPTEN_SYSROOT}/include/SDL2
@@ -56,8 +64,8 @@ ELSE(EMSCRIPTEN)
 ENDIF(EMSCRIPTEN)
 
 ExternalDependency(Clunk
-	GIT_REPOSITORY https://github.com/caiiiycuk/clunk.git
-	GIT_TAG 638e7675b7152715cd3cc45a72954dc6b5f1aff6
+	GIT_REPOSITORY https://github.com/stalkerg/clunk.git
+	GIT_TAG a84074bca50d63258c34de523d253fd957f1874e
 	TARGET Clunk::clunk
 	CMAKE_ARGS -DWITH_SSE=OFF ${CLUNK_CMAKE_ARGS}
 )
@@ -113,6 +121,15 @@ add_compile_options(-fsigned-char)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_compile_options(-Werror=mismatched-new-delete )
 endif()
+
+IF(ENABLE_ASAN AND NOT EMSCRIPTEN)
+	IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+		add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=address)
+	ELSE()
+		message(WARNING "ENABLE_ASAN: only Clang/GNU are wired; skipping for ${CMAKE_CXX_COMPILER_ID}")
+	ENDIF()
+ENDIF()
 
 IF(WIN32)
 	SET(WIN_DBG

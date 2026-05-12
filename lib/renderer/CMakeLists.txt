@@ -23,13 +23,14 @@ SET(renderer_SRCS
 	src/renderer/visualbackend/VisualBackendContext.h
 	src/renderer/visualbackend/dummy/DummyVisualBackend.cpp
 	src/renderer/visualbackend/dummy/DummyVisualBackend.h
-	)
-
-if (NOT EMSCRIPTEN)
-	list(APPEND renderer_SRCS
 	src/renderer/visualbackend/rust/RustVisualBackend.cpp
 	src/renderer/visualbackend/rust/RustVisualBackend.h
 	src/renderer/visualbackend/rust/vange_rs.h
+	)
+
+if (EMSCRIPTEN)
+	list(APPEND renderer_SRCS
+		src/renderer/visualbackend/rust/EmscriptenRustCompat.cpp
 	)
 endif()
 
@@ -37,6 +38,9 @@ if (ANDROID)
 	ADD_LIBRARY(renderer OBJECT ${renderer_SRCS})
 else()
 	ADD_LIBRARY(renderer STATIC ${renderer_SRCS})
+endif()
+if (TARGET rusty_vangers)
+	add_dependencies(renderer rusty_vangers)
 endif()
 
 SET(RENDERER_LIBS

@@ -102,19 +102,11 @@
 XStream fmemory("memstats.dmp", XS_OUT);
 #endif
 
-#ifdef __EMSCRIPTEN__
-#include <renderer/visualbackend/dummy/DummyVisualBackend.h>
-#else
 #include <renderer/visualbackend/rust/RustVisualBackend.h>
-#endif
 #include <renderer/visualbackend/VisualBackendContext.h>
 
 using VisualBackendContext = renderer::visualbackend::VisualBackendContext;
-#ifdef __EMSCRIPTEN__
-using EmscriptenVisualBackend = renderer::visualbackend::dummy::DummyVisualBackend;
-#else
 using RustVisualBackend = renderer::visualbackend::rust::RustVisualBackend;
-#endif
 
 /* ----------------------------- EXTERN SECTION ---------------------------- */
 extern XStream fout;
@@ -486,11 +478,7 @@ int xtInitApplication(void) {
 		VisualBackendContext::backend()->destroy();
 	}
 
-#ifdef __EMSCRIPTEN__
-	VisualBackendContext::create(std::make_unique<EmscriptenVisualBackend>());
-#else
 	VisualBackendContext::create(std::make_unique<RustVisualBackend>(XGR_Obj.RealX, XGR_Obj.RealY));
-#endif
 
 //WORK	sWinVideo::Init();
 //	::ShowCursor(0);

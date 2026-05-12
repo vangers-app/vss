@@ -7,6 +7,10 @@
 #include "../../exception.h"
 #include "vange_rs.h"
 
+#ifdef EMSCRIPTEN
+#include <emscripten/html5.h>
+#endif
+
 using namespace renderer;
 using namespace renderer::visualbackend;
 using namespace renderer::visualbackend::rust;
@@ -16,15 +20,23 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 {
 	std::cout << "RustVisualBackend::RustVisualBackend" << std::endl;
 
+#ifdef EMSCRIPTEN
+	emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(), "WEBGL_debug_renderer_info");
+#endif
+
+#ifdef RV_API_3
 	if(rv_api_3 != 2){
 		throw RendererException("Invalid libvangers_ffi version");
 	}
+#endif
 
 	rv_init_descriptor desc {
 		.width = (uint32_t) width,
 		.height = (uint32_t) height,
+#ifdef RV_API_3
 		//TODO: consider "render-full"
 		.render_config = "res/ffi/render-compat.ron",
+#endif
 		.gl_functor = SDL_GL_GetProcAddress,
 	};
 
@@ -34,6 +46,7 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 				<< "\t.gl_functor="<< (void*)desc.gl_functor << std::endl
 				<< "}" << std::endl;
 	_context = rv_init(desc);
+	std::cout << "rv context: " << (void*)_context << std::endl;
 }
 
 RustVisualBackend::~RustVisualBackend()
@@ -71,7 +84,9 @@ void RustVisualBackend::camera_set_transform(const Transform& transform)
 			.y = transform.position.y,
 			.z = transform.position.z + 64,
 		},
+#ifdef RV_API_3
                 .scale = 1.0,
+#endif
 		.rotation = rv_quaternion {
 			.x = transform.rotation.x,
 			.y = transform.rotation.y,
@@ -102,6 +117,7 @@ void RustVisualBackend::map_create(const MapDescription& map_description)
 		.material_begin_offsets = map_description.material_begin_offsets,
 		.material_end_offsets = map_description.material_end_offsets,
 		.material_count = map_description.material_count,
+		.palette = nullptr,
 	};
 
 	std::cout << "rv_map_init(context=" << _context << ", {" << std::endl
@@ -112,7 +128,7 @@ void RustVisualBackend::map_create(const MapDescription& map_description)
 				<< "\t.material_end_offsets="<< (void*)v_desc.material_end_offsets << std::endl
 				<< "\t.material_count="<<v_desc.material_count << std::endl
 				<< "})" << std::endl;
-	rv_map_init(_context, v_desc);
+	rv_map_init(_context, &v_desc);
 }
 
 void RustVisualBackend::map_destroy()
@@ -198,4 +214,3 @@ void RustVisualBackend::destroy()
 	std::cout << "rv_exit(context=" << _context << ", )" << std::endl;
 	rv_exit(_context);
 }
-

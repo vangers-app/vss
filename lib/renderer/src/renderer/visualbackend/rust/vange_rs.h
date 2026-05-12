@@ -30,7 +30,9 @@ struct rv_quaternion {
 
 struct rv_transform {
 	rv_vector3 position;
-        float scale;
+#ifdef RV_API_3
+    float scale;
+#endif
 	rv_quaternion rotation;
 };
 
@@ -39,7 +41,9 @@ typedef void* (*rv_gl_functor)(const char*) ;
 struct rv_init_descriptor {
 	uint32_t width;
 	uint32_t height;
+#ifdef RV_API_3
 	const char* render_config;
+#endif
 	rv_gl_functor gl_functor;
 };
 
@@ -56,6 +60,7 @@ struct rv_map_description {
 
 	// 8 for world, 16 for escave
 	int32_t material_count;
+	uint8_t* palette;
 };
 
 // TODO: or it could be left, bottom, right, top
@@ -73,7 +78,9 @@ typedef void* rv_context;
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef RV_API_3
 	extern int32_t rv_api_3;
+#endif
 
 	rv_context rv_init(rv_init_descriptor desc);
 
@@ -85,7 +92,7 @@ extern "C" {
 
 	void rv_camera_set_transform(rv_context context, rv_transform transform);
 
-	void rv_map_init(rv_context context, rv_map_description map_description);
+	void rv_map_init(rv_context context, const rv_map_description* map_description);
 
 	void rv_map_exit(rv_context context);
 

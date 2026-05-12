@@ -79,7 +79,9 @@ SET(vangers_SRCS
 	xsocket.cpp
 	zmod_client.cpp
 	${WINDOWS_RES}
-	actint/layout.h)
+	actint/layout.h
+)
+
 
 SET(vss_SRCS
 		vss/sys.cpp
@@ -134,19 +136,28 @@ else()
 	)
 	IF(EMSCRIPTEN)
 		target_link_options(vangers PRIVATE
-			"--preload-file" "${PROJECT_SOURCE_DIR}/res_gen@/"
+			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/res_gen@/"
+			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/vange-rs/res@/res/"
 			"-sMIN_WEBGL_VERSION=2"
 			"-sMAX_WEBGL_VERSION=2"
 			"-sFULL_ES3=1"
-			"-sASYNCIFY=1"
+			"-sASYNCIFY=0"
 			"-sNO_EXIT_RUNTIME=1"
 			"-sFORCE_FILESYSTEM=1"
-			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free','FS', 'GL']"
 			"-sEXPORTED_RUNTIME_METHODS=['FS_createPath','FS_createDataFile','FS_cwd','FS_chdir','FS_writeFile','lengthBytesUTF8','stringToUTF8','callMain','run']"
 			"-sDISABLE_EXCEPTION_CATCHING=0"
-			"-sINITIAL_MEMORY=256MB"
+			"-sINITIAL_MEMORY=512MB"
 			"-sALLOW_MEMORY_GROWTH=1"
-			"--profiling-funcs"
+			"-sABORTING_MALLOC=0"
+        	"-sERROR_ON_UNDEFINED_SYMBOLS=1"
+			# "-sGL_ENABLE_GET_PROC_ADDRESS=1"
+			# "-sGL_EXTENSIONS_IN_PREFIXED_FORMAT=0"
+			# "-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=1"
+			# "-sSAFE_HEAP=2"
+			# "-sASSERTIONS=1"
+			# "-O0"
+			# "--profiling-funcs"
 		)
 		set_target_properties(vangers PROPERTIES SUFFIX ".html")
 	ENDIF(EMSCRIPTEN)
