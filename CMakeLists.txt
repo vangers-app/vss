@@ -39,10 +39,10 @@ IF(EMSCRIPTEN)
 	SET(ZLIB_LIBRARIES "-sUSE_ZLIB=1")
 	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/wasm32-unknown-emscripten/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers Emscripten static library" FORCE)
 	ADD_CUSTOM_TARGET(rusty_vangers
-		COMMAND cargo +1.63 build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release
+		COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release
 		BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
 		WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}
-		COMMENT "Building rusty-vangers with cargo +1.63 for wasm32-unknown-emscripten"
+		COMMENT "Building rusty-vangers with cargo for wasm32-unknown-emscripten"
 		VERBATIM
 	)
 	string(REPLACE "/cmake/Modules/Platform/Emscripten.cmake" "/cache/sysroot" EMSCRIPTEN_SYSROOT "${CMAKE_TOOLCHAIN_FILE}")

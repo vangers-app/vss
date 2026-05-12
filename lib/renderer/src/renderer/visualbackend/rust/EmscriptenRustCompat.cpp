@@ -2,6 +2,7 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdint>
+#include <emscripten/emscripten.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -150,4 +151,9 @@ extern "C" EGLSurface eglCreatePbufferSurface(EGLDisplay, EGLConfig, const EGLin
 extern "C" EGLDisplay eglGetPlatformDisplay(EGLenum, void*, const EGLAttrib*)
 {
 	return EGL_NO_DISPLAY;
+}
+
+extern "C" double now()
+{
+	return emscripten_get_now();
 }
