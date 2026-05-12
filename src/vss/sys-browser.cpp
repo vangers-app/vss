@@ -25,6 +25,8 @@ using namespace vss;
 
 extern actIntDispatcher* aScrDisp;
 extern void aciHandleCameraEvent(int code, int data);
+extern void aciChangeAviIndex(void);
+extern void aciInitShopAvi(void);
 extern iListElement* iShopItem;
 extern int iEvLineID;
 extern void LINE_render(int y);
@@ -72,6 +74,11 @@ extern "C" const char* vss_bridge_getShopItemMechosName() {
     return ((invMatrix*)iShopItem)->mech_name;
   }
   return "";
+}
+
+extern "C" void vss_bridge_toggleShopAvi() {
+  aciChangeAviIndex();
+  aciInitShopAvi();
 }
 
 EM_JS(int, vss_browser_init_scripts, (const char* folder), {

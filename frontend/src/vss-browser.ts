@@ -14,6 +14,7 @@ type VssModule = {
     _vss_bridge_hasShopItem(): number;
     _vss_bridge_renderLine(line: number): void;
     _vss_bridge_sendEvent(code: number, data: number): void;
+    _vss_bridge_toggleShopAvi(): void;
 };
 
 type CommonJsModule = {
@@ -200,6 +201,10 @@ class VssBrowser {
 
     releaseResult(id: number) {
         delete this.results[id];
+    }
+
+    toggleShopAvi() {
+        this.Module._vss_bridge_toggleShopAvi();
     }
 
     private require = (id: string) => {

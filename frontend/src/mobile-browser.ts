@@ -147,19 +147,19 @@ class BrowserMobileBridge implements NativeBridge {
     }
 
     getMenuFrame(): string {
-        return "";
+        return this.getFrame(0);
     }
 
     getPauseFrame(): string {
-        return "";
+        return this.getFrame(1);
     }
 
     getMapFrame(): string {
-        return "";
+        return this.getFrame(2);
     }
 
     getShopFrame(): string {
-        return "";
+        return this.getFrame(3);
     }
 
     proceedInapp(): void {
@@ -175,6 +175,10 @@ class BrowserMobileBridge implements NativeBridge {
     }
 
     toggleShopAvi(): void {
+        const browser = (window as typeof window & {
+            __vssBrowser?: { toggleShopAvi(): void };
+        }).__vssBrowser;
+        browser?.toggleShopAvi();
     }
 
     requestToken(): void {
@@ -259,6 +263,11 @@ class BrowserMobileBridge implements NativeBridge {
     private tapKey(scanCode: number) {
         this.dispatchKey("keydown", scanCode, false);
         window.setTimeout(() => this.dispatchKey("keyup", scanCode, false), 0);
+    }
+
+    private getFrame(index: number) {
+        const frame = this.frames[index];
+        return frame === undefined ? "" : toHex(frame);
     }
 }
 
