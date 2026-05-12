@@ -35,6 +35,8 @@ class Context {
 };
 
 class QuantResult {
+  friend class QuantBuilder;
+
  public:
   explicit QuantResult(std::shared_ptr<Context>& context);
   ~QuantResult();
@@ -47,6 +49,10 @@ class QuantResult {
  private:
   std::shared_ptr<Context> context;
   ScriptContext* ctx;
+#ifdef EMSCRIPTEN
+  int resultId;
+  std::string stringValue;
+#endif
   bool notHandled;
   bool preventDefault;
 };
@@ -63,6 +69,9 @@ class QuantBuilder {
  private:
   std::shared_ptr<Context> context;
   ScriptContext* ctx;
+#ifdef EMSCRIPTEN
+  int quantId;
+#endif
   bool valid;
 };
 

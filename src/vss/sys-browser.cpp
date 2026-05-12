@@ -4,7 +4,117 @@
 
 #include "sys.h"
 
+#include <emscripten.h>
+
+#include <cstdlib>
+
 using namespace vss;
+
+EM_JS(int, vss_browser_init_scripts, (const char* folder), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.initScripts) {
+    return globalThis.__vssBrowser.initScripts(UTF8ToString(folder)) === false
+               ? 0
+               : 1;
+  }
+  return 0;
+});
+
+EM_JS(int, vss_browser_quant_begin, (const char* name), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.beginQuant) {
+    return globalThis.__vssBrowser.beginQuant(UTF8ToString(name)) || 0;
+  }
+  return 0;
+});
+
+EM_JS(void, vss_browser_quant_prop_int,
+      (int id, const char* name, int value), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.setProp) {
+          globalThis.__vssBrowser.setProp(id, UTF8ToString(name), value);
+        }
+      });
+
+EM_JS(void, vss_browser_quant_prop_bool,
+      (int id, const char* name, int value), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.setProp) {
+          globalThis.__vssBrowser.setProp(id, UTF8ToString(name), value != 0);
+        }
+      });
+
+EM_JS(void, vss_browser_quant_prop_string,
+      (int id, const char* name, const char* value), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.setProp) {
+          globalThis.__vssBrowser.setProp(id, UTF8ToString(name),
+                                          UTF8ToString(value));
+        }
+      });
+
+EM_JS(void, vss_browser_quant_prop_buffer,
+      (int id, const char* name, void* value, int size), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.setProp) {
+          globalThis.__vssBrowser.setProp(
+              id, UTF8ToString(name), HEAPU8.subarray(value, value + size));
+        }
+      });
+
+EM_JS(int, vss_browser_quant_send, (int id), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.sendQuant) {
+    return globalThis.__vssBrowser.sendQuant(id) || 0;
+  }
+  return 0;
+});
+
+EM_JS(int, vss_browser_result_handled, (int id), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.isResultHandled) {
+    return globalThis.__vssBrowser.isResultHandled(id) ? 1 : 0;
+  }
+  return 0;
+});
+
+EM_JS(int, vss_browser_result_prevent_default, (int id), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.isPreventDefault) {
+    return globalThis.__vssBrowser.isPreventDefault(id) ? 1 : 0;
+  }
+  return 0;
+});
+
+EM_JS(int, vss_browser_result_get_int,
+      (int id, const char* name, int defaultValue), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.getInt) {
+          return globalThis.__vssBrowser.getInt(id, UTF8ToString(name),
+                                                defaultValue);
+        }
+        return defaultValue;
+      });
+
+EM_JS(int, vss_browser_result_get_bool,
+      (int id, const char* name, int defaultValue), {
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.getBool) {
+          return globalThis.__vssBrowser.getBool(id, UTF8ToString(name),
+                                                 defaultValue != 0)
+                     ? 1
+                     : 0;
+        }
+        return defaultValue;
+      });
+
+EM_JS(char*, vss_browser_result_get_string,
+      (int id, const char* name, const char* defaultValue), {
+        var value = UTF8ToString(defaultValue);
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.getString) {
+          value =
+              globalThis.__vssBrowser.getString(id, UTF8ToString(name), value);
+        }
+        var size = lengthBytesUTF8(value) + 1;
+        var result = _malloc(size);
+        stringToUTF8(value, result, size);
+        return result;
+      });
+
+EM_JS(void, vss_browser_result_release, (int id), {
+  if (globalThis.__vssBrowser && globalThis.__vssBrowser.releaseResult) {
+    globalThis.__vssBrowser.releaseResult(id);
+  }
+});
 
 Context::Context() {}
 
@@ -24,6 +134,9 @@ void Sys::initScripts(const char* folder,
     if (init) {
       init(context);
     }
+    if (!vss_browser_init_scripts(folder)) {
+      context = std::shared_ptr<Context>(nullptr);
+    }
   }
 }
 
@@ -39,43 +152,93 @@ Sys& vss::sys() {
 }
 
 QuantResult::QuantResult(std::shared_ptr<Context>& context)
-    : context(context), ctx(nullptr), notHandled(true), preventDefault(false) {}
+    : context(context),
+      ctx(nullptr),
+      resultId(0),
+      notHandled(true),
+      preventDefault(false) {}
 
-QuantResult::~QuantResult() {}
+QuantResult::~QuantResult() {
+  if (resultId != 0) {
+    vss_browser_result_release(resultId);
+  }
+}
 
 bool QuantResult::isNotHandled() { return notHandled; }
 
 bool QuantResult::isPreventDefault() { return preventDefault; }
 
 int QuantResult::getInt(const char* name, int defaultValue) {
+  if (!notHandled) {
+    return vss_browser_result_get_int(resultId, name, defaultValue);
+  }
   return defaultValue;
 }
 
 bool QuantResult::getBool(const char* name, bool defaultValue) {
+  if (!notHandled) {
+    return vss_browser_result_get_bool(resultId, name, defaultValue) != 0;
+  }
   return defaultValue;
 }
 
 const char* QuantResult::getString(const char* name, const char* defaultValue) {
-  return defaultValue;
+  if (notHandled) {
+    return defaultValue;
+  }
+  auto value = vss_browser_result_get_string(resultId, name, defaultValue);
+  stringValue = value;
+  free(value);
+  return stringValue.c_str();
 }
 
 QuantBuilder::QuantBuilder(std::shared_ptr<Context>& context,
                            const char* eventName)
-    : context(context), ctx(nullptr), valid(false) {}
+    : context(context), ctx(nullptr), quantId(0), valid(context != nullptr) {
+  if (valid) {
+    quantId = vss_browser_quant_begin(eventName);
+    valid = quantId != 0;
+  }
+}
 
 QuantBuilder& QuantBuilder::prop(const char* name, void* value, int size) {
+  if (valid) {
+    vss_browser_quant_prop_buffer(quantId, name, value, size);
+  }
   return *this;
 }
 
-QuantBuilder& QuantBuilder::prop(const char* name, int value) { return *this; }
+QuantBuilder& QuantBuilder::prop(const char* name, int value) {
+  if (valid) {
+    vss_browser_quant_prop_int(quantId, name, value);
+  }
+  return *this;
+}
 
-QuantBuilder& QuantBuilder::prop(const char* name, bool value) { return *this; }
+QuantBuilder& QuantBuilder::prop(const char* name, bool value) {
+  if (valid) {
+    vss_browser_quant_prop_bool(quantId, name, value);
+  }
+  return *this;
+}
 
 QuantBuilder& QuantBuilder::prop(const char* name, const char* value) {
+  if (valid) {
+    vss_browser_quant_prop_string(quantId, name, value);
+  }
   return *this;
 }
 
-QuantResult QuantBuilder::send() { return QuantResult(context); }
+QuantResult QuantBuilder::send() {
+  auto result = QuantResult(context);
+  if (valid) {
+    result.resultId = vss_browser_quant_send(quantId);
+    result.notHandled = !vss_browser_result_handled(result.resultId);
+    result.preventDefault =
+        vss_browser_result_prevent_default(result.resultId) != 0;
+  }
+  return result;
+}
 
 void sys_initScripts(const char* folder) { sys().initScripts(folder); }
 
@@ -120,11 +283,13 @@ void sys_frameQuant(void* frame, int width, int height, int bpp) {
 }
 
 extern "C" const char* sys_fileOpenQuant(const char* file, unsigned flags) {
+  static std::string resultFile;
   auto result = sys()
                     .quant(FILE_OPEN_QUANT)
                     .prop("file", file)
                     .prop("flags", (int)flags)
                     .send();
 
-  return result.getString("file", file);
+  resultFile = result.getString("file", file);
+  return resultFile.c_str();
 }
