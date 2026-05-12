@@ -60,7 +60,6 @@ struct rv_map_description {
 
 	// 8 for world, 16 for escave
 	int32_t material_count;
-	uint8_t* palette;
 };
 
 // TODO: or it could be left, bottom, right, top
@@ -92,7 +91,7 @@ extern "C" {
 
 	void rv_camera_set_transform(rv_context context, rv_transform transform);
 
-	void rv_map_init(rv_context context, const rv_map_description* map_description);
+	void rv_map_init(rv_context context, rv_map_description map_description);
 
 	void rv_map_exit(rv_context context);
 

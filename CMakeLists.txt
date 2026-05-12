@@ -27,9 +27,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+ADD_DEFINITIONS(-DRV_API_3)
+
 # depends
 IF(EMSCRIPTEN)
-	ADD_DEFINITIONS(-DEMSCRIPTEN -DRV_API_3)
+	ADD_DEFINITIONS(-DEMSCRIPTEN)
 	SET(FFMPEG OFF)
 	SET(SDL2_LIBRARY "-sUSE_SDL=2")
 	SET(SDL2_NET_LIBRARY "-sUSE_SDL_NET=2")
@@ -60,7 +62,14 @@ ELSE(EMSCRIPTEN)
 	FIND_PACKAGE(Vorbis REQUIRED)
 	FIND_PACKAGE(VorbisFile REQUIRED)
 	FIND_PACKAGE(ZLIB REQUIRED)
-	FIND_PACKAGE(RustyVangers REQUIRED)
+	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers static library" FORCE)
+	ADD_CUSTOM_TARGET(rusty_vangers
+			COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --release --config patch.crates-io.naga.path='${PROJECT_SOURCE_DIR}/wgpu/naga' --config patch.crates-io.wgpu-hal.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-hal' --config patch.crates-io.wgpu-naga-bridge.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-naga-bridge' --config patch.crates-io.wgpu-types.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-types'
+			BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
+			WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}
+			COMMENT "Building rusty-vangers with cargo"
+			VERBATIM
+	)
 ENDIF(EMSCRIPTEN)
 
 ExternalDependency(Clunk

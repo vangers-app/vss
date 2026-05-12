@@ -117,7 +117,6 @@ void RustVisualBackend::map_create(const MapDescription& map_description)
 		.material_begin_offsets = map_description.material_begin_offsets,
 		.material_end_offsets = map_description.material_end_offsets,
 		.material_count = map_description.material_count,
-		.palette = nullptr,
 	};
 
 	std::cout << "rv_map_init(context=" << _context << ", {" << std::endl
@@ -128,7 +127,7 @@ void RustVisualBackend::map_create(const MapDescription& map_description)
 				<< "\t.material_end_offsets="<< (void*)v_desc.material_end_offsets << std::endl
 				<< "\t.material_count="<<v_desc.material_count << std::endl
 				<< "})" << std::endl;
-	rv_map_init(_context, &v_desc);
+	rv_map_init(_context, v_desc);
 }
 
 void RustVisualBackend::map_destroy()
