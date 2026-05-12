@@ -158,7 +158,7 @@ else()
 			"-sNO_EXIT_RUNTIME=1"
 			"-sFORCE_FILESYSTEM=1"
 			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free','_vss_bridge_sendEvent','_vss_bridge_getLineT','_vss_bridge_getLineTSize','_vss_bridge_renderLine','_vss_bridge_hasShopItem','_vss_bridge_getShopItemInternalId','_vss_bridge_getShopItemType','_vss_bridge_getShopItemMechosName','FS','GL']"
-			"-sEXPORTED_RUNTIME_METHODS=['FS_createPath','FS_createDataFile','FS_cwd','FS_chdir','FS_writeFile','lengthBytesUTF8','stringToUTF8','callMain','run']"
+			"-sEXPORTED_RUNTIME_METHODS=['FS_createPath','FS_createDataFile','FS_cwd','FS_chdir','FS_writeFile','UTF8ToString','lengthBytesUTF8','stringToUTF8','callMain','run']"
 			"-sINITIAL_MEMORY=512MB"
 			"-sALLOW_MEMORY_GROWTH=1"
 			"-sABORTING_MALLOC=0"
