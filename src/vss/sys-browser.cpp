@@ -8,7 +8,71 @@
 
 #include <cstdlib>
 
+#include "xgraph.h"
+
+// clang-format off
+#include "../common.h"
+
+#include "../actint/item_api.h"
+#include "../iscreen/iscreen.h"
+#include "../actint/actint.h"
+#include "../actint/a_consts.h"
+#include "../3d/3d_math.h"
+#include "../terra/vmap.h"
+// clang-format on
+
 using namespace vss;
+
+extern actIntDispatcher* aScrDisp;
+extern void aciHandleCameraEvent(int code, int data);
+extern iListElement* iShopItem;
+extern int iEvLineID;
+extern void LINE_render(int y);
+
+extern "C" void vss_bridge_sendEvent(int code, int data) {
+  if (code == EV_VSS_CAMERA_ROT_EVENT) {
+    aciHandleCameraEvent(BMENU_ITEM_ROT, data);
+  } else if (code == EV_VSS_CAMERA_ZOOM_EVENT) {
+    aciHandleCameraEvent(BMENU_ITEM_ZOOM, data);
+  } else if (code == EV_VSS_CAMERA_PERSP_EVENT) {
+    aciHandleCameraEvent(BMENU_ITEM_PERSP, data);
+  } else if (aScrDisp) {
+    aScrDisp->send_event(code, data);
+  }
+}
+
+extern "C" unsigned char* vss_bridge_getLineT(int line) {
+  return vMap->lineT[line];
+}
+
+extern "C" int vss_bridge_getLineTSize() { return map_size_x * 2; }
+
+extern "C" void vss_bridge_renderLine(int line) { LINE_render(line); }
+
+extern "C" int vss_bridge_hasShopItem() {
+  return iShopItem && (iEvLineID == MECHOS_MODE || iEvLineID == MECHOS_LIST_MODE);
+}
+
+extern "C" int vss_bridge_getShopItemInternalId() {
+  if (vss_bridge_hasShopItem()) {
+    return ((invMatrix*)iShopItem)->internalID;
+  }
+  return 0;
+}
+
+extern "C" int vss_bridge_getShopItemType() {
+  if (vss_bridge_hasShopItem()) {
+    return ((invMatrix*)iShopItem)->type;
+  }
+  return 0;
+}
+
+extern "C" const char* vss_bridge_getShopItemMechosName() {
+  if (vss_bridge_hasShopItem()) {
+    return ((invMatrix*)iShopItem)->mech_name;
+  }
+  return "";
+}
 
 EM_JS(int, vss_browser_init_scripts, (const char* folder), {
   if (globalThis.__vssBrowser && globalThis.__vssBrowser.initScripts) {

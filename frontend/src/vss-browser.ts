@@ -4,6 +4,16 @@ type VssModule = {
         readFile(path: string, options?: { encoding?: "utf8" }): string | Uint8Array;
         stat(path: string): unknown;
     };
+    HEAPU8: Uint8Array;
+    UTF8ToString(ptr: number): string;
+    _vss_bridge_getLineT(line: number): number;
+    _vss_bridge_getLineTSize(): number;
+    _vss_bridge_getShopItemInternalId(): number;
+    _vss_bridge_getShopItemMechosName(): number;
+    _vss_bridge_getShopItemType(): number;
+    _vss_bridge_hasShopItem(): number;
+    _vss_bridge_renderLine(line: number): void;
+    _vss_bridge_sendEvent(code: number, data: number): void;
 };
 
 type CommonJsModule = {
@@ -142,7 +152,9 @@ class VssBrowser {
             scripts: () => this.Module.FS.readdir(this.folder).filter((value) => value.endsWith(".js")),
             initScripts: (folder: string) => this.initScripts(folder),
             getScriptsFolder: () => this.folder,
-            sendEvent: () => {},
+            sendEvent: (code: number, data?: number) => {
+                this.Module._vss_bridge_sendEvent(code, data ?? 0);
+            },
             isKeyPressed: () => false,
             isFileExists: (file: string) => {
                 try {
@@ -152,8 +164,13 @@ class VssBrowser {
                     return false;
                 }
             },
-            getLineT: () => new Uint8Array(),
-            renderLine: () => {},
+            getLineT: (line: number) => {
+                const ptr = this.Module._vss_bridge_getLineT(line);
+                return this.Module.HEAPU8.subarray(ptr, ptr + this.Module._vss_bridge_getLineTSize());
+            },
+            renderLine: (line: number) => {
+                this.Module._vss_bridge_renderLine(line);
+            },
             getRgbaData: (
                 frame: Uint8Array,
                 frameWidth: number,
@@ -178,7 +195,16 @@ class VssBrowser {
                 }
                 return btoa(binary);
             },
-            getShopItem: () => ({}),
+            getShopItem: () => {
+                if (this.Module._vss_bridge_hasShopItem() === 0) {
+                    return {};
+                }
+                return {
+                    internalId: this.Module._vss_bridge_getShopItemInternalId(),
+                    mechosName: this.Module.UTF8ToString(this.Module._vss_bridge_getShopItemMechosName()),
+                    type: this.Module._vss_bridge_getShopItemType(),
+                };
+            },
             readLocalStorage: () => {
                 const key = this.localStorageKey();
                 let value = window.localStorage.getItem(key);
