@@ -3,6 +3,7 @@ import Vangers from "./vangers.mjs";
 import { useEffect, useRef } from 'preact/hooks';
 import { installVssBrowser } from "./vss-browser";
 import { Frame } from "./ui/frame";
+import "./mobile-browser";
 import "./index.css";
 
 
