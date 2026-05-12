@@ -1,6 +1,7 @@
 import { render } from 'preact'
 import Vangers from "./vangers.mjs";
 import { useEffect, useRef } from 'preact/hooks';
+import { installVssBrowser } from "./vss-browser";
 
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
                 canvas: canvas.current,
                 onRuntimeInitialized: () => {
                     console.log("Runtime initialized");
+                    installVssBrowser(Module);
                     Module.callMain(["-vss", "/addon"]);
                 }
             };
