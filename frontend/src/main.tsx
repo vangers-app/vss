@@ -2,6 +2,8 @@ import { render } from 'preact'
 import Vangers from "./vangers.mjs";
 import { useEffect, useRef } from 'preact/hooks';
 import { installVssBrowser } from "./vss-browser";
+import { Frame } from "./ui/frame";
+import "./index.css";
 
 
 function App() {
@@ -19,8 +21,9 @@ function App() {
             Vangers(Module);
         }
     }, [canvas]);
-    return <div>
+    return <div class="game-root">
         <canvas id="canvas" ref={canvas} width={800} height={600}></canvas>
+        <Frame />
     </div>
 }
 

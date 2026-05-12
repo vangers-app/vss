@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: vfont;
+    src: url(assets/vfont.ttf);
+}
+
+@layer base {
+  html {
+    font-family: vfont, system-ui, sans-serif;
+  }
+}
+
+html,
+body,
+#app,
+.game-root,
+.frame {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+.game-root {
+    position: relative;
+}
+
+#canvas,
+.frame {
+    position: absolute;
+    inset: 0;
+}
+
+#canvas {
+    width: 100%;
+    height: 100%;
+}
+
+* {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    -ms-touch-action: none;
+    -ms-content-zooming: none;
+    touch-action: none;
+}
+
+.debug-text, .touch * {
+    -webkit-touch-callout: initial !important;
+    -webkit-user-select: initial !important;
+    -moz-user-select: initial !important;
+    -ms-user-select: initial !important;
+    user-select: initial !important;
+
+    -ms-touch-action: initial !important;
+    -ms-content-zooming: initial !important;
+    touch-action: initial !important;
+}
+
+.credits {
+    background: url(assets/credits.jpg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    @apply bg-green-800;
+}
+
+.credits div {
+    @apply mix-blend-hard-light opacity-90;
+}
+
+.text-shadow {
+    text-shadow: -4px -2px #000;
+}
+
+.bg-beeb {
+    background-image: url(assets/bg-beeb.jpg);
+    background-position: center center;
+    background-size: cover;
+    background-color: #b7c48f;
+}
