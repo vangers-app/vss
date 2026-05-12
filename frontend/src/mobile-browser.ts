@@ -1,4 +1,5 @@
 import { toHex } from "./encoder";
+import { isAddonEnabled } from "./inventory/storage";
 import type { NativeBridge } from "./ui/native-bridge";
 
 type UiAddonBridge = {
@@ -81,7 +82,7 @@ class BrowserMobileBridge implements NativeBridge {
         filterEvent: () => false,
         tick: () => {
         },
-        enabled: (id) => window.localStorage.getItem(`mobile.addon.${id}.enabled`) === "true",
+        enabled: (id) => isAddonEnabled(id),
     };
 
     ready(): void {

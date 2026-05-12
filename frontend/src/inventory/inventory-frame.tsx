@@ -1,20 +1,36 @@
 import { useState } from "preact/hooks";
 import inventoryBgUrl from "../assets/inventory-bg.jpg";
-import { inventoryItems, type InventoryItem } from "./items";
+import type { InventoryItem } from "./items";
+import {
+    readCustomProp,
+    readInventoryItems,
+    writeCustomProp,
+    writeInventoryItems,
+} from "./storage";
 
 export function InventoryFrame(props: { closeActiveUi: () => void }) {
-    const [items, setItems] = useState<InventoryItem[]>(inventoryItems);
-    const [activeId, setActiveId] = useState<string>(inventoryItems[0]?.id ?? "");
+    const [items, setItems] = useState<InventoryItem[]>(readInventoryItems());
+    const [activeId, setActiveId] = useState<string>(items[0]?.id ?? "");
+    const [fullscreenLock, setFullscreenLock] =
+        useState<boolean>(readCustomProp("vss-fullscreen-game.locked") !== "false");
     const active = items.find((item) => item.id === activeId) ?? null;
 
     function toggleActive() {
         if (active === null) {
             return;
         }
-        setItems(items.map((item) => item.id === active.id ? {
+        const nextItems = items.map((item) => item.id === active.id ? {
             ...item,
             enabled: !item.enabled,
-        } : item));
+        } : item);
+        writeInventoryItems(nextItems);
+        setItems(nextItems);
+    }
+
+    function toggleFullscreenLock() {
+        const nextValue = !fullscreenLock;
+        writeCustomProp("vss-fullscreen-game.locked", nextValue ? "true" : "false");
+        setFullscreenLock(nextValue);
     }
 
     return <div class="inventory-frame" style={{ backgroundImage: `url(${inventoryBgUrl})` }}>
@@ -36,6 +52,14 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                     <button class="inventory-toggle" onClick={toggleActive}>
                         {active.enabled ? "Disable" : "Enable"}
                     </button>
+                    {active.id === "vss-fullscreen-game" &&
+                        <label class="inventory-setting">
+                            <input
+                                type="checkbox"
+                                checked={fullscreenLock}
+                                onChange={toggleFullscreenLock} />
+                            <span>Lock camera to road fullscreen mode</span>
+                        </label>}
                 </>}
         </section>
     </div>;
