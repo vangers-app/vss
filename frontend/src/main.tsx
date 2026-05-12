@@ -11,7 +11,7 @@ function App() {
                 canvas: canvas.current,
                 onRuntimeInitialized: () => {
                     console.log("Runtime initialized");
-                    Module.callMain();
+                    Module.callMain(["-vss", "/addon"]);
                 }
             };
             Vangers(Module);

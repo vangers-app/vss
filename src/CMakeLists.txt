@@ -138,6 +138,7 @@ else()
 		target_link_options(vangers PRIVATE
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/res_gen@/"
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/vange-rs/res@/res/"
+			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/../vangers-android/app/src/main/assets/addon@/addon"
 			"-sMIN_WEBGL_VERSION=2"
 			"-sMAX_WEBGL_VERSION=2"
 			"-sFULL_ES3=1"
