@@ -654,8 +654,12 @@ int xtDispatchMessage(SDL_Event* msg)
 				case SDL_WINDOWEVENT_RESIZED:
 					XGR_Obj.RealX = msg->window.data1;
 					XGR_Obj.RealY = msg->window.data2;
-					XGR_Obj.compositor->set_viewport({ 0, 0, XGR_Obj.RealX, XGR_Obj.RealY });
-					renderer::visualbackend::VisualBackendContext::backend()->set_screen_resolution(XGR_Obj.RealX, XGR_Obj.RealY);
+					if (XGR_Obj.compositor != nullptr) {
+						XGR_Obj.compositor->set_viewport({ 0, 0, XGR_Obj.RealX, XGR_Obj.RealY });
+					}
+					if (renderer::visualbackend::VisualBackendContext::has_renderer()) {
+						renderer::visualbackend::VisualBackendContext::backend()->set_screen_resolution(XGR_Obj.RealX, XGR_Obj.RealY);
+					}
 					break;
 			}
 			break;
