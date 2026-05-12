@@ -2,8 +2,11 @@ include_directories(
 	"${PROJECT_SOURCE_DIR}/lib/renderer/src"
 	"${PROJECT_SOURCE_DIR}/lib/xtool"
 	"${PROJECT_SOURCE_DIR}/lib/xgraph"
-	"${PROJECT_SOURCE_DIR}/src/vss/duktape-2.7.0"
 )
+
+IF(NOT EMSCRIPTEN)
+	include_directories("${PROJECT_SOURCE_DIR}/src/vss/duktape-2.7.0")
+ENDIF()
 
 IF(FFMPEG)
 	include_directories("${PROJECT_SOURCE_DIR}/lib/xsound")
@@ -84,14 +87,21 @@ SET(vangers_SRCS
 
 
 SET(vss_SRCS
+		vss/sys-experimental.cpp)
+
+IF(EMSCRIPTEN)
+	LIST(APPEND vss_SRCS
+		vss/sys-browser.cpp)
+ELSE()
+	LIST(APPEND vss_SRCS
 		vss/sys.cpp
 		vss/sys-modules.cpp
 		vss/sys-bridge.cpp
 		vss/sys-quant.cpp
-		vss/sys-experimental.cpp
 		vss/duktape-2.7.0/duktape.c
 		vss/duktape-2.7.0/extras/console/duk_console.c
-		vss/duktape-2.7.0/extras/module-node/duk_module_node.c vss/sys-experimental.cpp)
+		vss/duktape-2.7.0/extras/module-node/duk_module_node.c)
+ENDIF()
 
 if (ANDROID)
 	ADD_LIBRARY(vangers STATIC ${vangers_SRCS} ${vss_SRCS}

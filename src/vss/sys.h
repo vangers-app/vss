@@ -5,19 +5,29 @@
 #ifndef VANGERS_SYS_H
 #define VANGERS_SYS_H
 
-#include <duktape.h>
-
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "quant-names.h"
 
+#ifndef EMSCRIPTEN
+#include <duktape.h>
+#endif
+
 namespace vss {
+
+#ifndef EMSCRIPTEN
+using ScriptContext = duk_context;
+#else
+using ScriptContext = void;
+#endif
 
 class Context {
  public:
+#ifndef EMSCRIPTEN
   duk_context* ctx;
+#endif
   Context();
   ~Context();
   Context& operator=(const Context&) = delete;
@@ -36,7 +46,7 @@ class QuantResult {
 
  private:
   std::shared_ptr<Context> context;
-  duk_context* ctx;
+  ScriptContext* ctx;
   bool notHandled;
   bool preventDefault;
 };
@@ -52,7 +62,7 @@ class QuantBuilder {
 
  private:
   std::shared_ptr<Context> context;
-  duk_context* ctx;
+  ScriptContext* ctx;
   bool valid;
 };
 
