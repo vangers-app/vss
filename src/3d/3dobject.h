@@ -210,6 +210,7 @@ struct Wheel {
 *******************************************************************************/
 struct Object : BaseObject {
 	ModelInstanceHandle model_instance_handle;
+	ModelInstanceHandle weapon_handles[MAX_SLOTS];
 
 	// Part of 3D data
 	int n_models;
@@ -362,6 +363,7 @@ struct Object : BaseObject {
 	}
 	void free();
 	void destroy_model_instance();
+	void destroy_weapon_instances();
 
 	// Part of 3D graphical functions
 	void load(char* name,int scale = 256);

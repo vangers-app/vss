@@ -484,6 +484,7 @@ void ActionUnit::Init(StorageType* s)
 void ActionUnit::Free(void)
 {
 	destroy_model_instance();
+	destroy_weapon_instances();
 };
 void ActionUnit::Open(void){ };
 
@@ -500,6 +501,7 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	Status = _status;
 	nModel = nmodel;
 	destroy_model_instance();
+	destroy_weapon_instances();
 	Object::operator = (ModelD.ActiveModel(nModel));
 	if(renderer::visualbackend::VisualBackendContext::has_renderer()){
 		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[nModel],1);
@@ -680,8 +682,12 @@ void ActionUnit::Quant(void)
 	};
 	vUp = Vector(ymax_real,0,0)*MovMat;
 	vDown = -vUp;
-	if(PrevVisibility != Visibility && model_instance_handle.handle != 0)
+	if(PrevVisibility != Visibility && model_instance_handle.handle != 0){
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+		for(int i = 0;i < MAX_SLOTS;i++)
+			if(weapon_handles[i].handle != 0)
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
+	}
 };
 
 void ActionUnit::DrawQuant(void)
@@ -9881,6 +9887,10 @@ void GunSlot::OpenGun(GunDevice* p)
 	TargetObject = NULL;
 	aiTargetObject = NULL;
 	Owner->lay_to_slot(nSlot,&ModelD.ActiveModel(p->ModelID));
+	if((1 << nSlot) & Owner->slots_existence && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		Owner->weapon_handles[nSlot] = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[p->ModelID],1);
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->Visibility == VISIBLE);
+	}
 	ItemData->ActIntBuffer.slot = nSlot;
 	
 	StuffNetID = ItemData->NetDeviceID;
@@ -9949,6 +9959,10 @@ void GunSlot::NetStuffQuant(void)
 				TargetObject = NULL;
 				aiTargetObject = NULL;
 				Owner->lay_to_slot(nSlot,&ModelD.ActiveModel(p->ModelID));
+				if((1 << nSlot) & Owner->slots_existence && renderer::visualbackend::VisualBackendContext::has_renderer()){
+					Owner->weapon_handles[nSlot] = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[p->ModelID],1);
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->Visibility == VISIBLE);
+				}
 				ItemData->ActIntBuffer.slot = nSlot;
 				FireCount = NetFireCount;
 			};

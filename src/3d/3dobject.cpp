@@ -242,6 +242,8 @@ void Model::loadC3D(XBuffer& buf){ loadC3Dvariable(buf); }
 Object::Object()
 {
 	model_instance_handle = {0};
+	for(int i = 0;i < MAX_SLOTS;i++)
+		weapon_handles[i] = {0};
 	i_model = n_models = 0;
 	models = 0;
 	model = 0;
@@ -343,6 +345,15 @@ void Object::destroy_model_instance()
 	}
 }
 
+void Object::destroy_weapon_instances()
+{
+	for(int i = 0;i < MAX_SLOTS;i++)
+		if(weapon_handles[i].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+			renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(weapon_handles[i]);
+			weapon_handles[i] = {0};
+		}
+}
+
 #ifdef _ROAD_
 void Object::SyncExternalModel(void)
 {
@@ -363,6 +374,32 @@ void Object::SyncExternalModel(void)
 			},
 			.scale = (float)scale_real,
 		});
+		for(int i = 0;i < MAX_SLOTS;i++)
+			if(data_in_slots[i] && weapon_handles[i].handle != 0){
+				double scl = data_in_slots[i]->scale_size/original_scale_size;
+				DBM slot_rot = location_angle_of_slots[i] ? DBM(location_angle_of_slots[i],Y_AXIS) : DBM();
+				DBM A_c2p = slot_rot*scl;
+				Vector off = location_angle_of_slots[i] ?
+					A_c2p*Vector(data_in_slots[i]->model->x_off,data_in_slots[i]->model->y_off,data_in_slots[i]->model->z_off) :
+					Vector(data_in_slots[i]->model->x_off,data_in_slots[i]->model->y_off,data_in_slots[i]->model->z_off)*scl;
+				Vector local = R_slots[i] - off;
+				DBV world = R + DBV(rot*Vector(round(local.x*scale_real),round(local.y*scale_real),round(local.z*scale_real)));
+				Quaternion weapon_rotation(A_l2g*slot_rot*DBM(1,-1,1,DIAGONAL));
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(weapon_handles[i],{
+					.position = {
+						.x = (float)world.x,
+						.y = (float)world.y,
+						.z = (float)world.z,
+					},
+					.rotation = {
+						.x = (float)weapon_rotation.x,
+						.y = (float)weapon_rotation.y,
+						.z = (float)weapon_rotation.z,
+						.w = (float)weapon_rotation.w,
+					},
+					.scale = (float)(scale_real*scl),
+				});
+			}
 	}
 }
 #endif
@@ -516,5 +553,9 @@ void Object::lay_to_slot(int slot,Object* weapon)
 {
 	if(!((1 << slot) & slots_existence))
 		return;
+	if(weapon == NULL && weapon_handles[slot].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(weapon_handles[slot]);
+		weapon_handles[slot] = {0};
+	}
 	data_in_slots[slot] = weapon;
 }
