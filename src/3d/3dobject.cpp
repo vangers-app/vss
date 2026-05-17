@@ -241,6 +241,7 @@ void Model::loadC3D(XBuffer& buf){ loadC3Dvariable(buf); }
 *******************************************************************************/
 Object::Object()
 {
+	external_model_handle = {0};
 	model_instance_handle = {0};
 	for(int i = 0;i < MAX_SLOTS;i++)
 		weapon_handles[i] = {0};
@@ -335,6 +336,20 @@ void Object::free()
 	bound_debris = nullptr;
 	slots_existence = 0;
 	memset(data_in_slots, 0, MAX_SLOTS*sizeof(Object*));
+}
+
+uint8_t Object::external_body_color_id() const
+{
+	for(uint8_t i = COLORS_IDS::BODY_RED;i < COLORS_IDS::MAX_COLORS_IDS;i++)
+		if(body_color_offset == COLORS_VALUE_TABLE[2*i] && body_color_shift == COLORS_VALUE_TABLE[2*i + 1])
+			return i;
+	return COLORS_IDS::BODY;
+}
+
+void Object::create_model_instance()
+{
+	if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_model_handle,external_body_color_id());
 }
 
 void Object::destroy_model_instance()

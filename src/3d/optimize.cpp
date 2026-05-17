@@ -126,6 +126,10 @@ void Object::set_body_color(unsigned int color_id)
 		ErrH.Abort("Bad color id",XERR_USER,color_id);
 	body_color_offset = COLORS_VALUE_TABLE[2*color_id];
 	body_color_shift = COLORS_VALUE_TABLE[2*color_id + 1];
+	if(model_instance_handle.handle != 0){
+		destroy_model_instance();
+		create_model_instance();
+	}
 }	
 /*******************************************************************************
 		SORTED DRAW FUNCTION

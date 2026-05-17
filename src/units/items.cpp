@@ -691,8 +691,8 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 	ActIntBuffer.type = uvsSetItemType(uvsDeviceType,ActIntBuffer.data0,ActIntBuffer.data1);
 	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(ModelID));
-	if(renderer::visualbackend::VisualBackendContext::has_renderer())
-		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[ModelID],1);
+	external_model_handle = ModelD.ModelHandles[ModelID];
+	create_model_instance();
 	Owner = NULL;
 	ItemD.ConnectTypeList(this);
 	GameD.ConnectBaseList(this);

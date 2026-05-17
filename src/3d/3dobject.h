@@ -5,6 +5,7 @@
 #include "3dgraph.h"
 #include <renderer/visualbackend/AbstractVisualBackend.h>
 
+using ModelHandle = renderer::visualbackend::ModelHandle;
 using ModelInstanceHandle = renderer::visualbackend::ModelInstanceHandle;
 
 const char TG_NO_TOUCH = 1;
@@ -209,6 +210,7 @@ struct Wheel {
 		3D object for building Mechouses, Raffas, Static Objects.
 *******************************************************************************/
 struct Object : BaseObject {
+	ModelHandle external_model_handle;
 	ModelInstanceHandle model_instance_handle;
 	ModelInstanceHandle weapon_handles[MAX_SLOTS];
 
@@ -362,6 +364,8 @@ struct Object : BaseObject {
 		// free();
 	}
 	void free();
+	uint8_t external_body_color_id() const;
+	void create_model_instance();
 	void destroy_model_instance();
 	void destroy_weapon_instances();
 

@@ -503,8 +503,8 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	destroy_model_instance();
 	destroy_weapon_instances();
 	Object::operator = (ModelD.ActiveModel(nModel));
-	if(renderer::visualbackend::VisualBackendContext::has_renderer())
-		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[nModel],1);
+	external_model_handle = ModelD.ModelHandles[nModel];
+	create_model_instance();
 	cycleTor(R_curr.x,R_curr.y);
 
 	PrevVisibility = UNVISIBLE;
