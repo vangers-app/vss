@@ -1,6 +1,7 @@
 #include "../global.h"
 
 #include "general.h"
+#include <renderer/visualbackend/VisualBackendContext.h>
 
 #ifdef _SURMAP_
 //@caiiiycuk: should we call dynamics_init or not?
@@ -240,6 +241,7 @@ void Model::loadC3D(XBuffer& buf){ loadC3Dvariable(buf); }
 *******************************************************************************/
 Object::Object()
 {
+	model_instance_handle = {0};
 	i_model = n_models = 0;
 	models = 0;
 	model = 0;
@@ -331,6 +333,14 @@ void Object::free()
 	bound_debris = nullptr;
 	slots_existence = 0;
 	memset(data_in_slots, 0, MAX_SLOTS*sizeof(Object*));
+}
+
+void Object::destroy_model_instance()
+{
+	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(model_instance_handle);
+		model_instance_handle = {0};
+	}
 }
 void Object::loadM3D(char* name)
 {

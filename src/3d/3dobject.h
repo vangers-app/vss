@@ -3,6 +3,9 @@
 
 #include "3d_math.h"
 #include "3dgraph.h"
+#include <renderer/visualbackend/AbstractVisualBackend.h>
+
+using ModelInstanceHandle = renderer::visualbackend::ModelInstanceHandle;
 
 const char TG_NO_TOUCH = 1;
 const char TG_POINT_TOUCH = 2;
@@ -205,6 +208,7 @@ struct Wheel {
 		3D object for building Mechouses, Raffas, Static Objects.
 *******************************************************************************/
 struct Object : BaseObject {
+	ModelInstanceHandle model_instance_handle;
 
 	// Part of 3D data
 	int n_models;
@@ -356,6 +360,7 @@ struct Object : BaseObject {
 		// free();
 	}
 	void free();
+	void destroy_model_instance();
 
 	// Part of 3D graphical functions
 	void load(char* name,int scale = 256);

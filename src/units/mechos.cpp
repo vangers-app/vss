@@ -10,6 +10,7 @@
 #include "../3d/3dgraph.h"
 #include "../3d/3dobject.h"
 #include "../3d/parser.h"
+#include <renderer/visualbackend/VisualBackendContext.h>
 
 #include "../common.h"
 #include "../sqexp.h"
@@ -480,7 +481,10 @@ void ActionUnit::Init(StorageType* s)
 	ViewRadius = 300;
 };
 
-void ActionUnit::Free(void){ };
+void ActionUnit::Free(void)
+{
+	destroy_model_instance();
+};
 void ActionUnit::Open(void){ };
 
 void ActionUnit::Close(void)
@@ -495,7 +499,10 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	Angle = _angle;
 	Status = _status;
 	nModel = nmodel;
+	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(nModel));
+	if(renderer::visualbackend::VisualBackendContext::has_renderer())
+		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[nModel],1);
 	cycleTor(R_curr.x,R_curr.y);
 
 	PrevVisibility = UNVISIBLE;
@@ -1782,6 +1789,7 @@ void TrackUnit::Init(StorageType* s)
 
 void TrackUnit::Free(void)
 {
+	ActionUnit::Free();
 };
 
 void TrackUnit::Open(void)
@@ -2059,6 +2067,7 @@ void ModelDispatcher::Init(Parser& in)
 
 	Data = new Object[MaxModel];
 	NameData = new char*[MaxModel];
+	ModelHandles = new ModelHandle[MaxModel];
 
 	for(i = 0;i < MaxModel;i++){
 		in.search_name("ModelNum");
@@ -2071,6 +2080,10 @@ void ModelDispatcher::Init(Parser& in)
 		size = (int)(in.get_double()*256./max_size);
 		Data[i].ID = ID_VANGER;
 		Data[i].load(n,size);
+		if(renderer::visualbackend::VisualBackendContext::has_renderer())
+			ModelHandles[i] = renderer::visualbackend::VisualBackendContext::backend()->model_create(n,Data[i].model);
+		else
+			ModelHandles[i] = {0};
 
 		in.search_name("NameID");
 		n = in.get_name();
@@ -2104,9 +2117,12 @@ void ModelDispatcher::Free(void)
 {
 	int i;
 	for(i = 0;i < MaxModel;i++){
+		if(ModelHandles[i].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+			renderer::visualbackend::VisualBackendContext::backend()->model_destroy(ModelHandles[i]);
 		Data[i].free();
 		delete[] NameData[i];
 	};
+	delete[] ModelHandles;
 	delete[] NameData;
 	delete[] Data;
 };
@@ -5833,6 +5849,7 @@ void VangerUnit::Init(StorageType* s)
 
 void VangerUnit::Free(void)
 {
+	TrackUnit::Free();
 	uvsUnitType::Free();
 };
 

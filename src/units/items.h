@@ -74,6 +74,7 @@ struct StuffObject : Object
 	
 
 	void Init(StorageType* s);
+	void Free(void);
 	void Quant(void);
 	void DrawQuant(void);
 	void Touch(GeneralObject* p);

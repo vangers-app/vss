@@ -8,6 +8,7 @@
 #include "../3d/3dgraph.h"
 #include "../3d/3dobject.h"
 #include "../3d/parser.h"
+#include <renderer/visualbackend/VisualBackendContext.h>
 
 #include "../common.h"
 #include "../sqexp.h"
@@ -517,6 +518,11 @@ void StuffObject::Init(StorageType* s)
 	CreateMode = STUFF_CREATE_NONE;
 };
 
+void StuffObject::Free(void)
+{
+	destroy_model_instance();
+}
+
 void aciPrepareWorldsMenu(void);
 extern dastPoly3D DollyPoint;
 void StuffObject::Quant(void)
@@ -681,7 +687,10 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 {
 	GetDevice(p);
 	ActIntBuffer.type = uvsSetItemType(uvsDeviceType,ActIntBuffer.data0,ActIntBuffer.data1);
+	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(ModelID));
+	if(renderer::visualbackend::VisualBackendContext::has_renderer())
+		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[ModelID],1);
 	Owner = NULL;
 	ItemD.ConnectTypeList(this);
 	GameD.ConnectBaseList(this);

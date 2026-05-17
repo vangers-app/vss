@@ -7,6 +7,9 @@
 #include "hobj.h"
 #include "track.h"
 #include "items.h"
+#include <renderer/visualbackend/AbstractVisualBackend.h>
+
+using ModelHandle = renderer::visualbackend::ModelHandle;
 //#define TEST_TRACK
 
 /*
@@ -914,6 +917,7 @@ struct ModelDispatcher
 	int MaxModel;
 	Object* Data;
 	char** NameData;
+	ModelHandle* ModelHandles;
 
 	void Init(Parser& in);
 	void Free(void);
