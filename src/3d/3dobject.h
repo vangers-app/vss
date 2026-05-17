@@ -103,6 +103,7 @@ struct BaseObject : GeneralObject {
 
 #ifdef _ROAD_
 	virtual void DrawQuant(void);
+	virtual void SyncExternalModel(void);
 	void GetVisible(void);
 #endif
 };
@@ -375,6 +376,9 @@ struct Object : BaseObject {
 	void saveA3D(char* name);
 
 	void draw();
+#ifdef _ROAD_
+	void SyncExternalModel(void);
+#endif
 	void pixel_draw();
 	void non_sorted_draw();
 

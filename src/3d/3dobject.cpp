@@ -342,6 +342,30 @@ void Object::destroy_model_instance()
 		model_instance_handle = {0};
 	}
 }
+
+#ifdef _ROAD_
+void Object::SyncExternalModel(void)
+{
+	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
+		Quaternion rotation(rot);
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
+			.position = {
+				.x = (float)R.x,
+				.y = (float)R.y,
+				.z = (float)R.z,
+			},
+			.rotation = {
+				.x = (float)rotation.x,
+				.y = (float)rotation.y,
+				.z = (float)rotation.z,
+				.w = (float)rotation.w,
+			},
+			.scale = (float)scale_real,
+		});
+	}
+}
+#endif
 void Object::loadM3D(char* name)
 {
 	int i;

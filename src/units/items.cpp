@@ -533,6 +533,8 @@ void StuffObject::Quant(void)
 	if(NetworkON && (Status & SOBJ_WAIT_CONFIRMATION)) NetOwnerQuant();
 	lv = Visibility;
 	GetVisible();	
+	if(lv != Visibility && model_instance_handle.handle != 0)
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 
 	if(Status & SOBJ_WAIT_CONFIRMATION) return;
 
@@ -699,6 +701,8 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 	cycleTor(R_curr.x,R_curr.y);
 	set_active(0);	
 	GetVisible();
+	if(model_instance_handle.handle != 0)
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 	switch_analysis(0);
 	CreateMode = cMode;
 	CycleTime = 0;

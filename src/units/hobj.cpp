@@ -992,6 +992,7 @@ void GeneralObject::Send(void)
 };
 
 void BaseObject::DrawQuant(void){ };
+void BaseObject::SyncExternalModel(void){ };
 void Object::DestroyCollision(int l,Object* p){ };
 
 GeneralObject* StorageType::Active(void)
@@ -1693,6 +1694,16 @@ int BigGetAlt(Vector v, uchar& alt, uchar terrain)
 		alt = 0;
 	}
 	return 0;
+}
+
+void GameObjectDispatcher::SyncExternalModels(void)
+{
+	BaseObject* p;
+	p = ViewTail;
+	while(p){
+		p->SyncExternalModel();
+		p = p->NextViewList;
+	};
 }
 
 int TouchSphere(Vector& r0,Vector& r1,Vector& c,int rad,int& r)

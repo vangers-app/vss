@@ -501,8 +501,10 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	nModel = nmodel;
 	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(nModel));
-	if(renderer::visualbackend::VisualBackendContext::has_renderer())
+	if(renderer::visualbackend::VisualBackendContext::has_renderer()){
 		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[nModel],1);
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,false);
+	}
 	cycleTor(R_curr.x,R_curr.y);
 
 	PrevVisibility = UNVISIBLE;
@@ -678,6 +680,8 @@ void ActionUnit::Quant(void)
 	};
 	vUp = Vector(ymax_real,0,0)*MovMat;
 	vDown = -vUp;
+	if(PrevVisibility != Visibility && model_instance_handle.handle != 0)
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 };
 
 void ActionUnit::DrawQuant(void)

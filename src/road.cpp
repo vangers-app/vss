@@ -1999,6 +1999,8 @@ void iGameMap::draw(int self)
 		// TODO: return to this after implementing mechoses in VisualBackend
 		if(vMap->__use_external_renderer){
 			auto& renderer = VisualBackendContext::backend();
+			if(curGMap)
+				GameD.SyncExternalModels();
 
 			float turn = GTOR(TurnAngle);
 			float slope = GTOR(SlopeAngle);

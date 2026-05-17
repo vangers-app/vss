@@ -103,6 +103,7 @@ struct GameObjectDispatcher
 	void DisconnectBaseList(BaseObject* p);
 	void Quant(void);
 	void DrawQuant(void);
+	void SyncExternalModels(void);
 	void Sort(void);
 	void ConnectViewList(BaseObject* p);
 	void ConnectNextView(BaseObject* p,BaseObject* link);
