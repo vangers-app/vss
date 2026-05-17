@@ -37,22 +37,35 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
     }
 
     return <div class="inventory-frame" style={{ backgroundImage: `url(${inventoryBgUrl})` }}>
-        <button class="inventory-close" onClick={props.closeActiveUi} aria-label="Close inventory">x</button>
+        <button class="inventory-close" onClick={props.closeActiveUi} aria-label="Close inventory">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
         <aside class="inventory-list">
             {items.map((item) =>
                 <button
-                    class={"inventory-item" + (item.id === activeId ? " active" : "")}
+                    class={"inventory-card" + (item.id === activeId ? " active" : "")}
                     onClick={() => setActiveId(item.id)}>
-                    <span class={"inventory-dot" + (item.enabled ? " enabled" : "")}></span>
-                    <span>{item.name}</span>
+                    <span class="inventory-preview" style={{ backgroundImage: `url(${item.imageUrl})` }}>
+                        <span class={"inventory-badge" + (item.enabled ? " enabled" : "")}>
+                            <span class="inventory-dot"></span>
+                            <span>{item.name}</span>
+                        </span>
+                    </span>
                 </button>)}
         </aside>
         <section class="inventory-details">
             {active !== null &&
                 <>
-                    <h2>{active.name}</h2>
+                    <h2>
+                        <span class={"inventory-dot" + (active.enabled ? " enabled" : "")}></span>
+                        <span>{active.name}</span>
+                    </h2>
                     <p>{active.description}</p>
-                    <button class="inventory-toggle" onClick={toggleActive}>
+                    <button class={"inventory-toggle" + (active.enabled ? " enabled" : "")} onClick={toggleActive}>
                         {active.enabled ? "Disable" : "Enable"}
                     </button>
                     {active.id === "vss-fullscreen-game" &&
