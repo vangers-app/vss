@@ -3,14 +3,30 @@ export type InventoryItem = {
     name: string;
     description: string;
     enabled: boolean;
+    group?: "file-mod";
 };
 
 export const inventoryItems: InventoryItem[] = [
     {
-        id: "vss-files-mod",
-        name: "Files mod",
-        description: "Local file-based addon workflow.",
-        enabled: true,
+        id: "vfv",
+        name: "Voxels in Vangers",
+        description: "Replaces game models with voxel-styled versions.",
+        enabled: false,
+        group: "file-mod",
+    },
+    {
+        id: "vnm",
+        name: "New Models",
+        description: "Replaces game models with more detailed recreated versions.",
+        enabled: false,
+        group: "file-mod",
+    },
+    {
+        id: "tankers",
+        name: "Tankers",
+        description: "Replaces mechos models with tanks.",
+        enabled: false,
+        group: "file-mod",
     },
     {
         id: "vss-music",

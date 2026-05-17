@@ -22,6 +22,9 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
         const nextItems = items.map((item) => item.id === active.id ? {
             ...item,
             enabled: !item.enabled,
+        } : active.group !== undefined && item.group === active.group ? {
+            ...item,
+            enabled: false,
         } : item);
         writeInventoryItems(nextItems);
         setItems(nextItems);

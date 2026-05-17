@@ -145,10 +145,12 @@ else()
 		xsound
 	)
 	IF(EMSCRIPTEN)
+		file(GLOB addon_files CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/addon/*")
+		set_property(TARGET vangers APPEND PROPERTY LINK_DEPENDS ${addon_files})
 		target_link_options(vangers PRIVATE
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/res_gen@/"
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/vange-rs/res@/res/"
-			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/../vangers-android/app/src/main/assets/addon@/addon"
+			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/addon@/addon"
 			"-sMIN_WEBGL_VERSION=2"
 			"-sMAX_WEBGL_VERSION=2"
 			"-sFULL_ES3=1"

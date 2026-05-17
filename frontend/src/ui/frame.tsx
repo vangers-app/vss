@@ -20,8 +20,6 @@ import { ControlSelector } from "./controls/control-selector";
 import { MapControlsKind, renderMapFrame } from "./map-frame";
 import { CalendarFrame } from "./calendar-frame";
 
-const isNative = typeof (window as any).bridge === "object";
-
 export function Frame() {
     const [bridge, setBridge] = useState<Bridge | null>(null);
 
@@ -51,7 +49,8 @@ function FrameWithBridge(props: { bridge: Bridge }) {
     const [mirrored, _setMirrored] = useState<boolean>(isMirroredEnabled());
     const [cameraFollow, _setCameraFollow] = useState<boolean>(isCameraFollowEnabled());
     const [roadZoom, _setRoadZoom] = useState<number>(getRoadZoom());
-    const [uiType, _setUiType] = useState<UIType>(isNative ? "main-menu" : "way83+");
+    const [uiType, _setUiType] =
+        useState<UIType>(bridge.native instanceof NoopNativeBrige ? "way83+" : "main-menu");
     const [network, setNetwork] = useState<boolean>(false);
     const [controlsKind, _setControlsKind] =
         useState<MapControlsKind | null>(getControlsKind());

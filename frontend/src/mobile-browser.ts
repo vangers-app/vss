@@ -191,7 +191,9 @@ class BrowserMobileBridge implements NativeBridge {
     }
 
     requestToken(): void {
-        window.dispatchEvent(new CustomEvent("mobile-token-unavailable"));
+        (window as typeof window & {
+            onTokenResolve?: (token: string) => void;
+        }).onTokenResolve?.("browser");
     }
 
     haveRendererScale(): boolean {
