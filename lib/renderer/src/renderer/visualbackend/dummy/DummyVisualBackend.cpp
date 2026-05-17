@@ -50,6 +50,36 @@ void DummyVisualBackend::set_screen_resolution(int32_t width, int32_t height)
 
 }
 
+ModelHandle DummyVisualBackend::model_create(const char* name, void* model)
+{
+	return {0};
+}
+
+void DummyVisualBackend::model_destroy(ModelHandle model_handle)
+{
+
+}
+
+ModelInstanceHandle DummyVisualBackend::model_instance_create(ModelHandle model_handle, uint8_t color_id)
+{
+	return {0};
+}
+
+void DummyVisualBackend::model_instance_destroy(ModelInstanceHandle model_instance_handle)
+{
+
+}
+
+void DummyVisualBackend::model_instance_set_transform(ModelInstanceHandle model_instance_handle, const Transform& transform)
+{
+
+}
+
+void DummyVisualBackend::model_instance_set_visible(ModelInstanceHandle model_instance_handle, bool visible)
+{
+
+}
+
 void DummyVisualBackend::destroy()
 {
 

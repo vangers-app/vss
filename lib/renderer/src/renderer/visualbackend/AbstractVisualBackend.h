@@ -43,6 +43,15 @@ namespace renderer::visualbackend {
 	struct Transform {
 		Vector3 position;
 		Quaternion rotation;
+		float scale;
+	};
+
+	struct ModelHandle {
+		uint64_t handle;
+	};
+
+	struct ModelInstanceHandle {
+		uint64_t handle;
 	};
 
 	class AbstractVisualBackend {
@@ -66,6 +75,14 @@ namespace renderer::visualbackend {
 		
 		// Call this on screen resolution change
 		virtual void set_screen_resolution(int32_t width, int32_t height) = 0;
+
+		// TODO: replace void* with Model*
+		virtual ModelHandle model_create(const char* name, void* model) = 0;
+		virtual void model_destroy(ModelHandle model_handle) = 0;
+		virtual ModelInstanceHandle model_instance_create(ModelHandle model_handle, uint8_t color_id) = 0;
+		virtual void model_instance_destroy(ModelInstanceHandle model_instance_handle) = 0;
+		virtual void model_instance_set_transform(ModelInstanceHandle model_instance_handle, const Transform& transform) = 0;
+		virtual void model_instance_set_visible(ModelInstanceHandle model_instance_handle, bool visible) = 0;
 
 		// Renders the scene into the viewport with size viewport_width*viewport_height and with camera position *camera_pos_XXX*
 		// TODO: need to discuss and refactor this function signature
