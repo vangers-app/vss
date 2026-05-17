@@ -378,9 +378,9 @@ void Object::SyncExternalModel(void)
 		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
 			.position = {
-				.x = (float)R.x,
-				.y = (float)R.y,
-				.z = (float)R.z,
+				.x = (float)R_curr.x,
+				.y = (float)R_curr.y,
+				.z = (float)R_curr.z,
 			},
 			.rotation = {
 				.x = (float)rotation.x,
@@ -400,7 +400,7 @@ void Object::SyncExternalModel(void)
 					A_c2p*Vector(data_in_slots[i]->model->x_off,data_in_slots[i]->model->y_off,data_in_slots[i]->model->z_off) :
 					Vector(data_in_slots[i]->model->x_off,data_in_slots[i]->model->y_off,data_in_slots[i]->model->z_off)*scl;
 				Vector local = R_slots[i] - off;
-				DBV world = R + DBV(rot*Vector(round(local.x*scale_real),round(local.y*scale_real),round(local.z*scale_real)));
+				DBV world = R_curr + DBV(rot*Vector(round(local.x*scale_real),round(local.y*scale_real),round(local.z*scale_real)));
 				Quaternion weapon_rotation = Quaternion::multiply(Quaternion(A_l2g*slot_rot*DBM(1,-1,1,DIAGONAL)),Quaternion(0,0,0,1));
 				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(weapon_handles[i],{
 					.position = {
