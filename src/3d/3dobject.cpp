@@ -358,6 +358,7 @@ void Object::destroy_weapon_instances()
 void Object::SyncExternalModel(void)
 {
 	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
 		Quaternion rotation(rot);
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
@@ -376,6 +377,7 @@ void Object::SyncExternalModel(void)
 		});
 		for(int i = 0;i < MAX_SLOTS;i++)
 			if(data_in_slots[i] && weapon_handles[i].handle != 0){
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
 				double scl = data_in_slots[i]->scale_size/original_scale_size;
 				DBM slot_rot = location_angle_of_slots[i] ? DBM(location_angle_of_slots[i],Y_AXIS) : DBM();
 				DBM A_c2p = slot_rot*scl;

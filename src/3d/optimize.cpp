@@ -220,13 +220,11 @@ void Object::draw()
 		}
 
 	// Put Image
-	if(!(vMap->__use_external_renderer && model_instance_handle.handle != 0)){
-		if(!DepthShow)
-			DrawLinear(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode);
-		else{
-			int y_offset =0;// (2*zmax*scale >> 9)*Sin(-SlopeAngle)/Cos(SlopeAngle);
-			Draw3DPlane(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode,y_offset);
-			}
+	if(!DepthShow)
+		DrawLinear(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode);
+	else{
+		int y_offset =0;// (2*zmax*scale >> 9)*Sin(-SlopeAngle)/Cos(SlopeAngle);
+		Draw3DPlane(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode,y_offset);
 		}
 	
 	dynamic_state &= ~(TOUCH_OF_WATER | TOUCH_OF_AIR);
