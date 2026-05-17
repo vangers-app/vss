@@ -375,7 +375,7 @@ void Object::SyncExternalModel(void)
 	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
-		Quaternion rotation(rot);
+		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
 			.position = {
 				.x = (float)R.x,
@@ -401,7 +401,7 @@ void Object::SyncExternalModel(void)
 					Vector(data_in_slots[i]->model->x_off,data_in_slots[i]->model->y_off,data_in_slots[i]->model->z_off)*scl;
 				Vector local = R_slots[i] - off;
 				DBV world = R + DBV(rot*Vector(round(local.x*scale_real),round(local.y*scale_real),round(local.z*scale_real)));
-				Quaternion weapon_rotation(A_l2g*slot_rot*DBM(1,-1,1,DIAGONAL));
+				Quaternion weapon_rotation = Quaternion::multiply(Quaternion(A_l2g*slot_rot*DBM(1,-1,1,DIAGONAL)),Quaternion(0,0,0,1));
 				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(weapon_handles[i],{
 					.position = {
 						.x = (float)world.x,
