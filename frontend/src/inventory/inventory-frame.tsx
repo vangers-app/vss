@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import inventoryBgUrl from "../assets/inventory-bg.jpg";
 import type { InventoryItem } from "./items";
+import { t } from "./i18n";
 import {
     readCustomProp,
     readInventoryItems,
@@ -58,7 +59,7 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                             "absolute opacity-90 flex flex-row mt-4 px-4 pt-1 text-lg font-bold items-center rounded-r-sm"}>
                             <span class={(item.enabled ? "bg-green-500 " : "bg-red-500 ") +
                                 "rounded-full w-2 h-2 mr-2 mb-1"}></span>
-                            <span class="overflow-ellipsis whitespace-nowrap">{item.name}</span>
+                            <span class="overflow-ellipsis whitespace-nowrap">{t(item.nameKey)}</span>
                         </span>
                     </span>
                 </button>)}
@@ -66,39 +67,39 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
         <section class="inventory-details flex flex-col flex-grow ml-4 mr-8 overflow-auto">
             <div class="self-end flex flex-row my-4 mr-16">
                 <div class="cursor-pointer underline text-yellow-800 text-shadow-sm" onClick={() => location.reload()}>
-                    Refresh
+                    {t("refresh")}
                 </div>
             </div>
             {active === null &&
                 <div class="flex flex-col">
-                    <p class="text-2xl">Tap on artifact to see details</p>
+                    <p class="text-2xl">{t("tap_item")}</p>
                 </div>}
             {active !== null &&
                 <>
                     <div class="flex flex-row items-center">
                         <p class={(active.enabled ? "bg-green-500 " : "bg-red-500 ") +
                             "rounded-full w-2 h-2 mr-2 mb-1"}></p>
-                        <p class="text-2xl font-bold">{active.name}</p>
+                        <p class="text-2xl font-bold">{t(active.nameKey)}</p>
                     </div>
                     {active.enabled !== true &&
                         <div onClick={toggleActive}
                             class="cursor-pointer mt-2 ml-4 text-5xl text-green-800 underline text-shadow">
-                            Enable
+                            {t("enable")}
                         </div>}
                     {active.enabled === true &&
                         <div onClick={toggleActive}
                             class="cursor-pointer mt-2 ml-4 text-5xl text-red-800 underline text-shadow">
-                            Disable
+                            {t("disable")}
                         </div>}
-                    <p class="mt-4">{active.description}</p>
-                    <p class="font-bold text-lg text-shadow-sm text-yellow-800">You have this item</p>
+                    <p class="mt-4">{t(active.descriptionKey)}</p>
+                    <p class="font-bold text-lg text-shadow-sm text-yellow-800">{t("owned")}</p>
                     {active.id === "vss-fullscreen-game" &&
                         <label class="inventory-setting ml-4 text-2xl mt-4 flex flex-row text-shadow-sm text-white cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={fullscreenLock}
                                 onChange={toggleFullscreenLock} />
-                            <span>Lock camera to road fullscreen mode</span>
+                            <span>{t("fullscreen_lock")}</span>
                         </label>}
                 </>}
         </section>

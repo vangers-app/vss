@@ -6,8 +6,8 @@ import vnmUrl from "../assets/inventory/vnm.jpg";
 
 export type InventoryItem = {
     id: string;
-    name: string;
-    description: string;
+    nameKey: string;
+    descriptionKey: string;
     imageUrl: string;
     enabled: boolean;
     group?: "file-mod";
@@ -16,39 +16,39 @@ export type InventoryItem = {
 export const inventoryItems: InventoryItem[] = [
     {
         id: "vfv",
-        name: "Voxels in Vangers",
-        description: "Replaces game models with voxel-styled versions.",
+        nameKey: "vfv_name",
+        descriptionKey: "vfv_description",
         imageUrl: vfvUrl,
         enabled: false,
         group: "file-mod",
     },
     {
         id: "vnm",
-        name: "New Models",
-        description: "Replaces game models with more detailed recreated versions.",
+        nameKey: "vnm_name",
+        descriptionKey: "vnm_description",
         imageUrl: vnmUrl,
         enabled: false,
         group: "file-mod",
     },
     {
         id: "tankers",
-        name: "Tankers",
-        description: "Replaces mechos models with tanks.",
+        nameKey: "tankers_name",
+        descriptionKey: "tankers_description",
         imageUrl: tankersUrl,
         enabled: false,
         group: "file-mod",
     },
     {
         id: "vss-music",
-        name: "Music addon",
-        description: "Additional soundtrack and audio behavior.",
+        nameKey: "vss-music_name",
+        descriptionKey: "vss-music_description",
         imageUrl: musicUrl,
         enabled: false,
     },
     {
         id: "vss-fullscreen-game",
-        name: "Fullscreen game",
-        description: "Road fullscreen UI behavior.",
+        nameKey: "vss-fullscreen-game_name",
+        descriptionKey: "vss-fullscreen-game_description",
         imageUrl: fullscreenUrl,
         enabled: true,
     },

@@ -47,7 +47,7 @@ export function writeInventoryItems(items: InventoryItem[]) {
     const inventoryIds = new Set(inventoryItems.map((item) => item.id));
     storage.addons = storage.addons.filter((addon) => !inventoryIds.has(addon.id)).concat(items.map((item) => ({
         id: item.id,
-        name: item.name,
+        name: item.nameKey,
         enabled: item.enabled,
     })));
     writeStorage(storage);
