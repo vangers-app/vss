@@ -3,6 +3,8 @@
 #include "general.h"
 #include <renderer/visualbackend/VisualBackendContext.h>
 
+int set_3D_adjust(int mode,int xx,int yy,int zz,int D);
+
 #ifdef _SURMAP_
 //@caiiiycuk: should we call dynamics_init or not?
 #define dynamics_init(a)
@@ -376,11 +378,12 @@ void Object::SyncExternalModel(void)
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
 		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
+		float external_z = set_3D_adjust(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,radius*2/3)*0.5f + zmax_real;
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
 			.position = {
 				.x = (float)R_curr.x,
 				.y = (float)R_curr.y,
-				.z = (float)R_curr.z,
+				.z = external_z,
 			},
 			.rotation = {
 				.x = (float)rotation.x,
@@ -406,7 +409,7 @@ void Object::SyncExternalModel(void)
 					.position = {
 						.x = (float)world.x,
 						.y = (float)world.y,
-						.z = (float)world.z,
+						.z = (float)(world.z - R_curr.z) + external_z,
 					},
 					.rotation = {
 						.x = (float)weapon_rotation.x,
