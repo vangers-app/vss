@@ -2012,7 +2012,7 @@ void iGameMap::draw(int self)
 			);
 
 			DBV pos0(ViewX, ViewY, 0);
-			DBV camera_pos = Quaternion::multiply(turnQ, slopeQ) * DBV(0, 0, ViewZ * 1.22);
+			DBV camera_pos = Quaternion::multiply(turnQ, slopeQ) * DBV(0, 0, ViewZ);
 			camera_pos += pos0;
 
 
