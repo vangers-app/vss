@@ -6,6 +6,7 @@ PROJECT(vangers)
 
 # modules
 SET(RUSTYVANGERS_ROOT "${PROJECT_SOURCE_DIR}/vange-rs")
+SET(RUSTYVANGERS_LOCK_PATCH "${PROJECT_SOURCE_DIR}/patches/vange-rs-local-wgpu-lock.patch")
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ExternalDependency)
 
@@ -41,6 +42,7 @@ IF(EMSCRIPTEN)
 	SET(ZLIB_LIBRARIES "-sUSE_ZLIB=1")
 	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/wasm32-unknown-emscripten/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers Emscripten static library" FORCE)
 	ADD_CUSTOM_TARGET(rusty_vangers
+		COMMAND ${CMAKE_COMMAND} -DWORKING_DIRECTORY=${RUSTYVANGERS_ROOT} -DPATCH_FILE=${RUSTYVANGERS_LOCK_PATCH} -P ${PROJECT_SOURCE_DIR}/cmake/ApplyGitPatch.cmake
 		COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --target wasm32-unknown-emscripten --release --config patch.crates-io.naga.path='${PROJECT_SOURCE_DIR}/wgpu/naga' --config patch.crates-io.wgpu-hal.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-hal' --config patch.crates-io.wgpu-naga-bridge.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-naga-bridge' --config patch.crates-io.wgpu-types.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-types'
 		BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
 		WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}
@@ -64,6 +66,7 @@ ELSE(EMSCRIPTEN)
 	FIND_PACKAGE(ZLIB REQUIRED)
 	SET(RUSTYVANGERS_LIBRARY "${RUSTYVANGERS_ROOT}/target/release/librusty_vangers.a" CACHE FILEPATH "rusty-vangers static library" FORCE)
 	ADD_CUSTOM_TARGET(rusty_vangers
+			COMMAND ${CMAKE_COMMAND} -DWORKING_DIRECTORY=${RUSTYVANGERS_ROOT} -DPATCH_FILE=${RUSTYVANGERS_LOCK_PATCH} -P ${PROJECT_SOURCE_DIR}/cmake/ApplyGitPatch.cmake
 			COMMAND cargo build --manifest-path ${RUSTYVANGERS_ROOT}/Cargo.toml -p rusty-vangers --release --config patch.crates-io.naga.path='${PROJECT_SOURCE_DIR}/wgpu/naga' --config patch.crates-io.wgpu-hal.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-hal' --config patch.crates-io.wgpu-naga-bridge.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-naga-bridge' --config patch.crates-io.wgpu-types.path='${PROJECT_SOURCE_DIR}/wgpu/wgpu-types'
 			BYPRODUCTS ${RUSTYVANGERS_LIBRARY}
 			WORKING_DIRECTORY ${RUSTYVANGERS_ROOT}

@@ -1,0 +1,40 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 20b986d..010775e 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1705,8 +1705,6 @@ dependencies = [
+ [[package]]
+ name = "naga"
+ version = "29.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "aa2630921705b9b01dcdd0b6864b9562ca3c1951eecd0f0c4f5f04f61e412647"
+ dependencies = [
+  "arrayvec",
+  "bit-set",
+@@ -3724,8 +3722,6 @@ dependencies = [
+ [[package]]
+ name = "wgpu-hal"
+ version = "29.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "89a47aef47636562f3937285af4c44b4b5b404b46577471411cc5313a921da7e"
+ dependencies = [
+  "android_system_properties",
+  "arrayvec",
+@@ -3777,8 +3773,6 @@ dependencies = [
+ [[package]]
+ name = "wgpu-naga-bridge"
+ version = "29.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7b4684f4410da0cf95a4cb63bb5edaac022461dedb6adf0b64d0d9b5f6890d51"
+ dependencies = [
+  "naga",
+  "wgpu-types",
+@@ -3787,8 +3781,6 @@ dependencies = [
+ [[package]]
+ name = "wgpu-types"
+ version = "29.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ec2675540fb1a5cfa5ef122d3d5f390e2c75711a0b946410f2d6ac3a0f77d1f6"
+ dependencies = [
+  "bitflags 2.11.0",
+  "bytemuck",
