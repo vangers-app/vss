@@ -60,6 +60,7 @@ int ground_pressing_z_offset;
 unsigned char* draw_color_table;
 unsigned char* draw_buffer;
 unsigned char draw_state;
+char draw_image_visible;
 
 int ScreenSHADOWDEEP;
 int draw_x_bmp_corner_16;
@@ -224,6 +225,7 @@ void Object::draw()
 		}
 
 	// Put Image
+	draw_image_visible = !(vMap->__use_external_renderer && model_instance_handle.handle != 0);
 	if(!DepthShow)
 		DrawLinear(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode);
 	else{
@@ -916,23 +918,28 @@ inline void image_line(int len,int fx,int fy)
 			z = z_low_level + dz - (int)*mbuf;
 			if(z > 0){
 				if(((type = *(mbuf + H_SIZE)) & (7 << 3)) != 0){
-					if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
-						*draw_vbuf = *(draw_dbuf + 1);
-					else
-						*draw_vbuf = ShadowColorTable[*(draw_dbuf + 1)];
+					if(draw_image_visible){
+						if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
+							*draw_vbuf = *(draw_dbuf + 1);
+						else
+							*draw_vbuf = ShadowColorTable[*(draw_dbuf + 1)];
+						}
 					draw_state |= TOUCH_OF_AIR;
 					}
 				else{
 					z = z_low_level_water + dz;
 					if(z > 0){
-						if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
-							*draw_vbuf = *(draw_dbuf + 1);
-						else
-							*draw_vbuf = ShadowColorTable[*(draw_dbuf + 1)];
+						if(draw_image_visible){
+							if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
+								*draw_vbuf = *(draw_dbuf + 1);
+							else
+								*draw_vbuf = ShadowColorTable[*(draw_dbuf + 1)];
+							}
 						draw_state |= TOUCH_OF_AIR;
 						}
 					else{
-						*draw_vbuf = (*(draw_dbuf + 1) & 15);
+						if(draw_image_visible)
+							*draw_vbuf = (*(draw_dbuf + 1) & 15);
 						draw_state |= TOUCH_OF_WATER;
 						}
 					}
@@ -982,23 +989,28 @@ inline void transparency_line(int len,int fx,int fy)
 			z = z_low_level + dz - (int)*mbuf;
 			if(z > 0){
 				if(((type = *(mbuf + H_SIZE)) & (7 << 3)) != 0){
-					if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
-						*draw_vbuf = TRANSPARENCY(*draw_vbuf,*(draw_dbuf + 1) & 15);
-					else
-						*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 1);
+					if(draw_image_visible){
+						if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
+							*draw_vbuf = TRANSPARENCY(*draw_vbuf,*(draw_dbuf + 1) & 15);
+						else
+							*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 1);
+						}
 					draw_state |= TOUCH_OF_AIR;
 					}
 				else{
 					z = z_low_level_water + dz;
 					if(z > 0){
-						if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
-							*draw_vbuf = TRANSPARENCY(*draw_vbuf,*(draw_dbuf + 1) & 15);
-						else
-							*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 1);
+						if(draw_image_visible){
+							if(!(type & OBJSHADOW) || z > OBJSHADOW_H)
+								*draw_vbuf = TRANSPARENCY(*draw_vbuf,*(draw_dbuf + 1) & 15);
+							else
+								*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 1);
+							}
 						draw_state |= TOUCH_OF_AIR;
 						}
 					else{
-						*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 2);
+						if(draw_image_visible)
+							*draw_vbuf = TRANSPARENCY(*draw_vbuf,(*(draw_dbuf + 1) & 15) >> 2);
 						draw_state |= TOUCH_OF_WATER;
 						}
 					}
