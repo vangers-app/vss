@@ -504,6 +504,7 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	destroy_weapon_instances();
 	Object::operator = (ModelD.ActiveModel(nModel));
 	external_model_handle = ModelD.ModelHandles[nModel];
+	external_wheel_model_handles = ModelD.WheelModelHandles[nModel];
 	create_model_instance();
 	cycleTor(R_curr.x,R_curr.y);
 
@@ -2076,6 +2077,7 @@ void ModelDispatcher::Init(Parser& in)
 	Data = new Object[MaxModel];
 	NameData = new char*[MaxModel];
 	ModelHandles = new ModelHandle[MaxModel];
+	WheelModelHandles = new ModelHandle*[MaxModel];
 
 	for(i = 0;i < MaxModel;i++){
 		in.search_name("ModelNum");
@@ -2088,10 +2090,19 @@ void ModelDispatcher::Init(Parser& in)
 		size = (int)(in.get_double()*256./max_size);
 		Data[i].ID = ID_VANGER;
 		Data[i].load(n,size);
-		if(renderer::visualbackend::VisualBackendContext::has_renderer())
+		WheelModelHandles[i] = Data[i].n_wheels ? new ModelHandle[Data[i].n_wheels] : nullptr;
+		if(renderer::visualbackend::VisualBackendContext::has_renderer()){
 			ModelHandles[i] = renderer::visualbackend::VisualBackendContext::backend()->model_create(n,Data[i].model);
-		else
+			for(int j = 0;j < Data[i].n_wheels;j++)
+				WheelModelHandles[i][j] = Data[i].wheels[j].steer ?
+					renderer::visualbackend::VisualBackendContext::backend()->model_create(n,&Data[i].wheels[j].model) :
+					ModelHandle{0};
+		}
+		else{
 			ModelHandles[i] = {0};
+			for(int j = 0;j < Data[i].n_wheels;j++)
+				WheelModelHandles[i][j] = {0};
+		}
 
 		in.search_name("NameID");
 		n = in.get_name();
@@ -2127,10 +2138,17 @@ void ModelDispatcher::Free(void)
 	for(i = 0;i < MaxModel;i++){
 		if(ModelHandles[i].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
 			renderer::visualbackend::VisualBackendContext::backend()->model_destroy(ModelHandles[i]);
+		if(WheelModelHandles[i]){
+			for(int j = 0;j < Data[i].n_wheels;j++)
+				if(WheelModelHandles[i][j].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+					renderer::visualbackend::VisualBackendContext::backend()->model_destroy(WheelModelHandles[i][j]);
+			delete[] WheelModelHandles[i];
+		}
 		Data[i].free();
 		delete[] NameData[i];
 	};
 	delete[] ModelHandles;
+	delete[] WheelModelHandles;
 	delete[] NameData;
 	delete[] Data;
 };
@@ -6813,7 +6831,11 @@ void VangerUnit::keyhandler(int key)
 				}
 			else
 				NumHumanModel = models[i_model = 1 - i_model];
+			destroy_model_instance();
 			Object::operator = (ModelD.ActiveModel(NumHumanModel));
+			external_model_handle = ModelD.ModelHandles[NumHumanModel];
+			external_wheel_model_handles = ModelD.WheelModelHandles[NumHumanModel];
+			create_model_instance();
 			cycleTor(R_curr.x,R_curr.y);
 			set_active(1);
 			set_3D(SET_3D_TO_THE_UPPER_LEVEL,R_curr.x,R_curr.y,R_curr.z,0,-Angle,Speed);
@@ -9375,7 +9397,11 @@ void VangerFunctionType::Quant(void)
 
 void VangerUnit::SetMechos(int n)
 {
+	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(n));
+	external_model_handle = ModelD.ModelHandles[n];
+	external_wheel_model_handles = ModelD.WheelModelHandles[n];
+	create_model_instance();
 	set_active(1);
 	set_3D(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,0,-Angle,Speed);
 };
@@ -14043,7 +14069,11 @@ void VangerUnit::ChangeVangerProcess(void)
 	};
 
 	nModel = ModelD.FindModel(uvsMechosTable[uvsPoint->Pmechos->type]->name);
+	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(nModel));
+	external_model_handle = ModelD.ModelHandles[nModel];
+	external_wheel_model_handles = ModelD.WheelModelHandles[nModel];
+	create_model_instance();
 	if(Status & SOBJ_ACTIVE) set_active(1);
 	else set_active(0);
 

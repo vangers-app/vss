@@ -211,7 +211,9 @@ struct Wheel {
 *******************************************************************************/
 struct Object : BaseObject {
 	ModelHandle external_model_handle;
+	ModelHandle* external_wheel_model_handles;
 	ModelInstanceHandle model_instance_handle;
+	ModelInstanceHandle* wheel_handles;
 	ModelInstanceHandle weapon_handles[MAX_SLOTS];
 
 	// Part of 3D data
@@ -367,6 +369,7 @@ struct Object : BaseObject {
 	uint8_t external_body_color_id() const;
 	void create_model_instance();
 	void destroy_model_instance();
+	void destroy_wheel_instances();
 	void destroy_weapon_instances();
 
 	// Part of 3D graphical functions

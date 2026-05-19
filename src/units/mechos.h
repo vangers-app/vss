@@ -915,6 +915,7 @@ struct ModelDispatcher
 	Object* Data;
 	char** NameData;
 	ModelHandle* ModelHandles;
+	ModelHandle** WheelModelHandles;
 
 	void Init(Parser& in);
 	void Free(void);

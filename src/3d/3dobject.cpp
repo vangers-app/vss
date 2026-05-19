@@ -244,7 +244,9 @@ void Model::loadC3D(XBuffer& buf){ loadC3Dvariable(buf); }
 Object::Object()
 {
 	external_model_handle = {0};
+	external_wheel_model_handles = nullptr;
 	model_instance_handle = {0};
+	wheel_handles = nullptr;
 	for(int i = 0;i < MAX_SLOTS;i++)
 		weapon_handles[i] = {0};
 	i_model = n_models = 0;
@@ -352,6 +354,13 @@ void Object::create_model_instance()
 {
 	if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
 		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_model_handle,external_body_color_id());
+	if(n_wheels && external_wheel_model_handles && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		wheel_handles = new ModelInstanceHandle[n_wheels];
+		for(int i = 0;i < n_wheels;i++)
+			wheel_handles[i] = external_wheel_model_handles[i].handle != 0 ?
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_wheel_model_handles[i],external_body_color_id()) :
+				ModelInstanceHandle{0};
+	}
 }
 
 void Object::destroy_model_instance()
@@ -359,6 +368,18 @@ void Object::destroy_model_instance()
 	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(model_instance_handle);
 		model_instance_handle = {0};
+	}
+	destroy_wheel_instances();
+}
+
+void Object::destroy_wheel_instances()
+{
+	if(wheel_handles){
+		for(int i = 0;i < n_wheels;i++)
+			if(wheel_handles[i].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(wheel_handles[i]);
+		delete[] wheel_handles;
+		wheel_handles = nullptr;
 	}
 }
 
@@ -393,6 +414,29 @@ void Object::SyncExternalModel(void)
 			},
 			.scale = (float)scale_real,
 		});
+		if(wheel_handles){
+			for(int i = 0;i < n_wheels;i++)
+				if(wheel_handles[i].handle != 0){
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],Visibility == VISIBLE);
+					DBM wheel_rot = A_l2g*(wheels[i].steer ? DBM(rudder,Z_AXIS) : DBM())*DBM(1,-1,1,DIAGONAL);
+					DBV world = R_curr + DBV(rot*Vector(round(wheels[i].model.x_off*scale_real),round(-wheels[i].model.y_off*scale_real),round(wheels[i].model.z_off*scale_real)));
+					Quaternion wheel_rotation = Quaternion::multiply(Quaternion(wheel_rot),Quaternion(0,0,0,1));
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(wheel_handles[i],{
+						.position = {
+							.x = (float)world.x,
+							.y = (float)world.y,
+							.z = (float)(world.z - R_curr.z) + external_z + (float)(wheels[i].radius*scale_real*0.3),
+						},
+						.rotation = {
+							.x = (float)wheel_rotation.x,
+							.y = (float)wheel_rotation.y,
+							.z = (float)wheel_rotation.z,
+							.w = (float)wheel_rotation.w,
+						},
+						.scale = (float)scale_real,
+					});
+				}
+		}
 		for(int i = 0;i < MAX_SLOTS;i++)
 			if(data_in_slots[i] && weapon_handles[i].handle != 0){
 				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
