@@ -681,8 +681,13 @@ void ActionUnit::Quant(void)
 	};
 	vUp = Vector(ymax_real,0,0)*MovMat;
 	vDown = -vUp;
-	if(PrevVisibility != Visibility && model_instance_handle.handle != 0){
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+	if(PrevVisibility != Visibility){
+		if(model_instance_handle.handle != 0)
+			renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+		if(wheel_handles)
+			for(int i = 0;i < n_wheels;i++)
+				if(wheel_handles[i].handle != 0)
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],Visibility == VISIBLE);
 		for(int i = 0;i < MAX_SLOTS;i++)
 			if(weapon_handles[i].handle != 0)
 				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
