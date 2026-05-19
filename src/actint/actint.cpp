@@ -203,6 +203,7 @@ void iChatQuant(int flush = 0);
 void iChatFinit(void);
 void iChatKeyQuant(SDL_Event *k);
 void iChatMouseQuant(int x,int y,int bt);
+extern int iChatON;
 
 void LoadResourceSOUND(const char *path_name, int surface);
 void SoundEscaveOff(void);
@@ -437,6 +438,25 @@ int aci_SecondMatrixID = 0;
 char* aci_ivMapName = NULL;
 char* aci_iScreenID = NULL;
 unsigned char aci_iscrPal[768];
+
+static inline int actint_menu_ticks(int legacy_ticks)
+{
+	if(legacy_ticks <= 0) return 0;
+	int ticks = (int)round(legacy_ticks * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool actint_button_anim_legacy_step()
+{
+	static int countdown = 0;
+	if(countdown <= 0){
+		int ticks = (int)round(GAME_TIME_COEFF);
+		countdown = ticks > 1 ? ticks - 1 : 0;
+		return true;
+	}
+	countdown --;
+	return false;
+}
 
 invMatrix* backupMatrix;
 
@@ -2220,7 +2240,7 @@ void invMatrix::fill(invItem* p)
 							ic1 -> put_item(p);
 						}
 					}
-					if(y < SizeY - SizeX){
+					if(y < SizeY - 1){
 						ic1 = matrix[index + SizeX];
 						if(ic1 -> slotNumber == ic -> slotNumber && !(ic1 -> flags & AS_BUSY_CELL)){
 							flag = 1;
@@ -3276,7 +3296,7 @@ void actIntDispatcher::redraw(void)
 						p -> set_redraw();
 						init_menus();
 						init_submenu(p);
-						p -> curCount = p -> activeCount;
+						p -> curCount = actint_menu_ticks(p -> activeCount);
 						SOUND_SELECT();
 					}
 					else {
@@ -3721,15 +3741,17 @@ void actIntDispatcher::flush(void)
 		p = (fncMenu*)p -> prev;
 	}
 
+	bool button_anim_step = actint_button_anim_legacy_step();
+
 	b = (aButton*)intButtons -> last;
 	while(b){
 		if(b -> flags & B_FLUSH){
 			b -> flush();
 		}
-		if(b -> flags & B_ACTIVE){
+		if(button_anim_step && (b -> flags & B_ACTIVE)){
 			b -> press();
 		}
-		if(b -> activeCount && b -> flags & B_PRESSED){
+		if(button_anim_step && b -> activeCount && b -> flags & B_PRESSED){
 			if(b -> curCount >= b -> activeCount){
 				b -> press();
 				send_event(b -> eventCode,b -> eventData);
@@ -3744,11 +3766,11 @@ void actIntDispatcher::flush(void)
 		if(b -> flags & B_FLUSH){
 			b -> flush();
 		}
-		if(b -> flags & B_ACTIVE){
+		if(button_anim_step && (b -> flags & B_ACTIVE)){
 			b -> press();
 		}
 		if(curMode == AS_INV_MODE){
-			if(b -> activeCount && b -> flags & B_PRESSED){
+			if(button_anim_step && b -> activeCount && b -> flags & B_PRESSED){
 				if(b -> curCount >= b -> activeCount){
 					b -> press();
 					send_event(b -> eventCode,b -> eventData);
@@ -3764,11 +3786,11 @@ void actIntDispatcher::flush(void)
 		if(b -> flags & B_FLUSH){
 			b -> flush();
 		}
-		if(b -> flags & B_ACTIVE){
+		if(button_anim_step && (b -> flags & B_ACTIVE)){
 			b -> press();
 		}
 		if(curMode == AS_INFO_MODE){
-			if(b -> activeCount && b -> flags & B_PRESSED){
+			if(button_anim_step && b -> activeCount && b -> flags & B_PRESSED){
 				if(b -> curCount >= b -> activeCount){
 					b -> press();
 					send_event(b -> eventCode,b -> eventData);
@@ -4185,6 +4207,7 @@ void actIntDispatcher::i_init(void)
 		if(flags & AS_INV_MOVE_ITEM){
 			flags ^= AS_INV_MOVE_ITEM;
 			if(!curMatrix -> auto_put_item(curItem)){
+				aciUpdateScreenMousePoint(iMouseX,iMouseY);
 				aciSendEvent2itmdsp(ACI_DROP_ITEM,curItem -> item_ptr);
 				restore_mouse_cursor();
 				free_item(curItem);
@@ -4855,6 +4878,13 @@ void actIntDispatcher::KeyQuant(void)
 
 	if(flags & AS_LOCKED){
 		if(flags & AS_CHAT_MODE){
+			if(!iChatON){
+				flags &= ~AS_CHAT_MODE;
+				unlock();
+				flags &= ~aMS_PRESS;
+				KeyBuf -> clear();
+				return;
+			}
 			while(KeyBuf -> size) iChatKeyQuant(KeyBuf -> get());
 			if(flags & aMS_LEFT_PRESS || flags & aMS_RIGHT_PRESS){
 				iChatMouseQuant(XGR_MouseObj.PosX + XGR_MouseObj.SpotX,XGR_MouseObj.PosY + XGR_MouseObj.SpotY,1);
@@ -4938,8 +4968,8 @@ void actIntDispatcher::KeyQuant(void)
 								if(m -> change(iMouseX,iMouseY)){
 									init_menus();
 									if(!(m -> flags & FM_SUBMENU)){
-										init_submenu(m);
-										m -> curCount = m -> activeCount;
+											init_submenu(m);
+											m -> curCount = actint_menu_ticks(m -> activeCount);
 									}
 									SOUND_SELECT();
 								}
@@ -4953,9 +4983,9 @@ void actIntDispatcher::KeyQuant(void)
 								else {
 									if(!m -> trigger && !(m -> flags & FM_SUBMENU)){
 										if(!(m -> flags & FM_LOCK)){
-											m -> flags |= FM_ACTIVE;
-											m -> curCount = m -> activeCount;
-											m -> set_redraw();
+												m -> flags |= FM_ACTIVE;
+												m -> curCount = actint_menu_ticks(m -> activeCount);
+												m -> set_redraw();
 											SOUND_SELECT();
 										}
 										else {
@@ -5208,6 +5238,15 @@ void actIntDispatcher::send_event(int cd,int dt,actintItemData* p)
 		events -> put(cd,dt,p);
 }
 
+static void aciResetMatrixVisualState(invMatrix* m)
+{
+	if(!m)
+		return;
+
+	m -> clear_shadow_cells();
+	m -> flags &= ~(IM_REDRAW | IM_FLUSH | IM_REDRAW_SHADOW);
+}
+
 void actIntDispatcher::EventQuant(void)
 {
 	actEvent* p;
@@ -5301,7 +5340,11 @@ void actIntDispatcher::EventQuant(void)
 				flags |= AS_ISCREEN_INV_MODE;
 				break;
 			case EV_DEACTIVATE_IINV:
+				aciResetMatrixVisualState(curMatrix);
+				aciResetMatrixVisualState(secondMatrix);
 				flags &= ~AS_ISCREEN_INV_MODE;
+				flags &= ~AS_FULL_REDRAW;
+				flags |= AS_FULL_FLUSH;
 				break;
 			case EV_ACTIVATE_MATRIX:
 				secondMatrix = alloc_matrix(aci_SecondMatrixID,1);
@@ -5313,6 +5356,7 @@ void actIntDispatcher::EventQuant(void)
 				aciShowScMatrix();
 				break;
 			case EV_DEACTIVATE_MATRIX:
+				if(flags & AS_INV_MOVE_ITEM) break;
 				aciBuyItem();
 				aciSwapMatrices();
 				aciInitShopAvi();
@@ -5956,7 +6000,7 @@ int fncMenu::change(int x,int y,int mode)
 			set_redraw();
 			if(prefix) set_prefix(prefix);
 			init_redraw();
-			curCount = activeCount;
+			curCount = actint_menu_ticks(activeCount);
 			return 0;
 		}
 		if(vss_experimental_menuDownRequested() || (x >= 0 && x < SizeX && down_obj -> check_y(y))){
@@ -5968,7 +6012,7 @@ int fncMenu::change(int x,int y,int mode)
 			set_redraw();
 			if(prefix) set_prefix(prefix);
 			init_redraw();
-			curCount = activeCount;
+			curCount = actint_menu_ticks(activeCount);
 			return 0;
 		}
 	}
@@ -6008,7 +6052,7 @@ int fncMenu::change(int x,int y,int mode)
 						return 1;
 					}
 				}
-				curCount = activeCount;
+				curCount = actint_menu_ticks(activeCount);
 			}
 			return 1;
 		}
@@ -6041,7 +6085,7 @@ void actIntDispatcher::init_submenu(fncMenu* m)
 
 		m -> init_submenu(p);
 		p -> init_curItem();
-		p -> curCount = p -> activeCount;
+		p -> curCount = actint_menu_ticks(p -> activeCount);
 		p -> flags |= FM_LOCK;
 
 		if(p -> VItems < p -> items -> Size)
@@ -6054,7 +6098,7 @@ void actIntDispatcher::init_submenu(fncMenu* m)
 			bm = get_bmenu(m -> curItem -> submenuID);
 			bm -> upMenu = (iListElement*)m;
 			if(bm -> activeCount)
-				bm -> curCount = bm -> activeCount;
+				bm -> curCount = actint_menu_ticks(bm -> activeCount);
 		}
 	}
 
@@ -6218,12 +6262,15 @@ int actIntDispatcher::put_item_xy(invItem* p,int x,int y,int sflag)
 
 void actIntDispatcher::remove_item(actintItemData* d)
 {
-	invItem* p = (invItem*)d -> actintOwner;
+	invItem* p = resolve_item_owner(d);
+	if(!p) return;
 	curMatrix -> remove_item(p);
 
 	if(p -> menu){
 		remove_menu_item((fncMenu*)p -> menu);
 	}
+	p -> item_ptr = NULL;
+	d -> actintOwner = NULL;
 	free_item(p);
 
 	if(curMode == AS_INV_MODE)
@@ -6292,6 +6339,7 @@ void actIntDispatcher::inv_mouse_quant_l(void)
 	else {
 		if(!(flags & AS_ISCREEN)){
 			if(flags & AS_INV_MOVE_ITEM){
+				aciUpdateScreenMousePoint(iMouseX,iMouseY);
 				aciSendEvent2itmdsp(ACI_DROP_ITEM,curItem -> item_ptr);
 				restore_mouse_cursor();
 				if(curItem -> menu){
@@ -6414,6 +6462,7 @@ void actIntDispatcher::inv_mouse_quant_r(void)
 	else {
 		if(!(flags & AS_ISCREEN)){
 			if(flags & AS_INV_MOVE_ITEM){
+				aciUpdateScreenMousePoint(iMouseX,iMouseY);
 				aciSendEvent2itmdsp(ACI_DROP_ITEM,curItem -> item_ptr);
 				restore_mouse_cursor();
 				if(curItem -> menu){
@@ -8080,6 +8129,10 @@ void actIntDispatcher::free_matrix(invMatrix* p)
 	itm = (invItem*)p -> items -> last;
 	while(itm){
 		itm1 = (invItem*)itm -> prev;
+		if(itm -> item_ptr){
+			itm -> item_ptr -> actintOwner = NULL;
+			itm -> item_ptr = NULL;
+		}
 		p -> items -> dconnect((iListElement*)itm);
 		free_item(itm);
 		itm = itm1;
@@ -8104,12 +8157,29 @@ invItem* actIntDispatcher::get_item_ptr_xy(int id,int x,int y)
 {
 	if(!curMatrix) return NULL;
 	invItem* p = (invItem*)curMatrix -> items -> last;
-	
+
 	while(p){
 		if(p -> ID == id && !p -> item_ptr && p -> MatrixX == x && p -> MatrixY == y)
 			return p;
 		p = (invItem*)p -> prev;
 	}
+	return NULL;
+}
+
+invItem* actIntDispatcher::resolve_item_owner(actintItemData* d)
+{
+	if(!curMatrix || !d) return NULL;
+
+	invItem* p = (invItem*)curMatrix -> items -> last;
+	while(p){
+		if(p -> item_ptr == d){
+			d -> actintOwner = p;
+			return p;
+		}
+		p = (invItem*)p -> prev;
+	}
+
+	d -> actintOwner = NULL;
 	return NULL;
 }
 
@@ -8438,19 +8508,20 @@ int actIntDispatcher::get_locdata_id(const char* name)
 /*TODO*/
 void actIntDispatcher::put_in_slot(actintItemData* d)
 {
-	int x,y,index = 0,px,py,id;
+	int x,y,index = 0,px,py,id,offs;
 	int ms_flag = 0;
 	invItem* dvc;
-	invItem* p = (invItem*)d -> actintOwner;
+	invItem* p = resolve_item_owner(d);
+	if(!p) return;
 
 	//std::cout<<"actIntDispatcher::put_in_slot "<<p->fname<<std::endl;
-	
+
 	if(flags & AS_INV_MOVE_ITEM && curItem == p){
 		ms_flag = 1;
 	}
 	else {
-		id = curMatrix -> get_item_slot(p);
-		if(id == AS_DEVICE_SLOT) return;
+		offs = p -> MatrixX + p -> MatrixY * curMatrix -> SizeX;
+		if(curMatrix -> matrix[offs] -> slotType == AS_DEVICE_SLOT) return;
 	}
 
 	for(y = 0; y < curMatrix -> SizeY; y ++){
@@ -8595,7 +8666,7 @@ void aciBitmapMenu::change(int x,int y)
 		if(p -> check_xy(x,y)){
 			p -> change();
 			aciHandleCameraEvent(p -> ID,p -> curState);
-			curCount = activeCount;
+			curCount = actint_menu_ticks(activeCount);
 			flags |= BM_REBUILD;
 			return;
 		}
@@ -9743,9 +9814,12 @@ void aciScreenText::redraw(void)
 
 void aciScreenText::Quant(void)
 {
+	int ticks = (int)round(StrTimer * GAME_TIME_COEFF);
+	if(ticks <= 0) ticks = 1;
+
 	Timer ++;
 	flags &= ~ACI_TEXT_REDRAW;
-	if(Timer >= StrTimer){
+	if(Timer >= ticks){
 		if(CurStr < (CurPageData -> NumStr - 1)){
 			CurStr ++;
 		}

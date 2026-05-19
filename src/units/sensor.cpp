@@ -842,6 +842,12 @@ void CyclicEngine::Open(Parser& in)
 	MLLink->goKeyPhase(DeactivePhase);
 };
 
+static inline int cyclic_delay_ticks(int legacy_delay)
+{
+	int ticks = (int)round((legacy_delay + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
 void CyclicEngine::Quant(void)
 {
 	int i;
@@ -853,8 +859,7 @@ void CyclicEngine::Quant(void)
 				return;
 			switch(Mode){
 				case EngineModeList::ACCEPT_PROCESS:
-					Time++;
-					if(Time > DeactiveTime){
+					if(++Time >= cyclic_delay_ticks(DeactiveTime)){
 						MLLink->goKeyPhase(ActivePhase);
 						SoundEvent();
 						Time = 0;
@@ -865,8 +870,7 @@ void CyclicEngine::Quant(void)
 					Mode = EngineModeList::ACCEPT_PROCESS_END;
 					break;
 				case EngineModeList::ACCEPT_PROCESS_END:
-					Time++;
-					if(Time > ActiveTime){
+					if(++Time >= cyclic_delay_ticks(ActiveTime)){
 						MLLink->goKeyPhase(DeactivePhase);
 						SoundEvent();
 						Time = 0;
@@ -1017,6 +1021,14 @@ void DoorEngine::Quant(void) // Animation frame for threall connection point and
 	};
 };
 
+static inline int door_explicit_delay_ticks(int legacy_delay)
+{
+	if(legacy_delay <= 0)
+		return (int)round(GAME_TIME_COEFF);
+
+	return (int)round(legacy_delay * GAME_TIME_COEFF);
+}
+
 void DoorEngine::OpenDoor(void)
 {
 	if(!Enable || !MLLink) return;
@@ -1060,8 +1072,7 @@ void DoorEngine::CloseDoor(void)
 void DoorEngine::OpenDoor(int t)
 {
 	if(!Enable || !MLLink || Time) return;
-	Time = t;
-	if (Time <= 0) { Time = GAME_TIME_COEFF; }
+	Time = door_explicit_delay_ticks(t);
 	Mode = EngineModeList::OPEN;
 	ProcessFlag = 1;
 	if(!MLLink->frozen){
@@ -1080,8 +1091,7 @@ void DoorEngine::OpenDoor(int t)
 void DoorEngine::CloseDoor(int t)
 {
 	if(!Enable || !MLLink || Time) return;
-	Time = t;
-	if (Time <= 0) { Time = GAME_TIME_COEFF; }
+	Time = door_explicit_delay_ticks(t);
 	Mode = EngineModeList::WAIT;
 	ProcessFlag = 1;
 	if(!MLLink->frozen){
@@ -1604,6 +1614,14 @@ void ImpulseSpot::Active(void)
 	DoorLink->OpenDoor(0);
 };
 
+static inline int train_delay_ticks(int legacy_delay)
+{
+	if(legacy_delay <= 0)
+		return 0;
+
+	return (int)round(legacy_delay * GAME_TIME_COEFF);
+}
+
 void TrainEngine::CreateTrain(SensorDataType* p1,SensorDataType* p2,int time)
 {
 	Type = EngineTypeList::TRAIN;
@@ -1626,8 +1644,8 @@ void TrainEngine::CreateTrain(SensorDataType* p1,SensorDataType* p2,int time)
 	TrainLink[1]->Enable = 1;
 	TrainLink[1]->Index = 1;
 
-	ActiveTime = time;
-	DeactiveTime = 10;
+	ActiveTime = train_delay_ticks(time);
+	DeactiveTime = train_delay_ticks(10);
 	LockFlag = DOOR_CLOSE_LOCK;	
 };
 
@@ -1636,6 +1654,8 @@ void TrainEngine::Open(Parser& in)
 {
 	char* n;
 	LocationEngine::Open(in);
+	ActiveTime = train_delay_ticks(ActiveTime);
+	DeactiveTime = train_delay_ticks(DeactiveTime);
 
 	Type = EngineTypeList::TRAIN;
 
@@ -1692,7 +1712,7 @@ void DangerDataType::CreateDanger(Vector v,int r,int tp)
 	switch(Type){
 		case DangerTypeList::WHIRLPOOL:
 		case DangerTypeList::TRAIN:
-			Delay = 3 * GAME_TIME_COEFF;
+			Delay = 3;
 			if(CurrentWorld == WORLD_GLORX){
 				if(!RND(1000)) Enable = 0;
 			}else if(!RND(200)) Enable = 0;
@@ -1806,7 +1826,7 @@ void DangerDataType::Quant(void)
 					};
 				}else{
 					Time--;
-					if(!(Time & (int)round(3 * GAME_TIME_COEFF))){
+					if(!(Time % (int)round(4 * GAME_TIME_COEFF))){
 						w = (WaterParticleObject*)(EffD.GetObject(EFF_PARTICLE03));
 						if(w){
 							w->CreateParticle(30,5,1 << 7,radius,10,31,5,R_curr,1);
@@ -1856,16 +1876,16 @@ void DangerDataType::Quant(void)
 		case DangerTypeList::FIRE:
 			switch(CurrentWorld){
 				case WORLD_BOOZEENA:
-					FireWork(200,PI/4);
+					FireWork(200 * GAME_TIME_COEFF,PI/4);
 					break;
 				case WORLD_THREALL:
-					if(!ActD.ThreallDestroy) FireWork(500,PI/8);
+					if(!ActD.ThreallDestroy) FireWork(500 * GAME_TIME_COEFF,PI/8);
 					break;
 				case WORLD_ARKONOY:
-					FireWork(1000,PI/6);
+					FireWork(1000 * GAME_TIME_COEFF,PI/6);
 					break;
 				case WORLD_XPLO:
-					FireWork(800,PI / 6);
+					FireWork(800 * GAME_TIME_COEFF,PI / 6);
 					break;
 			};
 			break;
@@ -1878,28 +1898,28 @@ void DangerDataType::Quant(void)
 			if(Enable){
 //zmod fixed 1.15
 				if (!NetworkON) {
-				Delay = (int)round((70 + RND(30)) * GAME_TIME_COEFF);
+				Delay = (int)round(70 + RND(30));
 				MapD.CreateMapHole(R_curr,radius,Delay,0,0);
 				} else {
 					vPos = Vector(realRND(30)-15,realRND(30)-15,0);
 					vPos += R_curr;
 					vPos.x = XCYCL(vPos.x);
 					vPos.y = YCYCL(vPos.y);
-					Delay = (int)round((realRND(100)) * GAME_TIME_COEFF);
+					Delay = (int)round(realRND(100));
 					MapD.CreateMapHole(vPos,(radius*0.8+realRND(radius*0.4)),Delay,0,0);
 				}
 ///zmod
 				Enable = 0;
 				Time = 0;
-				Delay += (int)round(radius * 2 * GAME_TIME_COEFF);
+				Delay += (int)round(radius * 2);
 			}else{
-				if(Time > Delay)
+				if(Time > Delay * GAME_TIME_COEFF)
 					Enable = 1;
 				Time++;
 			};
 			break;
 		case DangerTypeList::TRAIN:
-			if(!RND(3)){
+			if(!RND((int)round(3 * GAME_TIME_COEFF))){
 				a = rPI(RND(PI*2));
 				r = RND(radius);
 				x = XCYCL(R_curr.x + (CO[a] * r >> 16));
@@ -2284,7 +2304,7 @@ void TntCreature::Destroy(void)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2306,7 +2326,7 @@ void TntCreature::Destroy(void)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2328,7 +2348,7 @@ void TntCreature::Destroy(void)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2493,7 +2513,7 @@ void TntCreature::NetQuant(void)
 				}else{
 					switch(CurrentWorld){
 						case 0:
-							if(RND(300) < 5){
+							if(RND(300 * GAME_TIME_COEFF) < 5){
 								p = BulletD.CreateBullet();
 								vCheck = Vector(radius,0,0) * DBM((int)(RND(2*PI)),Z_AXIS);
 								p->CreateBullet(R_curr,
@@ -2502,8 +2522,8 @@ void TntCreature::NetQuant(void)
 							};
 							break;
 						case 1:
-							if(RND(1000) < 5)
-								TouchTime = TntLinkDelay;
+							if(RND(1000 * GAME_TIME_COEFF) < 5)
+								TouchTime = TntLinkDelay * GAME_TIME_COEFF;
 							break;
 					};
 				};
@@ -2554,7 +2574,7 @@ void TntCreature::NetDestroy(int fl)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < 2*TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS*2 - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS*2 - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2576,7 +2596,7 @@ void TntCreature::NetDestroy(int fl)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2598,7 +2618,7 @@ void TntCreature::NetDestroy(int fl)
 						vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 						d = vCheck.vabs();
 						if(d < TNT_POWER_RADIUS && d > 0){
-							p->impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
+							p->instant_impulse(vCheck,TNT_POWER_IMPULSE*(TNT_POWER_RADIUS - d) / d,0);
 							if(p->ID == ID_VANGER) ((VangerUnit*)(p))->BulletCollision(TNT_POWER_DAMAGE,NULL);
 						};
 					};		
@@ -2609,7 +2629,7 @@ void TntCreature::NetDestroy(int fl)
 
 		for(i = 0;i < TntNumLink;i++){
 			if(TntLinkData[i]->CurrentHeight > 0 && TouchTime == 0)
-				TntLinkData[i]->TouchTime = TntLinkDelay;
+				TntLinkData[i]->TouchTime = TntLinkDelay * GAME_TIME_COEFF;
 		};
 	};
 };
@@ -2688,7 +2708,7 @@ void TntStaticObject::Touch(GeneralObject* obj)
 							k = dist < 30 ? impulse_of_tuns_explosion : impulse_of_tuns_explosion*30/dist;
 							// Tun's explosion impulse
 #ifndef TEST_TRACK
-							p->impulse(vDir,k,0);
+							p->instant_impulse(vDir,k,0);
 #endif
 						};
 					};
@@ -2807,7 +2827,7 @@ void CheckPointEngine::Touch(GeneralObject* obj,SensorDataType* p)
 			MainLocation->Enable = 1;
 	}else{
 		if(WrongCheckMode & CHECK_POINT_IMPULSE)
-			v->impulse(DBV(32 - RND(64),32 - RND(64),32 - RND(64)),RND(5),RND(5));
+			v->instant_impulse(DBV(32 - RND(64),32 - RND(64),32 - RND(64)),RND(5),RND(5));
 		if(WrongCheckMode & CHECK_POINT_RESET){
 			for(i = 0;i < NumCheckSensor;i++){
 				if(CheckLocation[i]->Type == EngineTypeList::TIRISTOR) ((TiristorEngine*)(CheckLocation[i]))->CloseDoor();
@@ -2863,6 +2883,12 @@ void LandSlideEngine::Touch(GeneralObject* obj,SensorDataType* p)
 	};
 };
 
+static inline int sign_play_delay_ticks(int legacy_delay)
+{
+	int ticks = (int)round(legacy_delay * GAME_TIME_COEFF);
+	return ticks >= 0 ? ticks : 0;
+}
+
 void SignPlayEngine::Open(Parser& in)
 {
 	char* n;
@@ -2906,11 +2932,11 @@ void SignPlayEngine::Quant(void)
 				else{				
 					if(ReplayCount & 1){
 						MLLink->goKeyPhase(ActivePhase);
-						Time = ActiveTime;					
+						Time = sign_play_delay_ticks(ActiveTime);					
 						SoundEvent();
 					}else{
 						MLLink->goKeyPhase(DeactivePhase);
-						Time = DeactiveTime;
+						Time = sign_play_delay_ticks(DeactiveTime);
 						SoundEvent();
 					};
 					ReplayCount++;
@@ -2937,7 +2963,7 @@ void SignPlayEngine::Touch(GeneralObject* obj,SensorDataType* p)
 		Mode = EngineModeList::OPEN;
 		MLLink->goKeyPhase(ActivePhase);
 		ReplayCount = 0;
-		Time = ActivePhase;
+		Time = sign_play_delay_ticks(ActivePhase);
 	};
 };
 
@@ -2995,7 +3021,7 @@ void ItemGenerator::Quant(void)
 	int i;
 	if(Mode == EngineModeList::WAIT){
 		if(pLink->Mode != EngineModeList::WAIT){
-			Time = ActiveTime;
+			Time = (int)round(ActiveTime * GAME_TIME_COEFF);
 			Mode = EngineModeList::OPEN;
 		};
 	}else{

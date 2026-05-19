@@ -40,6 +40,8 @@
 #include "actint/item_api.h"
 #include "units/uvsapi.h"
 
+void reconfigure_runtime_fps_scaled_state(double old_coeff,double new_coeff);
+
 #include "terra/world.h"
 #include "terra/vmap.h"
 #include "terra/render.h"
@@ -1668,6 +1670,7 @@ void KeyCenter(SDL_Event *key)
 		case SDL_SCANCODE_G:
 			mod = SDL_GetModState();
 			if (mod&KMOD_CTRL) {
+				double old_game_time_coeff = GAME_TIME_COEFF;
 				if (GAME_TIME_COEFF == 1) {
 					RTO_GAME_QUANT_TIMER = 1000 / 60;
 					GAME_TIME_COEFF = 3;
@@ -1677,6 +1680,7 @@ void KeyCenter(SDL_Event *key)
 				}
 				GameQuantRTO* p = (GameQuantRTO*)xtGetRuntimeObject(RTO_GAME_QUANT_ID);
 				p -> SetTimer(RTO_GAME_QUANT_TIMER);
+				reconfigure_runtime_fps_scaled_state(old_game_time_coeff,GAME_TIME_COEFF);
 				//Toggle FPS
 			}
 			break;
@@ -1832,7 +1836,7 @@ void iGameMap::change(int Dx,int Dy,int mode,int xcenter,int ycenter)
 
 void iGameMap::reset(void)
 {
-	std::cout<<"iGameMap::reset"<<std::endl;
+	// std::cout<<"iGameMap::reset"<<std::endl;
 //	ViewX = PlayerInitData.x;
 //	ViewY = PlayerInitData.y;
 
@@ -1982,7 +1986,7 @@ void iGameMap::draw(int self)
 	if(GeneralSystemSkip && !ChangeWorldSkipQuant){
 		if(curGMap) {
 			BackD.restore();
-			
+
 			if (++MLQuantFrame >= (int)round(GAME_TIME_COEFF)) {
 				MLquant(); // Moveland animation frame is here!!!
 				MLQuantFrame = 0;
@@ -2627,16 +2631,6 @@ void set_map_to_ibs(ibsObject* ibs)
 			ibs->CenterY);
 		Redraw = 1;
 
-		COMPAS_RIGHT = DEFAULT_COMPAS_RIGHT;
-	} else if (ibs->ID == 2 /* INVENTORY HD*/) {
-		auto inventoryWidth = 800 - ibs->SizeX;
-			curGMap -> change(
-			(XGR_MAXX - inventoryWidth) / 2,
-			XGR_MAXY  / 2,
-			0,
-			(XGR_MAXX - inventoryWidth) / 2,
-			XGR_MAXY / 2);
-		Redraw = 1;
 		COMPAS_RIGHT = DEFAULT_COMPAS_RIGHT;
 	} else {
 		set_map_to_fullscreen();

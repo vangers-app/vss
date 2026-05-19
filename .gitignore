@@ -32,6 +32,10 @@ CMakeSettings.json
 /build
 /clunk
 /vangers
+/artifacts-flatpak
+/flatpak-build
+/flatpak-repo
+/packaging/flatpak/flatpak-payload
 
 # vss
 scripting/yarn-error.log

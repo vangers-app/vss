@@ -77,6 +77,212 @@ extern int aciWorldIndex;
 extern int light_modulation;
 //XStream ggg;
 
+static inline int ruffa_gun_wait_ticks(void)
+{
+	int legacy_threshold = (RUFFA_GUN_WAIT * WeaponWaitTime) >> 8;
+	int ticks = (int)round((legacy_threshold + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int impulse_sensor_sound_cooldown_frames(void)
+{
+	int ticks = (int)round((5 + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int should_emit_passing_wave(int ticks_left)
+{
+	int legacy_stride = (int)round(GAME_TIME_COEFF);
+	if(legacy_stride <= 1)
+		return (ticks_left & 3) != 0;
+
+	if(ticks_left <= 0 || (ticks_left % legacy_stride))
+		return 0;
+
+	return ((ticks_left / legacy_stride) & 3) != 0;
+}
+
+static inline int wall_collision_ticks(void)
+{
+	int ticks = (int)round((MAX_WALL_TIME - 1) * GAME_TIME_COEFF) + 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int reaction_check_timeout_ticks(int legacy_threshold)
+{
+	int ticks = (int)round((legacy_threshold + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int traction_sample_window_ticks(void)
+{
+	int ticks = (int)round(MAX_TRACTION_CHECK * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int traction_low_state_ticks(void)
+{
+	int ticks = (int)round((MAX_TRACTION_CHECK_TIME - 1) * GAME_TIME_COEFF) + 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int track_front_step_runtime(int radius,double& accum)
+{
+	int legacy_step = radius / 12;
+	if(!legacy_step)
+	{
+		accum = 0.0;
+		return 0;
+	}
+
+	accum += legacy_step * XTCORE_FRAME_NORMAL;
+	int step = (int)floor(accum);
+	if(step > 0)
+		accum -= step;
+	return step;
+}
+
+static inline int hidden_turn_step_runtime(int move_angle,double& accum)
+{
+	if(!move_angle)
+		return 0;
+
+	accum += move_angle * XTCORE_FRAME_NORMAL;
+	int step;
+
+	if(accum > 0.0)
+		step = (int)floor(accum);
+	else
+		step = (int)ceil(accum);
+
+	accum -= step;
+	return step;
+}
+
+static inline int runtime_accumulated_scalar_step(double amount,double& accum)
+{
+	if(!amount)
+		return 0;
+
+	accum += amount;
+	int step;
+
+	if(accum > 0.0)
+		step = (int)floor(accum);
+	else
+		step = (int)ceil(accum);
+
+	accum -= step;
+	return step;
+}
+
+static inline int game_over_event_ticks(void)
+{
+	int ticks = (int)round((GAME_OVER_EVENT_TIME - 1) * GAME_TIME_COEFF) + 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int fire_garden_spawn_legacy_step(int time_left)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	if(ticks <= 1)
+		return 1;
+	if(time_left <= 0)
+		return 0;
+	return !(time_left % ticks);
+}
+
+static inline int ai_alarm_ticks(void)
+{
+	int ticks = (int)round((AI_MAX_ALARM_TIME - 1) * GAME_TIME_COEFF) + 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int sensor_enable_ticks(void)
+{
+	int ticks = (int)round((20 - 1) * GAME_TIME_COEFF) + 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static StuffObject* resolve_stuff_owner(uvsUnitType* owner, actintItemData* d);
+
+static int CheckLiveVangerPointer(VangerUnit* p)
+{
+	GeneralObject* n;
+	VangerUnit* v;
+
+	if(!p) return 0;
+
+	n = ActD.Tail;
+	while(n){
+		if(n == (GeneralObject*)p){
+			if(n->ID != ID_VANGER) return 0;
+			if(n->Status & SOBJ_DISCONNECT) return 0;
+
+			v = (VangerUnit*)n;
+			if(!v->uvsPoint || !v->uvsPoint->Pmechos) return 0;
+
+			return 1;
+		};
+		n = n->NextTypeList;
+	};
+
+	return 0;
+};
+
+static void ClearVangerChangerLink(VangerUnit* p,int update_network)
+{
+	p->VangerChanger = NULL;
+	p->VangerChangerCount = 0;
+
+	if(update_network){
+		p->NetChanger = 0;
+		p->ShellUpdateFlag = 1;
+	};
+};
+
+static inline int glorx_landslide_null_ticks(void)
+{
+	int ticks = (int)round((80 + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int track_relocate_ticks(int legacy_threshold)
+{
+	int ticks = (int)round((legacy_threshold + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int ai_event_check_factor(int legacy_factor)
+{
+	int ticks = (int)round(legacy_factor * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int prompt_prev_time_threshold_ticks(void)
+{
+	int ticks = (int)round(1500 * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int way_recalc_timeout_ticks(int legacy_threshold)
+{
+	int ticks = (int)round((legacy_threshold + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int way_recalc_arm_next_quant(int legacy_threshold)
+{
+	int ticks = way_recalc_timeout_ticks(legacy_threshold) - 1;
+	return ticks > 0 ? ticks : 0;
+}
+
+static inline int bunch_cycle_palette_ticks(void)
+{
+	int ticks = (int)round(100 * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
 
 int test_block(unsigned char* ptr, int size);
 void camera_impulse(int amplitude_8);
@@ -528,14 +734,18 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	EnvirAngle = EnvirLen = 0;
 
 	SpeedDir = 1;
-	MaxHideSpeed = MaxSpeed = (int)round(50 / GAME_TIME_COEFF);
+	MaxHideSpeed = MaxSpeed = 50;
 
-	MaxVelocity = (int)round(200 / GAME_TIME_COEFF);
+	MaxVelocity = 200;
 	CurrSpeed = 0;
 
 	NumCalcUnit = 0;
 
 	Count = 0;
+	HideTurnAccum = 0.0;
+	ActionSpeedAccum = 0.0;
+	ActionHideMoveAccumX = 0.0;
+	ActionHideMoveAccumY = 0.0;
 	DeltaTraction = 128;
 
 	wProcess = &(EffD.DeformData[MECHOS_WATER_WAVE]);
@@ -576,6 +786,9 @@ void ActionUnit::Action(void)
 {
 	int d;
 	Vector vCheck;
+	int raw_move_angle;
+	int steer_angle;
+	int speed_step;
 
 	if(!SpeedDir){
 		brake_on();
@@ -584,10 +797,8 @@ void ActionUnit::Action(void)
 
 	if(SpeedDir > 0){
 		MoveAngle = rPI(MoveAngle - Angle);
-		CurrSpeed += DeltaSpeed;
 	}else{
 		MoveAngle = rPI(MoveAngle - Angle + PI);
-		CurrSpeed += DeltaSpeed;
 	};
 
 	if(MoveAngle > PI) MoveAngle -= 2*PI;
@@ -598,8 +809,18 @@ void ActionUnit::Action(void)
 		if(MoveAngle < -MECHOS_ROT_DELTA) MoveAngle = -MECHOS_ROT_DELTA;
 	};
 
-	if(abs(MoveAngle) < PI / 10) controls(CONTROLS::TURBO_QUANT,83);
+	raw_move_angle = MoveAngle;
+	steer_angle = raw_move_angle;
+	if(ID == ID_INSECT){
+		speed_step = DeltaSpeed;
+		ActionSpeedAccum = 0.0;
+	}else{
+		speed_step = hidden_turn_step_runtime(DeltaSpeed,ActionSpeedAccum);
+	}
 
+	if(abs(raw_move_angle) < PI / 10) controls(CONTROLS::TURBO_QUANT,83);
+
+	CurrSpeed += speed_step;
 	if(CurrSpeed > MaxSpeed) CurrSpeed = MaxSpeed;
 	if(CurrSpeed < -MaxSpeed) CurrSpeed = -MaxSpeed;
 
@@ -624,12 +845,14 @@ void ActionUnit::Action(void)
 		controls(CONTROLS::TRACTION_DECREASE,83);
 	};
 
-	if(Speed >= 0) controls(CONTROLS::STEER_BY_ANGLE,-MoveAngle);
-	else controls(CONTROLS::STEER_BY_ANGLE,MoveAngle);
+	if(Speed >= 0) controls(CONTROLS::STEER_BY_ANGLE,-steer_angle);
+	else controls(CONTROLS::STEER_BY_ANGLE,steer_angle);
 };
 
 void ActionUnit::HideAction(void)
-{	
+{
+	int d_angle;
+
 	dynamic_state = WHEELS_TOUCH;
 	if(SpeedDir == 0) return;
 	else{
@@ -650,11 +873,21 @@ void ActionUnit::HideAction(void)
 		if(MoveAngle < -MECHOS_ROT_DELTA) MoveAngle = -MECHOS_ROT_DELTA;
 	};
 
-	Angle = rPI(Angle + MoveAngle);
+	d_angle = hidden_turn_step_runtime(MoveAngle,HideTurnAccum);
+	Angle = rPI(Angle + d_angle);
 	vDirect = Vector(CurrSpeed,0,0) * DBM(Angle,Z_AXIS);
 
-	R_curr.x += vDirect.x;
-	R_curr.y += vDirect.y;
+	ActionHideMoveAccumX += vDirect.x * XTCORE_FRAME_NORMAL;
+	ActionHideMoveAccumY += vDirect.y * XTCORE_FRAME_NORMAL;
+
+	int dx = ActionHideMoveAccumX > 0.0 ? (int)floor(ActionHideMoveAccumX) : (int)ceil(ActionHideMoveAccumX);
+	int dy = ActionHideMoveAccumY > 0.0 ? (int)floor(ActionHideMoveAccumY) : (int)ceil(ActionHideMoveAccumY);
+
+	ActionHideMoveAccumX -= dx;
+	ActionHideMoveAccumY -= dy;
+
+	R_curr.x += dx;
+	R_curr.y += dy;
 	cycleTor(R_curr.x,R_curr.y);
 };
 
@@ -664,7 +897,11 @@ void ActionUnit::Quant(void)
 	DeltaSpeed = 0;
 
 	if(Visibility == VISIBLE){
-		if(PrevVisibility == UNVISIBLE) Hide2Show();
+		if(PrevVisibility == UNVISIBLE){
+			ActionHideMoveAccumX = 0.0;
+			ActionHideMoveAccumY = 0.0;
+			Hide2Show();
+		}
 		analysis();
 
 		RotMat = A_l2g*DBM(PI/2,Z_AXIS);
@@ -873,7 +1110,7 @@ void TrackUnit::GetBranch(void)
 		case TRK_OUT_BRANCH:
 			if(ActiveGetBranch()){
 				CheckPosition++;
-				if(CheckPosition > MaxCheckPosition){
+				if(CheckPosition >= track_relocate_ticks(MaxCheckPosition)){
 					CheckPosition = 0;
 					GetInside();
 				};
@@ -1748,6 +1985,7 @@ void TrackUnit::CreateTrackUnit(void)
 	FrontPoint.pPrevLink = pPrevLink;
 	FrontPoint.pBranch = pBranch;
 	FrontPoint.pNode = pNode;
+	FrontStepAccum = 0.0;
 
 	PrevBranch = pBranch;
 
@@ -1850,6 +2088,7 @@ void TrackUnit::TrackQuant(void)
 			};
 			FrontPoint.PointStatus = TRK_IN_NODE;
 		};
+		FrontStepAccum = 0.0;
 		if(SpeedDir != 0) OtherFlag &= ~MECHOS_RECALC_FRONT;
 	};
 };
@@ -1857,6 +2096,7 @@ void TrackUnit::TrackQuant(void)
 void TrackUnit::DirectQuant(void)
 {
 	int d;
+	const int front_step = track_front_step_runtime(radius,FrontStepAccum);
 	if(SpeedDir != 0){
 //		if(MoveDir == -1) ErrH.Abort("Bad Move Direction");
 //		if(pNode != pBranch->pBeg && pNode != pBranch->pEnd) ErrH.Abort("Bad Branch Link");
@@ -1868,13 +2108,15 @@ void TrackUnit::DirectQuant(void)
 				FrontPoint.pBranch = pBranch;
 				FrontPoint.pNode = pNode;
 
-				if(SpeedDir > 0){
-					if(MoveDir) FrontPoint.AddLink(radius / 12);
-					else FrontPoint.DecLink(radius / 12);
-				}else{
-					if(MoveDir) FrontPoint.DecLink(radius / 12);
-					else FrontPoint.AddLink(radius / 12);
-				};
+					if(front_step){
+						if(SpeedDir > 0){
+							if(MoveDir) FrontPoint.AddLink(front_step);
+							else FrontPoint.DecLink(front_step);
+						}else{
+							if(MoveDir) FrontPoint.DecLink(front_step);
+							else FrontPoint.AddLink(front_step);
+						};
+					}
 
 				if((TargetPoint.PointStatus & TRK_BRANCH_MASK) && pBranch == TargetPoint.pBranch){
 					if(TargetPoint.pNextLink <= FrontPoint.pNextLink){
@@ -1922,32 +2164,36 @@ void TrackUnit::DirectQuant(void)
 						pPrevLink = FrontPoint.pPrevLink;
 						pBranch = FrontPoint.pBranch;
 
+					if(front_step){
 						if(SpeedDir > 0){
-							if(MoveDir) FrontPoint.AddLink(radius / 12);
-							else FrontPoint.DecLink(radius / 12);
+							if(MoveDir) FrontPoint.AddLink(front_step);
+							else FrontPoint.DecLink(front_step);
 						}else{
-							if(MoveDir) FrontPoint.DecLink(radius / 12);
-							else FrontPoint.AddLink(radius / 12);
+							if(MoveDir) FrontPoint.DecLink(front_step);
+							else FrontPoint.AddLink(front_step);
 						};
+					}
 						FrontPoint.PointStatus = TRK_WAIT_BRANCH;
 					}else FrontPoint.PointStatus = TRK_IN_NODE;
 				}else{
 //					if(pBranch != PrevBranch)
 //						ErrH.Abort("Bad Prev Branch");
 
-					if(SpeedDir > 0){
-						if(MoveDir){
-							if(CheckAddLink(pNextLink,pBranch,radius / 12)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+					if(front_step){
+						if(SpeedDir > 0){
+							if(MoveDir){
+								if(CheckAddLink(pNextLink,pBranch,front_step)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+							}else{
+								if(CheckDecLink(pPrevLink,pBranch,front_step)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+							};
 						}else{
-							if(CheckDecLink(pPrevLink,pBranch,radius / 12)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+							if(MoveDir){
+								if(CheckDecLink(pPrevLink,pBranch,front_step)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+							}else{
+								if(CheckAddLink(pNextLink,pBranch,front_step)) FrontPoint.PointStatus = TRK_IN_BRANCH;
+							};
 						};
-					}else{
-						if(MoveDir){
-							if(CheckDecLink(pPrevLink,pBranch,radius / 12)) FrontPoint.PointStatus = TRK_IN_BRANCH;
-						}else{
-							if(CheckAddLink(pNextLink,pBranch,radius / 12)) FrontPoint.PointStatus = TRK_IN_BRANCH;
-						};
-					};
+					}
 				};
 				break;
 			case TRK_WAIT_BRANCH:
@@ -1973,13 +2219,15 @@ void TrackUnit::DirectQuant(void)
 						pPrevLink = FrontPoint.pPrevLink;
 						pBranch = FrontPoint.pBranch;
 
-						if(SpeedDir > 0){
-							if(MoveDir) FrontPoint.AddLink(radius / 12);
-							else FrontPoint.DecLink(radius / 12);
-						}else{
-							if(MoveDir) FrontPoint.DecLink(radius / 12);
-							else FrontPoint.AddLink(radius / 12);
-						};
+						if(front_step){
+							if(SpeedDir > 0){
+								if(MoveDir) FrontPoint.AddLink(front_step);
+								else FrontPoint.DecLink(front_step);
+							}else{
+								if(MoveDir) FrontPoint.DecLink(front_step);
+								else FrontPoint.AddLink(front_step);
+							};
+						}
 						FrontPoint.PointStatus = TRK_WAIT_BRANCH;
 					};
 				};
@@ -2061,7 +2309,8 @@ void TrackUnit::Quant(void)
 	vPoint = R_curr;
 	cycleTor(vPoint.x,vPoint.y);
 
-	for(i = 0;i < n_wheels;i++) if(!PrevWheelFlag[i]) PrevWheelY[i] = 0;
+	if(frame % (int)GAME_TIME_COEFF == 0)
+		for(i = 0;i < n_wheels;i++) if(!PrevWheelFlag[i]) PrevWheelY[i] = 0;
 //	if(!PrevWheelFlag[0]) PrevWheelY[0] = 0;
 //	if(!PrevWheelFlag[1]) PrevWheelY[1] = 0;
 };
@@ -2316,7 +2565,7 @@ void ActionDispatcher::Open(Parser& in)
 			break;
 		case WORLD_GLORX:
 			FlyTaskFirstY = 2600;
-			FlyTaskLastY = 14830;
+			FlyTaskLastY = 13400;
 			FlyTaskDirect = 1;
 			break;
 		case WORLD_NECROSS:
@@ -2565,7 +2814,6 @@ void ActionDispatcher::Quant(void)
 							RaceTxtBuff <= n_position < "|" <= n_total;
 						};
 
-						//std::cout<<"age_of_current_game: "<<age_of_current_game()<<" Van_War.MaxTime:"<<my_server_data.Van_War.MaxTime*60<<std::endl;
 						if(age_of_current_game() >= my_server_data.Van_War.MaxTime*60 || drop_log){
 							GameOverID = GAME_OVER_NETWORK;
 							ActD.Active->Status |= SOBJ_DISCONNECT;
@@ -2888,6 +3136,7 @@ void ActionDispatcher::Quant(void)
 				}else{
 					if(p->pNetPlayer){
 						p->pNetPlayer->CreatePlayerFlag = 3;
+						p->pNetPlayer->LastDestroyedNetID = p->NetID;
 						p->pNetPlayer->uvsPoint = NULL;
 						for(i = 0;i < MAX_ACTIVE_SLOT;i++){
 							p->pNetPlayer->SlotNetID[i] = 0;
@@ -3239,6 +3488,8 @@ double camera_vt=0;
 double camera_vi=0;
 double camera_s=0;
 double camera_vs=0;
+double camera_vibration_x=0;
+double camera_vibration_y=0;
 int stop_camera = 0;
 int camera_moving_log = 0;
 int camera_X_prev;
@@ -3271,7 +3522,9 @@ void camera_reset() {
 	camera_vi=0;
 	camera_s=0;
 	camera_vs=0;
-	
+	camera_vibration_x=0;
+	camera_vibration_y=0;
+
 	camera_moving_log = 0;
 
 	camera_moving_xy_enable = camera_moving_z_enable = iGetOptionValue(iCAMERA_SCALE);
@@ -3310,9 +3563,13 @@ void camera_quant(int X,int Y,int Turn,double V_abs) {
 	if(time_vibration) {
 		static int phase_vibration;
 		double k = A_vibration*exp(-alpha_vibration*time_vibration);
-		double t = oscillar_vibration*(time_vibration + phase_vibration);
-		ViewX += round(k*sin(1.276*t)+.8*sin(2.878*t)+0.3*sin(23.876*t)) * XTCORE_FRAME_NORMAL;
-		ViewY += round(k*sin(0.981*t)+.8*sin(2.98*t)+0.3*sin(20.82*t)) * XTCORE_FRAME_NORMAL;
+		double vibration_t = oscillar_vibration*(time_vibration + phase_vibration);
+		camera_vibration_x += (k*sin(1.276*vibration_t)+.8*sin(2.878*vibration_t)+0.3*sin(23.876*vibration_t)) * XTCORE_FRAME_NORMAL;
+		ViewX += (t = round(camera_vibration_x));
+		camera_vibration_x -= t;
+		camera_vibration_y += (k*sin(0.981*vibration_t)+.8*sin(2.98*vibration_t)+0.3*sin(20.82*vibration_t)) * XTCORE_FRAME_NORMAL;
+		ViewY += (t = round(camera_vibration_y));
+		camera_vibration_y -= t;
 		if(time_vibration++ > max_time_vibration) {
 			time_vibration = 0;
 			phase_vibration = realRND(1367339);
@@ -3345,7 +3602,7 @@ void camera_quant(int X,int Y,int Turn,double V_abs) {
 		TurnSecX = t;
 	if(RAM16 && (SlopeAngle || TurnAngle) && TurnSecX > curGMap -> xsize)
 		TurnSecX = TurnSecX_old;
-	if(abs(TurnSecX - curGMap -> xsize) < 4)
+	if(abs(TurnSecX - curGMap -> xsize) < 4 && abs(z - curGMap -> xsize) < 4)
 		TurnSecX = curGMap -> xsize;
 
 	int s = camera_slope_enable ? (V_abs < camera_vmax ? camera_slope_min + (-SLOPE_MAX - camera_slope_min)*V_abs/camera_vmax : -SLOPE_MAX)
@@ -3397,28 +3654,28 @@ void camera_impulse(int amplitude_8)
 void camera_quant()
 {
 	int t, t2;
-	camera_x += camera_vx;
-	ViewX += (t = round(camera_x)) * XTCORE_FRAME_NORMAL;
+	camera_x += camera_vx * XTCORE_FRAME_NORMAL;
+	ViewX += (t = round(camera_x));
 	camera_x -= t;
 
-	camera_y += camera_vy;
-	ViewY += (t = round(camera_y)) * XTCORE_FRAME_NORMAL;
+	camera_y += camera_vy * XTCORE_FRAME_NORMAL;
+	ViewY += (t = round(camera_y));
 	camera_y -= t;
 
-	camera_z += camera_vz;
-	TurnSecX += (t = round(camera_z)) * XTCORE_FRAME_NORMAL;
+	camera_z += camera_vz * XTCORE_FRAME_NORMAL;
+	TurnSecX += (t = round(camera_z));
 	if (TurnSecX < MIN_ZOOM) {
 		TurnSecX = MIN_ZOOM;
 	}
 	camera_z -= t;
 
-	camera_s += camera_vs;
+	camera_s += camera_vs * XTCORE_FRAME_NORMAL;
 	SlopeAngle += t = round(camera_s);
 	if(SlopeAngle < -SLOPE_MAX)
 		SlopeAngle = -SLOPE_MAX;
 	camera_s -= t;
 
-	camera_t += camera_vt;
+	camera_t += camera_vt * XTCORE_FRAME_NORMAL;
 	TurnAngle += t = round(camera_t);
 	camera_t -= t;
 
@@ -3468,6 +3725,9 @@ void InsectUnit::CreateInsect(void)
 {
 	MaxSpeed = 5;
 	MaxHideSpeed = 3;
+	VisibleDirectSpeedAccum = 0.0;
+	HideMoveAccumX = 0.0;
+	HideMoveAccumY = 0.0;
 	Target = R_curr + Vector(INSECT_RADIUS - RND(INSECT_RADIUS2),INSECT_RADIUS - RND(INSECT_RADIUS2),0);
 	if(!RND(InsectD.NumInsect[2]*INSECT_PRICE_DATA[2])) BeebType = 2;
 	else{
@@ -3499,6 +3759,8 @@ void InsectUnit::Quant(void)
 	ActionUnit::Quant();
 	int dx,dy;
 	int d;
+	Vector legacy_direct;
+	DBV runtime_direct;
 
 	if(Status & SOBJ_AUTOMAT){
 		vDirect.z = 0;
@@ -3517,17 +3779,20 @@ void InsectUnit::Quant(void)
 			cycleTor(Target.x,Target.y);
 		};*/
 
+		legacy_direct = vDirect;
 		d = (int)(sqrt(dx*(double)dx + dy*(double)dy));
 		d <<= 2;
 		if(d){
-			vDirect.x += dx * MaxSpeed / d * XTCORE_FRAME_NORMAL;
-			vDirect.y += dy * MaxSpeed / d * XTCORE_FRAME_NORMAL;
+			legacy_direct.x += dx * MaxSpeed / d;
+			legacy_direct.y += dy * MaxSpeed / d;
 		};
 
-		if(NumCalcUnit) vDirect /= NumCalcUnit;
+		if(NumCalcUnit) legacy_direct /= NumCalcUnit;
 
-		MoveAngle = vDirect.psi();
-		DeltaSpeed = vDirect.vabs();
+		runtime_direct = DBV(legacy_direct) * XTCORE_FRAME_NORMAL;
+
+		MoveAngle = runtime_direct() ? rPI((int)RTOG(runtime_direct.psi())) : 0;
+		DeltaSpeed = runtime_accumulated_scalar_step((double)legacy_direct.vabs() * XTCORE_FRAME_NORMAL,VisibleDirectSpeedAccum);
 
 		if(Visibility == VISIBLE) Action();
 		else HideAction();
@@ -3539,6 +3804,8 @@ void InsectUnit::InitEnvironment(void)
 	ActionUnit* p;
 	int dx,dy;
 	int d,r,f;
+	int separation_step_x = 0;
+	int separation_step_y = 0;
 
 	ActionUnit::InitEnvironment();
 
@@ -3561,8 +3828,8 @@ void InsectUnit::InitEnvironment(void)
 						r = p->radius * 5;
 						if(d < r && r > 0){
 							f = MaxSpeed - MaxSpeed * d / r;
-							vDirect.x += dx * f / d;
-							vDirect.y += dy * f / d;
+							separation_step_x += dx * f / d;
+							separation_step_y += dy * f / d;
 							NumCalcUnit++;
 						};
 					};
@@ -3583,8 +3850,8 @@ void InsectUnit::InitEnvironment(void)
 							r = p->radius * 5;
 							if(d < r && r > 0){
 								f = MaxSpeed - MaxSpeed * d / r;
-								vDirect.x += dx * f / d;
-								vDirect.y += dy * f / d;
+								separation_step_x += dx * f / d;
+								separation_step_y += dy * f / d;
 								NumCalcUnit++;
 							};
 						};
@@ -3593,6 +3860,9 @@ void InsectUnit::InitEnvironment(void)
 			};
 			p = (ActionUnit*)(p->NextTypeList);
 		};
+
+		vDirect.x += separation_step_x;
+		vDirect.y += separation_step_y;
 	};
 };
 
@@ -3614,6 +3884,9 @@ void InsectUnit::Touch(GeneralObject* p)
 			MapD.CreateCrater(R_curr,MAP_POINT_CRATER03,Angle);
 			R_curr.x = clip_mask_x/2 - RND(clip_mask_x);
 			R_curr.y = clip_mask_y/2 - RND(clip_mask_y);
+			VisibleDirectSpeedAccum = 0.0;
+			HideMoveAccumX = 0.0;
+			HideMoveAccumY = 0.0;
 			cycleTor(R_curr.x,R_curr.y);
 			set_3D(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,0,-Angle,0);
 		case ID_BULLET:
@@ -3621,6 +3894,9 @@ void InsectUnit::Touch(GeneralObject* p)
 			MapD.CreateCrater(R_curr,MAP_POINT_CRATER03,Angle);
 			R_curr.x = clip_mask_x/2 - RND(clip_mask_x);
 			R_curr.y = clip_mask_y/2 - RND(clip_mask_y);
+			VisibleDirectSpeedAccum = 0.0;
+			HideMoveAccumX = 0.0;
+			HideMoveAccumY = 0.0;
 			cycleTor(R_curr.x,R_curr.y);
 			set_3D(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,0,-Angle,0);
 			break;
@@ -3633,7 +3909,7 @@ void VangerUnit::DrawQuant(void)
 	int i;
 
 	if(!ExternalDraw || (Status & SOBJ_WAIT_CONFIRMATION)) return;
-	TrackUnit::DrawQuant();	
+	TrackUnit::DrawQuant();
 	Vector vCheck;
 
 	if(ExternalMode == EXTERNAL_MODE_NORMAL){
@@ -3855,10 +4131,14 @@ void VangerUnit::MapQuant(void)
 
 	if(MoleInProcess)
 		MoleProcessQuant();
-	
+	else{
+		MoleTrailStep = 0;
+		MoleTrailValid = 0;
+	}
+
 	if(LastMole == 256 && mole_on != 256){
 		MolePoint2->set(R_curr,40,radius < 40 ? radius : 40);
-		SensorEnable = 20;
+		SensorEnable = sensor_enable_ticks();
 	}else{
 		if(SensorEnable > 0)
 			SensorEnable--;
@@ -3874,6 +4154,9 @@ void Object::StartMoleProcess(void)
 void VangerUnit::StartMoleProcess(void)
 {
 	MolePoint1->set(R_curr,40,radius < 40 ? radius : 40);
+	MoleTrailPrev = Vector(0,0,0);
+	MoleTrailStep = 0;
+	MoleTrailValid = 0;
 };
 
 
@@ -3973,7 +4256,7 @@ void VangerUnit::Quant(void)
 						if(R_curr.y > ActD.FlyTaskLastY){
 							uvsCheckKronIventTabuTask(UVS_KRON_EVENT::FLY_ONLINE,0);
 							ActD.FlyTaskEnable = 2;
-						};				
+						};
 					}else{
 						if(R_curr.y < ActD.FlyTaskLastY){
 							uvsCheckKronIventTabuTask(UVS_KRON_EVENT::FLY_ONLINE,0);
@@ -4012,7 +4295,7 @@ void VangerUnit::Quant(void)
 
 		CheckPosition++;
 		if(ActiveGetBranch()){
-			if(CheckPosition > MaxCheckPosition){
+			if(CheckPosition >= track_relocate_ticks(MaxCheckPosition)){
 				CheckPosition = 0;
 				HideTrack.GetPosition(this);
 			};
@@ -4051,7 +4334,7 @@ void VangerUnit::Quant(void)
 
 		GetTrackVector();
 		if(CurrentWorld == WORLD_GLORX && !NetworkON){
-			if(NullTime > 80){
+			if(NullTime >= glorx_landslide_null_ticks()){
 				cAlpha = RND(PI*2);
 				for(i = 0;i < 4;i++){
 					vCheck = Vector(radius*2,0,0)*DBM(cAlpha,Z_AXIS);
@@ -4070,7 +4353,7 @@ void VangerUnit::Quant(void)
 				if(aiMoveMode == AI_MOVE_POINT){
 					CheckPosition++;
 					if(ActiveGetBranch()){
-						if(CheckPosition > MaxCheckPosition){
+						if(CheckPosition >= track_relocate_ticks(MaxCheckPosition)){
 							CheckPosition = 0;
 							HideTrack.GetPosition(this);
 						};
@@ -4085,7 +4368,7 @@ void VangerUnit::Quant(void)
 				if(aiMoveMode == AI_MOVE_POINT){
 					CheckPosition++;
 					if(ActiveGetBranch()){
-						if(CheckPosition > MaxCheckPosition){
+						if(CheckPosition >= track_relocate_ticks(MaxCheckPosition)){
 							CheckPosition = 0;
 							HideTrack.GetPosition(this);
 						};
@@ -4098,7 +4381,8 @@ void VangerUnit::Quant(void)
 		}else{
 			if(aciWorldIndex != -1){
 				if(!(Status & SOBJ_AUTOMAT)){
-					uvsPoint -> Pworld = WorldTable[aciWorldIndex];				
+					//stalkerg here we create effects to switch world
+					uvsPoint -> Pworld = WorldTable[aciWorldIndex];
 					EffD.CreateRingOfLord(EFF_PARTICLE06,R_curr + Vector(0,0,80),radius*2,200,111,111,radius << 7);
 		//			ExternalMode = EXTERNAL_MODE_SIGN_IN;
 		//			ExternalTime = 40;
@@ -4120,7 +4404,7 @@ void VangerUnit::Quant(void)
 
 			if(aciTeleportEvent != 0){
 				if(!(Status & SOBJ_AUTOMAT)){
-					ExternalTime = CHANGE_VANGER_TIME;
+					ExternalTime = CHANGE_VANGER_TIME * GAME_TIME_COEFF;
 					ExternalLock = 1;
 					ExternalObject = NULL;
 					ExternalMode = EXTERNAL_MODE_IN_VANGER;
@@ -4143,7 +4427,7 @@ void VangerUnit::Quant(void)
 
 			CheckPosition++;
 			if(ActiveGetBranch()){
-				if(CheckPosition > MaxCheckPosition){
+				if(CheckPosition >= track_relocate_ticks(MaxCheckPosition)){
 					CheckPosition = 0;
 					HideTrack.GetPosition(this);
 				};
@@ -4181,7 +4465,7 @@ void VangerUnit::Quant(void)
 			};
 			GetTrackVector();
 			if(CurrentWorld == WORLD_GLORX && !NetworkON){
-				if(NullTime > 80){
+				if(NullTime >= glorx_landslide_null_ticks()){
 					cAlpha = RND(PI*2);
 					for(i = 0;i < 4;i++){
 						vCheck = Vector(radius*2,0,0)*DBM(cAlpha,Z_AXIS);
@@ -4239,21 +4523,38 @@ void VangerUnit::Quant(void)
 		static int need_to_send_vanger = 0;
 		if(prev_controls != current_controls || dynamic_state & ITS_MOVING || IS_PAST(last_send_time + 2000))
 			need_to_send_vanger = 1;
-		if(need_to_send_vanger && IS_PAST(last_send_time + average_lag)){
+		static const int VANGER_SEND_MIN_INTERVAL = 50;
+		static const int VANGER_SEND_MAX_INTERVAL = 150;
+		int vanger_send_interval = average_lag;
+		if(vanger_send_interval < VANGER_SEND_MIN_INTERVAL)
+			vanger_send_interval = VANGER_SEND_MIN_INTERVAL;
+		else if(vanger_send_interval > VANGER_SEND_MAX_INTERVAL)
+			vanger_send_interval = VANGER_SEND_MAX_INTERVAL;
+
+		if(need_to_send_vanger && IS_PAST(last_send_time + vanger_send_interval)){
 			last_send_time = SDL_GetTicks();
 			NETWORK_OUT_STREAM.update_object(NetID,R_curr.x,R_curr.y);
 			int scr_size = round((fabs(curGMap -> xsize*sinTurnInvFlt) + fabs(curGMap -> ysize*cosTurnInvFlt))*.5);
-			NETWORK_OUT_STREAM < (unsigned char)(scr_size < 255 ? scr_size : 255);
+			NETWORK_OUT_STREAM < (unsigned short)(scr_size < 0xffff ? scr_size : 0xffff);
 			Send();
 			NETWORK_OUT_STREAM.end_body();
 			need_to_send_vanger = 0;
 
-			if(lag_averaging_t0.tell() < 20){
+			static const unsigned int SERVER_TIME_QUERY_TIMEOUT = 20000;
+			static unsigned int last_server_time_query = 0;
+			unsigned int now = SDL_GetTicks();
+			if(!lag_averaging_t0.empty() && IS_PAST(last_server_time_query + SERVER_TIME_QUERY_TIMEOUT)){
+				network_log_printf("LAG","SERVER_TIME_QUERY timeout pending=%d timeout_ms=%u",lag_averaging_t0.tell(),SERVER_TIME_QUERY_TIMEOUT);
+				lag_averaging_t0.clear();
+				}
+
+			if(lag_averaging_t0.empty()){
 				//zmod
 				z_time_init();
 				NETWORK_OUT_STREAM.begin_event(SERVER_TIME_QUERY);
 				NETWORK_OUT_STREAM.end_body();
-				lag_averaging_t0.put(SDL_GetTicks());
+				lag_averaging_t0.put(now);
+				last_server_time_query = now;
 				}
 			}	
 	
@@ -4268,22 +4569,18 @@ void VangerUnit::Quant(void)
 		};
 
 		if(VangerChanger){
-			if(VangerChanger->VangerChanger){
+			if(!CheckLiveVangerPointer(VangerChanger)){
+				ClearVangerChangerLink(this,1);
+			}else if(VangerChanger->VangerChanger){
 				if(VangerChanger->VangerChanger != this){
-					VangerChanger = NULL;
-					VangerChangerCount = 0;
-					NetChanger = 0;
-					ShellUpdateFlag = 1;
+					ClearVangerChangerLink(this,1);
 				}else{
 					if(NetChanger == GET_STATION(VangerChanger->NetID) && VangerChanger->NetChanger == GlobalStationID && VangerChangerCount == 2)
 						VangerChangerCount = 1;
 				};
 			}else{
 				if(NetChanger == 0xff){
-					VangerChanger = NULL;
-					VangerChangerCount = 0;
-					NetChanger = 0;
-					ShellUpdateFlag = 1;
+					ClearVangerChangerLink(this,1);
 				};
 			};		
 		};
@@ -4400,7 +4697,9 @@ void VangerUnit::InitEnvironment(void)
 
 	if(NetworkON){
 		if(VangerChanger){			
-			if(Status & SOBJ_ACTIVE){
+			if(!CheckLiveVangerPointer(VangerChanger)){
+				ClearVangerChangerLink(this,Status & SOBJ_ACTIVE);
+			}else if(Status & SOBJ_ACTIVE){
 				switch(VangerChangerCount){
 					case 3:
 						OutCarNator();
@@ -4409,12 +4708,8 @@ void VangerUnit::InitEnvironment(void)
 					case 1:
 						if(NetChanger == 0xff){
 							if(VangerChanger->NetChanger == 0xff){
-								VangerChanger->VangerChanger = NULL;
-								VangerChanger->VangerChangerCount = 0;
-								VangerChanger = NULL;
-								VangerChangerCount = 0;
-								NetChanger = 0;
-								ShellUpdateFlag = 1;
+								ClearVangerChangerLink(VangerChanger,0);
+								ClearVangerChangerLink(this,1);
 							};
 						}else{
 							ChangeVangerProcess();
@@ -4429,6 +4724,9 @@ void VangerUnit::InitEnvironment(void)
 		if(pNetPlayer && pNetPlayer->body.CarIndex != uvsPoint->Pmechos->type && !(Status & SOBJ_ACTIVE))
 			ChangeVangerProcess();
 	}else{
+		if(VangerChanger && !CheckLiveVangerPointer(VangerChanger))
+			ClearVangerChangerLink(this,0);
+
 		if(VangerChanger && VangerChangerCount > 0){
 			VangerChangerCount--;
 			switch(VangerChangerCount){
@@ -4540,7 +4838,7 @@ void VangerUnit::InitEnvironment(void)
 
 					if(aiStatus & AI_STATUS_TNT){
 						if(PowerFlag & VANGER_POWER_RUFFA_GUN){
-							if(RuffaGunTime > (RUFFA_GUN_WAIT * WeaponWaitTime >> 8)){
+							if(RuffaGunTime >= ruffa_gun_wait_ticks()){
 								RuffaGunTime = 0;
 								g = BulletD.CreateBullet();
 								vCheck = Vector(64,0,0)*RotMat;
@@ -4663,7 +4961,7 @@ void VangerUnit::InitEnvironment(void)
 						if(ActD.SpobsEntrance){
 							if(!ActD.CameraModifier){
 								camera_direct(1650,820,1 << 8,0,0,20*GAME_TIME_COEFF);
-								ActD.CameraModifier = 20;
+								ActD.CameraModifier = 20 * GAME_TIME_COEFF;
 							}else{								
 								if(ActD.CameraModifier == 1){
 									camera_direct(1650,820,1 << 8,0,0,1*GAME_TIME_COEFF);
@@ -4676,7 +4974,7 @@ void VangerUnit::InitEnvironment(void)
 							};
 						};
 						break;
-					case WORLD_THREALL:						
+					case WORLD_THREALL:
 						if(i > -1){
 							do{
 								st = SensorSortedData[i];
@@ -4874,7 +5172,7 @@ void VangerUnit::AutomaticTouchSensor(SensorDataType* p) //znfo !!!
 				};
 				break;
 			case SensorTypeList::IMPULSE:
-				impulse(p->vData,p->Power,0);				
+				continuous_impulse(p->vData,p->Power,0);
 				break;
 			case SensorTypeList::SENSOR:
 				if(!(Status & SOBJ_ACTIVE)){
@@ -4933,7 +5231,7 @@ void VangerUnit::StopTouchSensor(SensorDataType* p)
 				}else ExternalSensor = p;
 				break;
 			case SensorTypeList::IMPULSE:
-				impulse(p->vData,p->Power,0);
+				continuous_impulse(p->vData,p->Power,0);
 				break;
 		};
 	}else{
@@ -4969,7 +5267,7 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 		case SensorTypeList::SPOT:
 		case SensorTypeList::TRAP:
 		case SensorTypeList::TRAIN:
-			if(ActD.PassageTouchEnable) ActD.PassageTouchEnable = MAX_PASSAGE_DELAY;
+			if(ActD.PassageTouchEnable) ActD.PassageTouchEnable = MAX_PASSAGE_DELAY * GAME_TIME_COEFF;
 			if(!BeebonationFlag){
 				if(ExternalSensor){
 					if(ExternalSensor == ExternalObject && ExternalObject != p) ExternalSensor = p;
@@ -4977,9 +5275,9 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 			};
 			break;
 		case SensorTypeList::IMPULSE:
-//			impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),20,0);
-			impulse(p->vData,p->Power,0);
-			if(abs(PrevImpuseFrame - frame) > 5){
+//			continuous_impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),20,0);
+			continuous_impulse(p->vData,p->Power,0);
+			if(abs(PrevImpuseFrame - frame) >= impulse_sensor_sound_cooldown_frames()){
 				SOUND_KIDPUSH();
 				PrevImpuseFrame = frame;
 			};
@@ -4987,6 +5285,10 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 		case SensorTypeList::ARMOR_UPDATE:
 			if(Armor < MaxArmor){
 				Armor = MaxArmor;
+				if(Status & SOBJ_ACTIVE){
+					ChangeArmor = Armor;
+					ChangeEnergy = Energy;
+				};
 				aiMessageQueue.Send(AI_MESSAGE_ARMOR,Speed,2,0);//aiMessageData[AI_MESSAGE_ARMOR].Send(Speed,2,0);
 				SOUND_CHARGE_REPARE();
 			};
@@ -5169,7 +5471,7 @@ void VangerUnit::SensorQuant(void)
 							ExternalMode = EXTERNAL_MODE_SPOT_IN;
 							ExternalLock = 1;
 							if(Visibility == VISIBLE){
-								ExternalTime = ExternalSensor->Owner->DeactiveTime;
+								ExternalTime = ExternalSensor->Owner->DeactiveTime * GAME_TIME_COEFF;
 //								SOUND_ENTRANCE();
 							}else ExternalTime = 0;
 							ExternalObject = ExternalSensor;
@@ -5180,7 +5482,7 @@ void VangerUnit::SensorQuant(void)
 						ExternalLock = 1;
 						if(Visibility == VISIBLE){
 //							SOUND_ENTRANCE();
-							ExternalTime = ExternalSensor->Owner->DeactiveTime;
+							ExternalTime = ExternalSensor->Owner->DeactiveTime * GAME_TIME_COEFF;
 						}else ExternalTime = 0;
 						ExternalObject = ExternalSensor;
 						switch_analysis(1);						
@@ -5191,7 +5493,7 @@ void VangerUnit::SensorQuant(void)
 					if(Status & SOBJ_AUTOMAT){
 						if(aiLocalTarget && aiLocalTarget->Type == UNIT_ORDER_ENTER && (aiLocalTarget->Obj).EnterT == ((EnterEngine*)(ExternalSensor->Owner))->Owner){
 							if(Visibility == VISIBLE){
-								ExternalTime = ExternalSensor->Owner->DeactiveTime;
+								ExternalTime = ExternalSensor->Owner->DeactiveTime * GAME_TIME_COEFF;
 //								SOUND_ENTRANCE();
 							}else ExternalTime = 0;
 							ExternalMode = EXTERNAL_MODE_ESCAVE_IN;
@@ -5201,7 +5503,7 @@ void VangerUnit::SensorQuant(void)
 						};
 					}else{
 						if(Visibility == VISIBLE){
-							ExternalTime = ExternalSensor->Owner->DeactiveTime;
+							ExternalTime = ExternalSensor->Owner->DeactiveTime * GAME_TIME_COEFF;
 //							SOUND_ENTRANCE();
 						}else ExternalTime = 0;
 						ExternalMode = EXTERNAL_MODE_ESCAVE_IN;
@@ -5261,8 +5563,8 @@ void VangerUnit::SensorQuant(void)
 									uvsCheckKronIventTabuTask(UVS_KRON_EVENT::ARK_NOY,0);
 							};
 						}else{
-							impulse(Vector(32 - RND(64),32 - RND(64),64),30,0);
-							SOUND_FAILEDPASS() 
+							instant_impulse(Vector(32 - RND(64),32 - RND(64),64),30,0);
+							SOUND_FAILEDPASS()
 						};
 					};
 					break;
@@ -5300,8 +5602,8 @@ void VangerUnit::SensorQuant(void)
 						ExternalObject = ExternalSensor;
 						switch_analysis(1);
 						StopCDTRACK();
-					}else impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),RND(30),RND(10));					
-					break;				
+					}else instant_impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),RND(30),RND(10));
+					break;
 			};
 		};
 	};
@@ -5455,7 +5757,7 @@ void VangerUnit::SensorQuant(void)
 					ExternalSensor = ExternalObject;
 				}else{
 					if(ExternalTime < EXTERNAL_IMPULSE_TIME)
-						impulse(ExternalAngle,8 * ExternalTime / EXTERNAL_IMPULSE_TIME);
+						continuous_impulse(ExternalAngle,8 * ExternalTime / EXTERNAL_IMPULSE_TIME);
 				};
 			};
 			break;
@@ -5519,7 +5821,7 @@ void VangerUnit::SensorQuant(void)
 		case EXTERNAL_MODE_DARK:
 			ExternalTime--;
 			if(ExternalTime <= 0){
-				ExternalTime = 10;
+				ExternalTime = 10 * GAME_TIME_COEFF;
 				PalCD.Set(CPAL_HIDE_PASSAGE,ExternalTime);
 				ExternalMode = EXTERNAL_MODE_EARTH_PREPARE;
 			};
@@ -5527,7 +5829,7 @@ void VangerUnit::SensorQuant(void)
 		case EXTERNAL_MODE_LIGHT:
 			ExternalTime--;
 			if(ExternalTime <= 0){
-				ExternalTime = 5;
+				ExternalTime = 5 * GAME_TIME_COEFF;
 				PalCD.Set(CPAL_PASSAGE_FROM,ExternalTime);
 				ExternalMode = EXTERNAL_MODE_DARK;
 				for(i = 0;i < 5;i++)
@@ -5566,7 +5868,7 @@ void VangerUnit::SensorQuant(void)
 			if(Visibility == VISIBLE && ActD.Active) {
 				SOUND_PASSAGE(getDistX(ActD.Active->R_curr.x,R_curr.x));
 			}
-			if(ExternalTime & 3) {
+			if(should_emit_passing_wave(ExternalTime)) {
 				EffD.CreateDeform(
 					ExternalObject->R_curr + Vector(
 						PASSING_WAVE_RADIUS - realRND(PASSING_WAVE_RADIUS2),
@@ -5651,7 +5953,7 @@ void VangerUnit::SensorQuant(void)
 			break;
 		case EXTERNAL_MODE_EARTH_IN:
 			if(Visibility == VISIBLE && ActD.Active) SOUND_PASSAGE(getDistX(ActD.Active->R_curr.x,R_curr.x));
-			if(ExternalTime & 3) EffD.CreateDeform(R_curr + Vector(PASSING_WAVE_RADIUS - realRND(PASSING_WAVE_RADIUS2),PASSING_WAVE_RADIUS - realRND(PASSING_WAVE_RADIUS2),83),1,PASSING_WAVE_PROCESS);
+			if(should_emit_passing_wave(ExternalTime)) EffD.CreateDeform(R_curr + Vector(PASSING_WAVE_RADIUS - realRND(PASSING_WAVE_RADIUS2),PASSING_WAVE_RADIUS - realRND(PASSING_WAVE_RADIUS2),83),1,PASSING_WAVE_PROCESS);
 			ExternalTime--;
 			if(ExternalTime <= 0){
 //				ExternalMode = EXTERNAL_MODE_NORMAL;
@@ -5822,7 +6124,7 @@ void VangerUnit::Action(void)
 									aiReactionMode = 2;
 									aiReactionCheckTime = 0;
 								}else{
-									if(aiReactionCheckTime > aiReactionCheckTimeMax){
+									if(aiReactionCheckTime >= reaction_check_timeout_ticks(aiReactionCheckTimeMax)){
 										aiMoveFunction = AI_MOVE_FUNCTION_WHEEL;
 										aiReactionMode = 1;
 										aiRelaxTime = 0;
@@ -5856,7 +6158,7 @@ void VangerUnit::Action(void)
 	};
 
 	TrackUnit::Action();
-	if(!(frame % MAX_TRACTION_CHECK)){
+	if(!(frame % traction_sample_window_ticks())){
 		TractionValue = TractionStat / MAX_TRACTION_CHECK;
 		TractionStat = 0;
 	};
@@ -5974,6 +6276,9 @@ void VangerUnit::CreateVangerUnit(void)
 
 	RandomUpdate = -1;
 	LastMole = 0;
+	MoleTrailPrev = Vector(0,0,0);
+	MoleTrailStep = 0;
+	MoleTrailValid = 0;
 
 	CoptePoint = NULL;
 	SwimPoint = NULL;
@@ -6021,7 +6326,7 @@ void VangerUnit::AddFree(void)
 		if(vSetVangerFlag != -1){
 			ExternalMode = EXTERNAL_MODE_OUT_VANGER;
 			ExternalObject = NULL;
-			ExternalTime = CHANGE_VANGER_TIME;
+			ExternalTime = CHANGE_VANGER_TIME * GAME_TIME_COEFF;
 			ExternalLock = 0;
 			ExternalDraw = 1;
 			switch_analysis(1);
@@ -6160,7 +6465,7 @@ void VangerUnit::AddEscave(SensorDataType* p)
 {
 	ExternalMode = EXTERNAL_MODE_ESCAVE_OUT;
 	ExternalObject = p;
-	ExternalTime = p->Owner->ActiveTime;
+	ExternalTime = p->Owner->ActiveTime * GAME_TIME_COEFF;
 	ExternalLock = 1;
 	ExternalDraw = 1;
 	switch_analysis(1);
@@ -6178,7 +6483,7 @@ void VangerUnit::AddSpot(SensorDataType* p)
 {
 	ExternalMode = EXTERNAL_MODE_SPOT_OUT;
 	ExternalObject = p;
-	ExternalTime = p->Owner->ActiveTime;
+	ExternalTime = p->Owner->ActiveTime * GAME_TIME_COEFF;
 	ExternalLock = 1;
 	ExternalDraw = 1;
 	switch_analysis(1);
@@ -6375,7 +6680,7 @@ void ActionDispatcher::PromptQuant(void)
 								PromptPrevTime = 0;
 								PromptPrevY = Active->R_curr.y;
 							}else{			
-								if(PromptPrevTime > 1500){
+								if(PromptPrevTime > prompt_prev_time_threshold_ticks()){
 									PromptPrevTime = 0;
 									PromptPrevTime = 0;
 									aiMessageQueue.Send(AI_MESSAGE_INCUBATOR_WAY,0,0xff,0);//aiMessageData[AI_MESSAGE_INCUBATOR_WAY].Send(0,0xff,0);
@@ -6388,12 +6693,13 @@ void ActionDispatcher::PromptQuant(void)
 								}else PromptPrevTime++;
 							};
 						};
-						
+
 						if (PromptIncubatorFreeVisit < 2
 							&& (PromptIncubatorCount > 2 || GetStuffObject(Active,ACI_NYMBOS))
 							&& !(ConTimer.min % 30) //  show every 30 minutes (1.5 min real)
 							&& ConTimer.sec == 0
-							&& ConTimer.counter < 36000 ) {  //do not show message if an 10 game hour(30 min real) has passed 
+							&& ConTimer.counter < 36000
+						) {  //do not show message if an 10 game hour(30 min real) has passed
 							aiMessageQueue.Send(AI_MESSAGE_CAMERA_HELP, 0, 0xff, 0);
 							return;
 						}
@@ -6411,7 +6717,7 @@ void ActionDispatcher::PromptQuant(void)
 								PromptPrevTime = 0;
 								PromptPrevY = Active->R_curr.y;
 							}else{
-								if(PromptPrevTime > 1500){
+								if(PromptPrevTime > prompt_prev_time_threshold_ticks()){
 									PromptPrevTime = 0;
 									aiMessageQueue.Send(AI_MESSAGE_PODISH_WAY,0,0xff,0);//aiMessageData[AI_MESSAGE_PODISH_WAY].Send(0,0xff,0);
 									if(!GetCompasTarget()){
@@ -6625,25 +6931,15 @@ void VangerUnit::NewKeyHandler(void)
 	if(iKeyPressed(iKEY_USE_VECTOR)){
 		if(!UseVectorFlag){
 			UseVectorFlag++;
-			p = NULL;
-			for(i = 0;i < MAX_ACTIVE_SLOT;i++){
-				if(ActD.Slot[i]){
-					p = ActD.Slot[i];
-					aciSendEvent2actint(ACI_DROP_ITEM,&(p->ActIntBuffer));
-					if(p->ActIntBuffer.type != ACI_RADAR_DEVICE){
-						n = GetStuffObject(this,ACI_RADAR_DEVICE);
-						if(n)
-							aciSendEvent2actint(ACI_PUT_IN_SLOT,&(n->ActIntBuffer));
-					};
-					aciSendEvent2actint(ACI_PUT_ITEM,&(p->ActIntBuffer));
-					break;
+			n = GetStuffObject(this,ACI_RADAR_DEVICE);
+			if(n){
+				for(i = 0;i < MAX_ACTIVE_SLOT;i++){
+					if(ActD.Slot[i] == n)
+						break;
 				};
-			};
-			if(!p){
-				n = GetStuffObject(this,ACI_RADAR_DEVICE);
-				if(n)
+				if(i == MAX_ACTIVE_SLOT)
 					aciSendEvent2actint(ACI_PUT_IN_SLOT,&(n->ActIntBuffer));
-			};	
+			};
 		};
 	}else UseVectorFlag = 0;
 
@@ -6744,7 +7040,7 @@ void VangerUnit::NewKeyHandler(void)
 
 	if(iKeyPressed(iKEY_FIRE_ALL_WEAPONS)){
 		if(PowerFlag & VANGER_POWER_RUFFA_GUN){
-			if(RuffaGunTime > (RUFFA_GUN_WAIT * WeaponWaitTime >> 8)){
+			if(RuffaGunTime >= ruffa_gun_wait_ticks()){
 				RuffaGunTime = 0;
 				g = BulletD.CreateBullet();
 				vCheck = Vector(64,0,0)*RotMat;
@@ -6797,7 +7093,7 @@ void VangerUnit::keyhandler(int key)
 		case SDL_SCANCODE_LCTRL:
 		case SDL_SCANCODE_RCTRL:
 			if(PowerFlag & VANGER_POWER_RUFFA_GUN){
-				if(RuffaGunTime > (RUFFA_GUN_WAIT * WeaponWaitTime >> 8)){
+				if(RuffaGunTime >= ruffa_gun_wait_ticks()){
 					RuffaGunTime = 0;
 					g = BulletD.CreateBullet();
 					vCheck = Vector(64,0,0)*RotMat;
@@ -6898,7 +7194,6 @@ void VangerUnit::CreateParticleMechos(const Vector& v,int r, int _type)
 
 void VangerUnit::CreateParticleRotor(const Vector& v,int r)
 {
-	// r *= GAME_TIME_COEFF;
 	TargetParticleObject* p;
 	int i,ii, spd1, spd2;
 	Vector vertexTarget;
@@ -6916,13 +7211,15 @@ void VangerUnit::CreateParticleRotor(const Vector& v,int r)
 				color_offset = COLORS_VALUE_TABLE[model->polygons[i].color_id*2];
 				color_shift = COLORS_VALUE_TABLE[model->polygons[i].color_id*2 + 1];
 				vertexTarget = R_curr + (Vector(model->polygons[i].middle_x,model->polygons[i].middle_y,model->polygons[i].middle_z)*(A_scl));
-				// vertexTarget *= GAME_TIME_COEFF;
 				for (ii = 0; ii < 2; ii++) {
 					spd1 = (2 << 8) + realRND(1 << 8);
 					spd2 = (3 << 7) + realRND(1 << 7);
-					p->AddVertex(vertexTarget,
+					p->AddVertex(
+						vertexTarget,
 						color_offset + (((1 << (7 - color_shift)) - 1) & ~1),
-						spd1, spd2);
+						spd1,
+						spd2
+					);
 				}
 			};
 
@@ -7060,7 +7357,7 @@ void uvsUnitType::CreateUnitType(uvsVanger* p)
 //	dEnergy = MaxEnergy / sc->DeltaEnergy;
 	dEnergy = ((MaxEnergy / 10) * sc->DeltaEnergy) / (UnitGlobalTime * 100);
 	DropEnergy = MaxEnergy * sc->DropEnergy / 100;
-	DelayDrop = sc->DropTime;
+	DelayDrop = (int)round(sc->DropTime * GAME_TIME_COEFF);
 	ImpulsePower = (MaxEnergy / 100) * sc->MaxFly;
 
 	NumDevice = 0;
@@ -7148,6 +7445,7 @@ void uvsUnitType::AddDevice(StuffObject* p)
 
 void uvsUnitType::DelDevice(StuffObject* p)
 {
+	p->ActIntBuffer.stuffOwner = NULL;
 	if((!p->PrevDeviceList) && (!p->NextDeviceList)) DeviceData = NULL;
 	else{
 		if(p->PrevDeviceList) p->PrevDeviceList->NextDeviceList = p->NextDeviceList;
@@ -7670,7 +7968,8 @@ void VangerUnit::ItemQuant(void)
 								if(DeviceData){
 									if(Status & SOBJ_ACTIVE){
 										n = aciGetLast();
-										if((StuffObject*)(n->stuffOwner)) DischargeItem((StuffObject*)(n->stuffOwner));
+										p = resolve_stuff_owner(this,n);
+										if(p) DischargeItem(p);
 									}else DischargeItem(DeviceData);
 								};
 							};
@@ -7758,7 +8057,7 @@ void BunchEvent(int type)
 			WorldPalCurrent = uvsCurrentCycle;
 			if(WorldPalCurrent >= WorldPalNum) WorldPalCurrent = 0;
 //			StartSetColor(100,WorldPalData[WorldPalCurrent]);
-			PalCD.Set(CPAL_CHANGE_CYCLE,100,WorldPalData[WorldPalCurrent]);
+			PalCD.Set(CPAL_CHANGE_CYCLE,bunch_cycle_palette_ticks(),WorldPalData[WorldPalCurrent]);
 			p = FarmerD.Tail;
 			while(p){
 //				if(p->ID != ID_SKYFARMER)
@@ -8011,6 +8310,37 @@ void ActionDispatcher::CreateActive(VangerUnit* p)
 };
 
 char* uvsGetNameByID(int type, int& ID);
+static StuffObject* resolve_stuff_owner(uvsUnitType* owner, actintItemData* d)
+{
+	StuffObject* p;
+	StuffObject* hint;
+
+	if(!owner || !d) return NULL;
+
+	hint = (StuffObject*)(d->stuffOwner);
+	if(hint){
+		p = owner->DeviceData;
+		while(p){
+			if(p == hint && &(p->ActIntBuffer) == d){
+				d->stuffOwner = (void*)(p);
+				return p;
+			};
+			p = (StuffObject*)(p->NextDeviceList);
+		};
+	};
+
+	p = owner->DeviceData;
+	while(p){
+		if(&(p->ActIntBuffer) == d){
+			d->stuffOwner = (void*)(p);
+			return p;
+		};
+		p = (StuffObject*)(p->NextDeviceList);
+	};
+
+	d->stuffOwner = NULL;
+	return NULL;
+};
 void aciSendEvent2itmdsp(int code,actintItemData* p,int data)
 {
 	Vector vCheck;
@@ -8018,81 +8348,98 @@ void aciSendEvent2itmdsp(int code,actintItemData* p,int data)
 	int what,id;
 	char* name_from;
 	char* name_to;
+	StuffObject* dev;
+	VangerUnit* active;
 	if(ActD.Active){
+		active = (VangerUnit*)(ActD.Active);
 		switch(code){
 			case ACI_DROP_ITEM:
-				((VangerUnit*)(ActD.Active))->CheckOutDevice((StuffObject*)(p->stuffOwner));
-				ActD.CheckDevice((StuffObject*)(p->stuffOwner));
-				((StuffObject*)(p->stuffOwner))->DeviceOut(ActD.Active->R_curr + Vector(0,0,ActD.Active->radius*3));
+				dev = resolve_stuff_owner(active,p);
+				if(!dev) break;
+				active->CheckOutDevice(dev);
+				ActD.CheckDevice(dev);
+				dev->DeviceOut(active->R_curr + Vector(0,0,active->radius*3));
 				break;
 			case ACI_ACTIVATE_ITEM:
 				switch(p->type){
 					case ACI_EMPTY_CIRTAINER:
-						if(ActD.Active->dynamic_state & (GROUND_COLLISION | WHEELS_TOUCH)){
-							ActD.Active->uvsPoint->gatherCirt(ActD.Active->R_curr.x,ActD.Active->R_curr.y,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data0,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data1);
-							p->type = uvsSetItemType(((StuffObject*)(p->stuffOwner))->uvsDeviceType,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data0,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data1);
+						dev = resolve_stuff_owner(active,p);
+						if(!dev) break;
+						if(active->dynamic_state & (GROUND_COLLISION | WHEELS_TOUCH)){
+							active->uvsPoint->gatherCirt(active->R_curr.x,active->R_curr.y,dev->ActIntBuffer.data0,dev->ActIntBuffer.data1);
+							p->type = uvsSetItemType(dev->uvsDeviceType,dev->ActIntBuffer.data0,dev->ActIntBuffer.data1);
 							aciChangeItem(p);
 						};
 						break;
-					case ACI_CIRTAINER:						
-						((StuffObject*)(p->stuffOwner))->ActIntBuffer.data0 = 0;
-						((StuffObject*)(p->stuffOwner))->ActIntBuffer.data1 = 0;
-						p->type = uvsSetItemType(((StuffObject*)(p->stuffOwner))->uvsDeviceType,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data0,((StuffObject*)(p->stuffOwner))->ActIntBuffer.data1);
-						aciChangeItem(p);						
+					case ACI_CIRTAINER:
+						dev = resolve_stuff_owner(active,p);
+						if(!dev) break;
+						dev->ActIntBuffer.data0 = 0;
+						dev->ActIntBuffer.data1 = 0;
+						p->type = uvsSetItemType(dev->uvsDeviceType,dev->ActIntBuffer.data0,dev->ActIntBuffer.data1);
+						aciChangeItem(p);
 						break;
 					case ACI_PEELOT:
-						if(ActD.Active->Status & SOBJ_AUTOMAT)
+						if(active->Status & SOBJ_AUTOMAT)
 							aiMessageQueue.Send(AI_MESSAGE_AUTOMATIC_OFF,0,0xff,0);
-						else							
+						else
 							aiMessageQueue.Send(AI_MESSAGE_AUTOMATIC_ON,0,0xff,0);
-						ActD.Active->Status ^= SOBJ_AUTOMAT;
+						active->Status ^= SOBJ_AUTOMAT;
 						break;
 					case ACI_GLUEK:
-						(ActD.Active)->Armor += 10 << 16;
-						ObjectDestroy((StuffObject*)(p->stuffOwner));
-						(ActD.Active)->CheckOutDevice((StuffObject*)(p->stuffOwner));
-						ActD.CheckDevice((StuffObject*)(p->stuffOwner));
-						((StuffObject*)(p->stuffOwner))->Storage->Deactive((StuffObject*)(p->stuffOwner));
-						(ActD.Active)->DelDevice((StuffObject*)(p->stuffOwner));
+						dev = resolve_stuff_owner(active,p);
+						if(!dev) break;
+						active->Armor += 10 << 16;
+						ObjectDestroy(dev);
+						active->CheckOutDevice(dev);
+						ActD.CheckDevice(dev);
+						dev->Storage->Deactive(dev);
+						active->DelDevice(dev);
 						aciSendEvent2actint(ACI_DROP_ITEM,p);
-						break;				
+						break;
 					case ACI_TANKACID:
-						ObjectDestroy((StuffObject*)(p->stuffOwner));
+						dev = resolve_stuff_owner(active,p);
+						if(!dev) break;
+						ObjectDestroy(dev);
 						for(i = 0;i < 3;i++){
 							vCheck = Vector(40,0,0)*DBM(i*PI / 3,Z_AXIS);
-							vCheck += ActD.Active->R_curr;
+							vCheck += active->R_curr;
 							cycleTor(vCheck.x,vCheck.y);
-							MapD.CreateAcidSpot(vCheck,40,60,0,-16,40);	
+							MapD.CreateAcidSpot(vCheck,40,60,0,-16,40);
 						};
-						MapD.CreateAcidSpot(ActD.Active->R_curr,40,60,0,-16,40);
-						(ActD.Active)->CheckOutDevice((StuffObject*)(p->stuffOwner));
-						ActD.CheckDevice((StuffObject*)(p->stuffOwner));
-						((StuffObject*)(p->stuffOwner))->Storage->Deactive((StuffObject*)(p->stuffOwner));
-						(ActD.Active)->DelDevice((StuffObject*)(p->stuffOwner));
-						aciSendEvent2actint(ACI_DROP_ITEM,p);					
-						SOUND_ACID() 
+						MapD.CreateAcidSpot(active->R_curr,40,60,0,-16,40);
+						active->CheckOutDevice(dev);
+						ActD.CheckDevice(dev);
+						dev->Storage->Deactive(dev);
+						active->DelDevice(dev);
+						aciSendEvent2actint(ACI_DROP_ITEM,p);
+						SOUND_ACID()
 						break;
 					default:
+						dev = resolve_stuff_owner(active,p);
+						if(!dev) break;
 						p->flags |= ACI_ACTIVE;
-						ActD.SlotIn(data,(StuffObject*)(p->stuffOwner));
+						ActD.SlotIn(data,dev);
 						break;
 				};
 				break;
 			case ACI_DEACTIVATE_ITEM:
+				dev = resolve_stuff_owner(active,p);
+				if(!dev) break;
 				p->flags &= ~ACI_ACTIVE;
-				ActD.SlotOut((StuffObject*)(p->stuffOwner));
+				ActD.SlotOut(dev);
 				break;
 			case ACI_SHOW_ITEM_TEXT:
 				if(p->type == ACI_TABUTASK_SUCCESSFUL){
 					RaceTxtBuff.init();
 					if(lang() == RUSSIAN){
-//GERMAN
+	//GERMAN
 						RaceTxtBuff < uvsGetNameByID(p->data1 & 0xffff,i);
 						RaceTxtBuff < rFirstTabuTaskMessage;
 						RaceTxtBuff < rSecondTabuTaskMessage;
 						RaceTxtBuff <= TabuTable[p->data1 & 0xffff]->cash < "$";
-//ENGLISH
-/*
+	//ENGLISH
+	/*
 						RaceTxtBuff < rFirstTabuTaskMessage;
 						RaceTxtBuff < uvsGetNameByID(p->data1 & 0xffff,i);
 						RaceTxtBuff < rSecondTabuTaskMessage;
@@ -8105,7 +8452,8 @@ void aciSendEvent2itmdsp(int code,actintItemData* p,int data)
 					};
 					aciPrepareText(RaceTxtBuff.address());
 				}else{
-					if(uvsPrepareItemToDiagen(((StuffObject*)(p->stuffOwner))->uvsDeviceType,p->data0,p->data1,what,id,name_from,name_to))
+					dev = resolve_stuff_owner(active,p);
+					if(dev && uvsPrepareItemToDiagen(dev->uvsDeviceType,p->data0,p->data1,what,id,name_from,name_to))
 						aciPrepareText(dgD->getInvText(what,id,name_from,name_to));
 				};
 				break;
@@ -8197,6 +8545,8 @@ actintItemData::actintItemData(void)
 	data0 = data1 = maxData = -1;
 	flags = 0;
 	slot = -1;
+	actintOwner = NULL;
+	stuffOwner = NULL;
 };
 
 actintItemData::actintItemData(int tp)
@@ -8206,6 +8556,8 @@ actintItemData::actintItemData(int tp)
 
 	flags = 0;
 	slot = -1;
+	actintOwner = NULL;
+	stuffOwner = NULL;
 
 //	if(tp <= ACI_TERMINATOR) flags |= ACI_WEAPON;
 };
@@ -8263,17 +8615,24 @@ void ActionDispatcher::DrawResource(void)
 	XGR_SetClip(UcutLeft,VcutUp,UcutRight,VcutDown);
 
 	y0 = VcutDown - RES_DRAW_DOWN;
-	x0 = UcutRight - RES_DRAW_LEFT;
+	x0 = UcutRight - RES_DRAW_RIGHT;
+	if (XGR_Obj.get_screen_scale_x() != 1) {
+		// Right sidebar size, magic number for HD version.
+		//
+		x0 -= 240;
+	}
 	x1 = UcutLeft + RES_DRAW_LEFT;
+
 	sx = x0 - x1;
+	int sizeX = sx * DrawResourceValue / DrawResourceMaxValue;
 
 	if(DrawResourceValue > 0){
-		XGR_Rectangle(x0 - sx * DrawResourceValue / DrawResourceMaxValue,y0,sx * DrawResourceValue / DrawResourceMaxValue,RES_DRAW_STEP_Y,228,228,XGR_FILLED);
+		XGR_Rectangle(x0 - sizeX, y0, sizeX, RES_DRAW_STEP_Y, 228, 228, XGR_FILLED);
 		DrawResourceValue = -DrawResourceValue;
-		DrawResourceTime = 130;
+		DrawResourceTime = 130 * GAME_TIME_COEFF;
 	}else{
 		if(DrawResourceTime > 0){
-			XGR_Rectangle(x0 + sx * DrawResourceValue / DrawResourceMaxValue,y0,-sx * DrawResourceValue / DrawResourceMaxValue,RES_DRAW_STEP_Y,228,228,XGR_FILLED);
+			XGR_Rectangle(x0 + sizeX, y0, -sizeX, RES_DRAW_STEP_Y, 228, 228, XGR_FILLED);
 			DrawResourceTime -= 128 / 20;
 		};
 	};
@@ -8337,11 +8696,8 @@ void uvsUnitType::UseOxigenResource(void)
 		OxigenResource--;
 		if(ActD.Active && ActD.Active->Status & SOBJ_ACTIVE) ActD.DrawResourceValue = OxigenResource;
 	}else{
-		if (Energy > 0) {
-			Energy-= MaxEnergy / 10;
-		} else if (Armor > 0) {
-			Armor-= MaxArmor / 10;
-		}
+		Armor = 0;
+		Energy = 0;
 	};
 };
 
@@ -8729,12 +9085,12 @@ void CompasObject::Quant(void)
 
 	d = v.vabs();
 	if(d){
-		vMove += v * MAX_COMPAS_DELTA / d;
+		vMove += v * (MAX_COMPAS_DELTA * XTCORE_FRAME_NORMAL * XTCORE_FRAME_NORMAL / d);
 		d = vMove.vabs();
 		if(d) vMove = vMove * (MAX_COMPAS_SPEED * XTCORE_FRAME_NORMAL / d);
 	};
 
-	v = Vector(ActD.Active->Speed,0,0)*ActD.Active->RotMat;
+	v = (Vector(ActD.Active->Speed,0,0)*ActD.Active->RotMat) * XTCORE_FRAME_NORMAL;
 	x = XCYCL(x + vMove.x + v.x);
 	y = YCYCL(y + vMove.y + v.y);
 
@@ -8948,15 +9304,43 @@ void CharacterDataType::GetVangerOrder(int d,int a,VangerUnit* p,VangerUnit* n)
 
 extern dastPoly3D terra_moving_tool;
 
+static inline int mole_trail_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
 void VangerUnit::MoleProcessQuant(void)
 {
 	Vector left_border,right_border;
 	double dx = xmax_real;
 	Vector delta(round(A_l2g[0]*dx),round(A_l2g[1]*dx),round(A_l2g[2]*dx));
-	if(sqrt((double)(sqr(R_curr.x - R_prev.x) + sqr(R_curr.y - R_prev.y))) > 2){
+	const int trail_ticks = mole_trail_ticks();
+	if(trail_ticks <= 1){
+		if(sqrt((double)(sqr(R_curr.x - R_prev.x) + sqr(R_curr.y - R_prev.y))) > 2){
+			MoleTool->set(R_curr - delta, R_curr + delta,Vector(0,0,0));
+			MoleTool->make_mole();
+			}
+		return;
+	}
+
+	if(!MoleTrailValid){
+		MoleTrailPrev = R_prev;
+		MoleTrailStep = 1;
+		MoleTrailValid = 1;
+		if(MoleTrailStep < trail_ticks)
+			return;
+	}else{
+		if(++MoleTrailStep < trail_ticks)
+			return;
+	}
+	MoleTrailStep = 0;
+
+	if(sqrt((double)(sqr(R_curr.x - MoleTrailPrev.x) + sqr(R_curr.y - MoleTrailPrev.y))) > 2){
 		MoleTool->set(R_curr - delta, R_curr + delta,Vector(0,0,0));
 		MoleTool->make_mole();
-		}
+	}
+	MoleTrailPrev = R_curr;
 };
 
 void ActionDispatcher::AddFunction(VangerFunctionType* p)
@@ -9131,7 +9515,7 @@ int ActionDispatcher::NewFunction(int id,int tp)
 void VangerFunctionType::SoundQuant(void)
 {
 	if(ID <= PROTRACTOR_PREPASSAGE) {
-		if(Time <= LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)) {
+		if(Time == LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)) {
 			SOUND_PROCTRACTOR_STOP();
 		}
 	};
@@ -9238,8 +9622,8 @@ void VangerFunctionType::Quant(void)
 		switch(ID){
 			case PROTRACTOR_JESTEROID:
 				if(ActD.pfActive && Time < LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)){
-					if(ActD.pfActive->R_curr.z < 400) ActD.pfActive->impulse(Vector(0,0,64),RND(25),0);
-					else ActD.pfActive->impulse(Vector(0,0,0),1,RND(50));
+					if(ActD.pfActive->R_curr.z < 400) ActD.pfActive->continuous_impulse(Vector(0,0,64),RND(25),0);
+					else ActD.pfActive->continuous_impulse(Vector(0,0,0),1,RND(50));
 					SoundFlag |= SoundCopterig;
 				};
 				break;
@@ -9248,7 +9632,7 @@ void VangerFunctionType::Quant(void)
 					if(Time < LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)){
 						if(!(ActD.pfActive->mole_on)){
 							ActD.pfActive->Molerizator = 1;
-							if(Time < LifeTime - 2){
+							if(Time < LifeTime - (2 * GAME_TIME_COEFF)){
 								ActD.pfActive->set_3D(SET_3D_DIRECT_PLACE,vR.x,vR.y,-32,0,-((VangerUnit*)(ActD.pfActive))->Angle,0);								
 								SoundFlag |= SoundCrotrig;
 							};
@@ -9285,7 +9669,7 @@ void VangerFunctionType::Quant(void)
 					SOUND_PR_FUNCTION_START();
 					((VangerUnit*)(ActD.pfActive))->ExternalDraw = 0;
 					ActD.pfActive->switch_analysis(1);
-					ActD.pfActive->CreateParticleMechos(ActD.pfActive->R_curr,300,LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF));
+					ActD.pfActive->CreateParticleMechos(ActD.pfActive->R_curr,300,(LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)) / GAME_TIME_COEFF);
 				};
 				break;
 			case MECHANIC_ITEM_FALL:
@@ -9370,24 +9754,26 @@ void VangerFunctionType::Quant(void)
 							};
 						};
 					}else{
-						SOUND_MES_FIRE();
-						a = 2*PI * Time / (LifeTime - (SKY_QUAKE_DELAY * GAME_TIME_COEFF));
-						n = BulletD.CreateBullet();
-						vCheck = Vector(ActD.mfActive->radius*4,0,0) * DBM(a,Z_AXIS);
-						vCheck += ActD.mfActive->R_curr;
-						cycleTor(vCheck.x,vCheck.y);
+						if(fire_garden_spawn_legacy_step(Time)){
+							SOUND_MES_FIRE();
+							a = 2*PI * Time / (LifeTime - (SKY_QUAKE_DELAY * GAME_TIME_COEFF));
+							n = BulletD.CreateBullet();
+							vCheck = Vector(ActD.mfActive->radius*4,0,0) * DBM(a,Z_AXIS);
+							vCheck += ActD.mfActive->R_curr;
+							cycleTor(vCheck.x,vCheck.y);
 
-						vTrack = Vector(ActD.mfActive->radius*3,0,0) * DBM(a,Z_AXIS);
-						vTrack += ActD.mfActive->R_curr;					
-						cycleTor(vTrack.x,vTrack.y);
-						n->CreateBullet(vTrack,vCheck,NULL,&GameBulletData[WD_BULLET_FIRE_GARDEN],NULL);
+							vTrack = Vector(ActD.mfActive->radius*3,0,0) * DBM(a,Z_AXIS);
+							vTrack += ActD.mfActive->R_curr;
+							cycleTor(vTrack.x,vTrack.y);
+							n->CreateBullet(vTrack,vCheck,NULL,&GameBulletData[WD_BULLET_FIRE_GARDEN],NULL);
+						};
 					};
 				};
 				break;
 			case PROTRACTOR_PALLADIUM:
 				if(ActD.pfActive){
 					vR = ActD.pfActive->R_curr;
-					if(Time == LifeTime - SIGNATOR_DELAY){
+					if(Time == LifeTime - (SIGNATOR_DELAY * GAME_TIME_COEFF)){
 						SOUND_PR_BARRIER();
 						if(ActD.pfActive == ActD.Active){
 //							SkyQuake3.set(ScreenCX,ScreenCY,PALLADIUM_RADIUS,PALLADIUM_RADIUS);
@@ -9537,7 +9923,7 @@ void ActionDispatcher::FunctionQuant(void)
 					break;
 				case ACI_PROTRACTOR_EVENT8:
 					if(!NetworkON)
-						FunctionThreallDestroyActive = GAME_OVER_EVENT_TIME;
+						FunctionThreallDestroyActive = game_over_event_ticks();
 					break;
 			};
 
@@ -9593,7 +9979,7 @@ void ActionDispatcher::FunctionQuant(void)
 					break;
 				case ACI_MECH_MESSIAH_EVENT6:
 					if(!NetworkON){
-						FunctionSpobsDestroyActive = GAME_OVER_EVENT_TIME;
+						FunctionSpobsDestroyActive = game_over_event_ticks();
 						if(ActD.Active){
 							SkyQuake2.set(ActD.Active->R_scr.x,ActD.Active->R_scr.y,20,SKY_QUAKE_RADIUS,SKY_QUAKE_DELTA);
 							SkyQuakeEnable2 = 1;
@@ -10660,14 +11046,16 @@ void VangerUnit::ResolveGenerator(void)
 	StuffObject* s;
 	int q,a;
 	SensorDataType* sns;
+	const int visible_check_factor = ai_event_check_factor(MAX_CHECK_VISIBLE_FACTOR);
+	const int unvisible_check_factor = ai_event_check_factor(MAX_CHECK_UNVISIBLE_FACTOR);
 
 	aiStatus = AI_STATUS_NONE;
 	aiStatus |= AI_STATUS_WHEEL | AI_STATUS_IMPULSE;
 
-	if(dynamic_state & VERTICAL_WALL_COLLISION) WallCollisionTime = MAX_WALL_TIME;
+	if(dynamic_state & VERTICAL_WALL_COLLISION) WallCollisionTime = wall_collision_ticks();
 	else if(WallCollisionTime > 0) WallCollisionTime--;
 
-	if(abs(TractionValue) < MAX_TRACTION_CHECK_DELTA) DeltaTractionTime = MAX_TRACTION_CHECK_TIME;
+	if(abs(TractionValue) < MAX_TRACTION_CHECK_DELTA) DeltaTractionTime = traction_low_state_ticks();
 	else if(DeltaTractionTime > 0) DeltaTractionTime--;
 
 	if(aiAlarmTime > 0) aiAlarmTime--;
@@ -10688,7 +11076,7 @@ void VangerUnit::ResolveGenerator(void)
 	if(!LowArmor && Armor < ArmorAlarm){
 		sns = GetNearSensor(R_curr.y,SensorTypeList::ARMOR_UPDATE);
 		if(sns && !aiResolveFind.FindResolve(UNIT_ORDER_SENSOR,UnitOrderType(sns))){
-			AddFindResolve(UNIT_ORDER_SENSOR,UnitOrderType(sns),0,AI_RESOLVE_STATUS_TARGET)->Time = MaxWayCount;
+			AddFindResolve(UNIT_ORDER_SENSOR,UnitOrderType(sns),0,AI_RESOLVE_STATUS_TARGET)->Time = way_recalc_arm_next_quant(MaxWayCount);
 			LowArmor = 1;
 		};
 	};
@@ -10725,7 +11113,7 @@ void VangerUnit::ResolveGenerator(void)
 
 	if(Visibility == VISIBLE && CoptePoint && !aiAlarmTime) aiStatus |= AI_STATUS_FLY;
 	
-	if((Visibility == VISIBLE && !RND(MAX_CHECK_VISIBLE_FACTOR)) || (Visibility == UNVISIBLE && !RND(MAX_CHECK_UNVISIBLE_FACTOR))){
+	if((Visibility == VISIBLE && !RND(visible_check_factor)) || (Visibility == UNVISIBLE && !RND(unvisible_check_factor))){
 		n = (aiUnitEvent*)(aiEvent.Tail);
 		while(n){
 			if(n->Time < aiMaxView) n->Time += aiAddView;
@@ -10815,13 +11203,13 @@ void VangerUnit::ResolveGenerator(void)
 				aiEvent.Disconnect(n);
 				delete n;
 			}else{
-				if(n->ID == AI_EVENT_VANGER && !RND(MAX_CHECK_VISIBLE_FACTOR)){
+				if(n->ID == AI_EVENT_VANGER && !RND(visible_check_factor)){
 					if(n->Time > aiMainLevel)
 						n->Time += aiDeltaLevel;
 
 					if(!aiAlarmTime){
 						if(GetAllert(n->Subj) < 0)
-							aiAlarmTime = AI_MAX_ALARM_TIME;
+							aiAlarmTime = ai_alarm_ticks();
 					}else{
 						if(n->Time < aiMaxAlarm)
 							n->Time += aiAddAlarm;
@@ -10839,12 +11227,12 @@ void VangerUnit::ResolveGenerator(void)
 				aiEvent.Disconnect(n);
 				delete n;
 			}else{
-				if(n->ID == AI_EVENT_VANGER && !RND(MAX_CHECK_UNVISIBLE_FACTOR)){
+				if(n->ID == AI_EVENT_VANGER && !RND(unvisible_check_factor)){
 					if(n->Time > aiMainLevel)
 						n->Time += aiDeltaLevel;
 					if(!aiAlarmTime){
 						if(GetAllert(n->Subj) < 0)
-							aiAlarmTime = AI_MAX_ALARM_TIME;
+							aiAlarmTime = ai_alarm_ticks();
 					}else{
 						if(n->Time < aiMaxAlarm)
 							n->Time += aiAddAlarm;					
@@ -10924,13 +11312,13 @@ void VangerUnit::GamerOrderInit(void)
 	switch(CompasObj.CurrentTarget->ID){
 		case CMP_OBJECT_ESCAVE:
 		case CMP_OBJECT_SPOT:
-			AddFindResolve(UNIT_ORDER_ENTER,CompasObj.CurrentTarget->Data)->Time = MaxWayCount;
+			AddFindResolve(UNIT_ORDER_ENTER,CompasObj.CurrentTarget->Data)->Time = way_recalc_arm_next_quant(MaxWayCount);
 			break;
 		case CMP_OBJECT_PASSAGE:
-			AddFindResolve(UNIT_ORDER_PASSAGE,CompasObj.CurrentTarget->Data)->Time = MaxWayCount;
+			AddFindResolve(UNIT_ORDER_PASSAGE,CompasObj.CurrentTarget->Data)->Time = way_recalc_arm_next_quant(MaxWayCount);
 			break;
 		case CMP_OBJECT_SENSOR:
-			AddFindResolve(UNIT_ORDER_SENSOR,CompasObj.CurrentTarget->Data)->Time = MaxWayCount;
+			AddFindResolve(UNIT_ORDER_SENSOR,CompasObj.CurrentTarget->Data)->Time = way_recalc_arm_next_quant(MaxWayCount);
 			break;
 	};
 };
@@ -10941,34 +11329,34 @@ void VangerUnit::MainOrderInit(void)
 	aiUnitResolve* p;
 
 	if(aiActionID == AI_ACTION_FARMER && SeedNum < MaxSeed){
-		(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = MaxWayCount;
+		(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = way_recalc_arm_next_quant(MaxWayCount);
 	}else{
 		p = NULL;
 		switch(uvsPoint->getOrder(g)){
 			case UVS_TARGET::ESCAVE:
-				(p = AddFindResolve(UNIT_ORDER_ENTER,g->unitPtr))->Time = MaxWayCount;
+				(p = AddFindResolve(UNIT_ORDER_ENTER,g->unitPtr))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 			case UVS_TARGET::SPOT:
-				(p = AddFindResolve(UNIT_ORDER_ENTER,g->unitPtr))->Time = MaxWayCount;										
+				(p = AddFindResolve(UNIT_ORDER_ENTER,g->unitPtr))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 			case UVS_TARGET::PASSAGE:
-				(p = AddFindResolve(UNIT_ORDER_PASSAGE,g->unitPtr))->Time = MaxWayCount;
+				(p = AddFindResolve(UNIT_ORDER_PASSAGE,g->unitPtr))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 			case UVS_TARGET::DOLLY:
-				(p = AddFindResolve(UNIT_ORDER_DOLL,UnitOrderType((uvsDolly*)(g))))->Time = MaxWayCount;
+				(p = AddFindResolve(UNIT_ORDER_DOLL,UnitOrderType((uvsDolly*)(g))))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 			case UVS_TARGET::VANGER:
 				if(ActD.Active){
-					(p = AddFindResolve(UNIT_ORDER_VANGER,ActD.Active))->Time = MaxWayCount;
+					(p = AddFindResolve(UNIT_ORDER_VANGER,ActD.Active))->Time = way_recalc_arm_next_quant(MaxWayCount);
 					aiResolveAttack.AddResolve(UNIT_ORDER_VANGER,ActD.Active);
 				}else
-					(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = MaxWayCount;
+					(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 			case UVS_TARGET::ITEM:
-				(p = AddFindResolve(UNIT_ORDER_PASSAGE,g->unitPtr))->Time = MaxWayCount;			
+				(p = AddFindResolve(UNIT_ORDER_PASSAGE,g->unitPtr))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;				
 			default:
-				(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = MaxWayCount;
+				(p = AddFindResolve(UNIT_ORDER_VECTOR,UnitOrderType(RND(clip_mask_x),300 + RND(clip_mask_y - 600),0),0,AI_RESOLVE_STATUS_VIEW))->Time = way_recalc_arm_next_quant(MaxWayCount);
 				break;
 		};
 	};
@@ -11237,7 +11625,7 @@ void VangerUnit::ResolveHandlerFind(aiUnitResolve* p)
 
 		if(!(OtherFlag & MECHOS_CALC_WAY)){
 			p->Time++;
-			if(p->Time > MaxWayCount){
+			if(p->Time >= way_recalc_timeout_ticks(MaxWayCount)){
 				HideTrack.GetPosition(&TargetPoint);
 				WayInit();
 				p->Time = 0;
@@ -11552,7 +11940,7 @@ void VangerUnit::WeaponGenerator(void)
 				GunSlotData[ItemMatrix->nSlot[i]].OpenGun(pp);
 				if(pp->pData->WaitTime) WeaponDelta += pp->pData->Power / pp->pData->WaitTime;
 				else WeaponDelta += pp->pData->Power;
-				d = pp->pData->LifeTime * pp->pData->Speed;
+				d = (int)round(pp->pData->LifeTime * XTCORE_FRAME_NORMAL * pp->pData->Speed);
 				if(d < AttackRadius) AttackRadius = d;
 			};
 		};
@@ -11630,7 +12018,7 @@ int GunSlot::CheckTarget(ActionUnit* p)
 	if(pData->BulletMode & BULLET_CONTROL_MODE::SPEED) v = pData->Speed + Owner->Speed;
 	else v = pData->Speed;
 
-	d = v * pData->LifeTime;
+	d = (int)round(v * pData->LifeTime * XTCORE_FRAME_NORMAL);
 	vStart = Owner->R_curr;
 
 	aiTargetObject = NULL;
@@ -11696,7 +12084,7 @@ aiUnitEvent* VangerUnit::AddEvent(int id,GeneralObject* obj,VangerUnit* subj)
 
 	switch(id){
 		case AI_EVENT_ITEM:
-			aiResolveFind.AddResolve(UNIT_ORDER_STUFF,UnitOrderType((StuffObject*)(obj)))->Time = MaxWayCount;
+			aiResolveFind.AddResolve(UNIT_ORDER_STUFF,UnitOrderType((StuffObject*)(obj)))->Time = way_recalc_arm_next_quant(MaxWayCount);
 			break;
 	};
 	return l;
@@ -11826,7 +12214,7 @@ void VangerUnit::InitAI(void)
 
 	uvsMaxSpeed = round((double)(TotalVangerSpeed)*speed_factor / GAME_TIME_COEFF);
 
-	MaxHideSpeed = uvsMaxSpeed;
+	MaxHideSpeed = round((double)(TotalVangerSpeed)*speed_factor);
 	MakeTrackDist();
 	NoWayEnable = AI_NO_WAY_NONE;
 
@@ -12020,7 +12408,10 @@ void VangerUnit::InitAI(void)
 			break;		
 	};
 	Molerizator = 0;
-	VangerCloneID = 0;	
+	MoleTrailPrev = Vector(0,0,0);
+	MoleTrailStep = 0;
+	MoleTrailValid = 0;
+	VangerCloneID = 0;
 };
 
 extern uvsVanger* Gamer;
@@ -12357,7 +12748,7 @@ void VangerUnit::DestroyEnvironment(void)
 			vCheck = Vector(getDistX(p->R_curr.x,R_curr.x),getDistY(p->R_curr.y,R_curr.y),p->R_curr.z - R_curr.z);
 			d = vCheck.vabs();
 			if(d < ml){
-				p->impulse(vCheck,30*(ml - d) / ml,0);
+				p->instant_impulse(vCheck,30*(ml - d) / ml,0);
 				p->BulletCollision((MaxEnergy / ml)*(ml - d),NULL);
 			};
 		};		
@@ -12518,7 +12909,7 @@ void VangerUnit::NetCreateVanger(uvsPassage* pp,uvsEscave* pe,uvsSpot* ps)
 	//NETWORK_OUT_STREAM.set_position(ViewX,ViewY,round(2.*(fabs(curGMap -> xsize*sinTurnInvFlt) + fabs(curGMap -> ysize*cosTurnInvFlt))*0.5));
 	NETWORK_OUT_STREAM.create_permanent_object(NetID,R_curr.x,R_curr.y,radius);
 	int scr_size = round((fabs(curGMap -> xsize*sinTurnInvFlt) + fabs(curGMap -> ysize*cosTurnInvFlt))*.5);
-	NETWORK_OUT_STREAM < (unsigned char)(scr_size < 255 ? scr_size : 255);
+	NETWORK_OUT_STREAM < (unsigned short)(scr_size < 0xffff ? scr_size : 0xffff);
 	Send();
 	NETWORK_OUT_STREAM.end_body();
 
@@ -12583,17 +12974,32 @@ void CheckPlayerList(void)
 
 	p = players_list.first();
 	while(p){
-		if(p->client_ID != GlobalStationID && p->name && p->status == GAMING_STATUS){
-			if(p->CreatePlayerFlag == 3 && p->body.NetID == 0)
-				p->CreatePlayerFlag = 0;
-			if(p->body.world == CurrentWorld && p->body.NetID != 0 && p->body.CarIndex != 255 && p->CreatePlayerFlag == 0)
-				NetEvent4Uvs(p);
-			if(p->CreatePlayerFlag == 1){
-				if(!((uvsVanger*)(p->uvsPoint))->Pescave && !((uvsVanger*)(p->uvsPoint))->Pspot && !((uvsVanger*)(p->uvsPoint))->Ppassage)
-					v = addVanger((uvsVanger*)(p->uvsPoint),p->body.Data0,p->body.Data1);
-				else 
-					v = addVanger((uvsVanger*)(p->uvsPoint),((uvsVanger*)(p->uvsPoint))->Ppassage);
-				if(v) v->InitPlayerPoint(p);
+		if(p->client_ID != GlobalStationID && p->name){
+			if(p->status == GAMING_STATUS){
+				if(p->CreatePlayerFlag == 3){
+					if(p->body.NetID == 0){
+						p->CreatePlayerFlag = 0;
+						p->LastDestroyedNetID = 0;
+					}else{
+						if(p->body.world == CurrentWorld && p->body.CarIndex != 255 && p->body.NetID != p->LastDestroyedNetID){
+							p->CreatePlayerFlag = 0;
+							p->LastDestroyedNetID = 0;
+						};
+					};
+				};
+				if(p->body.world == CurrentWorld && p->body.NetID != 0 && p->body.CarIndex != 255 && p->CreatePlayerFlag == 0)
+					NetEvent4Uvs(p);
+				if(p->CreatePlayerFlag == 1){
+					if(!((uvsVanger*)(p->uvsPoint))->Pescave && !((uvsVanger*)(p->uvsPoint))->Pspot && !((uvsVanger*)(p->uvsPoint))->Ppassage)
+						v = addVanger((uvsVanger*)(p->uvsPoint),p->body.Data0,p->body.Data1);
+					else
+						v = addVanger((uvsVanger*)(p->uvsPoint),((uvsVanger*)(p->uvsPoint))->Ppassage);
+					if(v) v->InitPlayerPoint(p);
+				};
+			}else{
+				if(p->status == INITIAL_STATUS && (p->world || p->body.world || p->body.NetID || p->body.CarIndex != 255))
+					request_total_players_data_list_query_async();
+				if(ActD.Active) ActD.Active->pNetPlayer = p;
 			};
 		}else{
 			if(ActD.Active) ActD.Active->pNetPlayer = p;
@@ -12648,12 +13054,13 @@ void ObjectDestroy(GeneralObject* n,int mode)
 		};
 		
 		if(((VangerUnit*)(n))->VangerChanger){
-			if(((VangerUnit*)(n))->VangerChanger->VangerChanger == n){
-				((VangerUnit*)(n))->VangerChanger->VangerChanger = NULL;
-				((VangerUnit*)(n))->VangerChanger->VangerChangerCount = 0;
-				if(NetworkON && (((VangerUnit*)(n))->VangerChanger->Status & SOBJ_ACTIVE)){
-					((VangerUnit*)(n))->VangerChanger->NetChanger = 0;
-					((VangerUnit*)(n))->VangerChanger->ShellUpdateFlag = 1;
+			p = ((VangerUnit*)(n))->VangerChanger;
+			if(CheckLiveVangerPointer(p) && p->VangerChanger == n){
+				p->VangerChanger = NULL;
+				p->VangerChangerCount = 0;
+				if(NetworkON && (p->Status & SOBJ_ACTIVE)){
+					p->NetChanger = 0;
+					p->ShellUpdateFlag = 1;
 				};
 			};
 			((VangerUnit*)(n))->VangerChanger = NULL;
@@ -12678,6 +13085,8 @@ void ObjectDestroy(GeneralObject* n,int mode)
 			p = (VangerUnit*)(p->NextTypeList);
 		};		
 	}else{
+		if(n->ID == ID_STUFF)
+			((StuffObject*)(n))->ActIntBuffer.stuffOwner = NULL;
 		if(NetworkON){
 			if(((StuffObject*)(n))->Owner){
 				if(((StuffObject*)(n))->Owner->Status & SOBJ_ACTIVE){
@@ -13010,8 +13419,8 @@ void VangerUnit::CalcAiFactor(VangerUnit* p,int time)
 		case AI_FACTOR_ATTACK:
 			if(!AddAttackTime){
 				if(time >= aiFindLevel)
-					AddFindResolve(UNIT_ORDER_VANGER,UnitOrderType(p),round((float)(time)*aiAttackTime) + 10,AI_RESOLVE_STATUS_VAR)->Time = MaxWayCount;
-				aiResolveAttack.AddResolve(UNIT_ORDER_VANGER,UnitOrderType(p),round((float)(time)*aiAttackTime) + 10,AI_RESOLVE_STATUS_VAR)->Time = MaxWayCount;
+					AddFindResolve(UNIT_ORDER_VANGER,UnitOrderType(p),round((float)(time)*aiAttackTime) + 10,AI_RESOLVE_STATUS_VAR)->Time = way_recalc_arm_next_quant(MaxWayCount);
+				aiResolveAttack.AddResolve(UNIT_ORDER_VANGER,UnitOrderType(p),round((float)(time)*aiAttackTime) + 10,AI_RESOLVE_STATUS_VAR)->Time = way_recalc_arm_next_quant(MaxWayCount);
 				AddAttackTime = round((float)(time)*aiAttackTime);
 			};
 			break;
@@ -13366,7 +13775,9 @@ int isSpummyDeath(void)
 };
 
 void InsectUnit::HideAction(void)
-{	
+{
+	int d_angle,dx,dy;
+
 	dynamic_state = WHEELS_TOUCH;
 	if(SpeedDir == 0) return;
 	else{
@@ -13387,11 +13798,21 @@ void InsectUnit::HideAction(void)
 		if(MoveAngle < -MECHOS_ROT_DELTA) MoveAngle = -MECHOS_ROT_DELTA;
 	};
 
-	Angle = rPI(Angle + MoveAngle);
+	d_angle = hidden_turn_step_runtime(MoveAngle,HideTurnAccum);
+	Angle = rPI(Angle + d_angle);
 	vDirect = Vector(CurrSpeed,0,0) * DBM(Angle,Z_AXIS);
 
-	R_curr.x += vDirect.x;
-	R_curr.y += vDirect.y;
+	HideMoveAccumX += vDirect.x * XTCORE_FRAME_NORMAL;
+	HideMoveAccumY += vDirect.y * XTCORE_FRAME_NORMAL;
+
+	dx = HideMoveAccumX > 0.0 ? (int)floor(HideMoveAccumX) : (int)ceil(HideMoveAccumX);
+	dy = HideMoveAccumY > 0.0 ? (int)floor(HideMoveAccumY) : (int)ceil(HideMoveAccumY);
+
+	HideMoveAccumX -= dx;
+	HideMoveAccumY -= dy;
+
+	R_curr.x += dx;
+	R_curr.y += dy;
 	cycleTor(R_curr.x,R_curr.y);
 };
 
@@ -13482,7 +13903,7 @@ void VangerUnit::ShellNetEvent(int type,int id,int creator,int time,int x,int y,
 
 			NetChanger = ch;
 			NETWORK_IN_STREAM > NetRuffaGunTime;
-			if(!(Status & SOBJ_WAIT_CONFIRMATION) && Visibility == VISIBLE && GetDistTime(NetGlobalTime,NetRuffaGunTime) < 5*256 && RuffaGunTime > (RUFFA_GUN_WAIT * WeaponWaitTime >> 8)){
+			if(!(Status & SOBJ_WAIT_CONFIRMATION) && Visibility == VISIBLE && GetDistTime(NetGlobalTime,NetRuffaGunTime) < 5*256 && RuffaGunTime >= ruffa_gun_wait_ticks()){
 				RuffaGunTime = 0;
 				g = BulletD.CreateBullet();
 				vCheck = Vector(64,0,0)*RotMat;
@@ -13515,7 +13936,10 @@ void ActionDispatcher::ShellNetEvent(int type,int id)
 	p = (VangerUnit*)(ActD.Tail);
 	while(p){
 		if(p->ShellNetID == id){
-			if(p->Status & (SOBJ_DISCONNECT | SOBJ_ACTIVE))	NETWORK_IN_STREAM.ignore_event();
+			if(p->Status & (SOBJ_DISCONNECT | SOBJ_ACTIVE)){
+				network_log_object_event("IN",type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius(),NETWORK_IN_STREAM.current_body_size(),"ignored_shell_owner_inactive_or_local");
+				NETWORK_IN_STREAM.ignore_event();
+			}
 			else{
 				p->ShellNetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),
 					 NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius());
@@ -13525,7 +13949,10 @@ void ActionDispatcher::ShellNetEvent(int type,int id)
 		p = (VangerUnit*)(p->NextTypeList);
 	};
 
-	if(!p) NETWORK_IN_STREAM.ignore_event();
+	if(!p){
+		network_log_object_event("IN",type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius(),NETWORK_IN_STREAM.current_body_size(),"ignored_missing_shell_owner");
+		NETWORK_IN_STREAM.ignore_event();
+	}
 };
 
 void ActionDispatcher::NetEvent(int type,int id)
@@ -13534,12 +13961,18 @@ void ActionDispatcher::NetEvent(int type,int id)
 
 	p = (VangerUnit*)(GetNetObject(id));
 	if(p){
-		if(p->Status & (SOBJ_DISCONNECT | SOBJ_ACTIVE)) NETWORK_IN_STREAM.ignore_event();
+		if(p->Status & (SOBJ_DISCONNECT | SOBJ_ACTIVE)){
+			network_log_object_event("IN",type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius(),NETWORK_IN_STREAM.current_body_size(),"ignored_vanger_inactive_or_local");
+			NETWORK_IN_STREAM.ignore_event();
+		}
 		else{
 			p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),
 				 NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius());
 		};
-	}else NETWORK_IN_STREAM.ignore_event();
+	}else{
+		network_log_object_event("IN",type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_time(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y(),NETWORK_IN_STREAM.current_radius(),NETWORK_IN_STREAM.current_body_size(),"ignored_missing_vanger");
+		NETWORK_IN_STREAM.ignore_event();
+	}
 };
 
 int UnitItemMatrix::CheckSize(int sz,int*& p)
@@ -13879,7 +14312,12 @@ void VangerUnit::OutCarNator(void)
 	StuffObject* p;
 	StuffObject* pp;
 	uvsItem* g;			
-	
+
+	if(!CheckLiveVangerPointer(VangerChanger)){
+		ClearVangerChangerLink(this,NetworkON && (Status & SOBJ_ACTIVE));
+		return;
+	};
+
 	if(NetworkON){
 		FreeList(uvsPoint->Pitem);
 		p = VangerChanger->DeviceData;
@@ -13980,7 +14418,7 @@ void VangerUnit::ChangeVangerProcess(void)
 	aiResolveFind.Free();
 	aiResolveAttack.Free();
 
-	delete ItemMatrixData;
+	delete[] ItemMatrixData;
 
 //!!!!	
 
@@ -14003,7 +14441,7 @@ void VangerUnit::ChangeVangerProcess(void)
 	MaxEnergy = sc->MaxEnergy << 16;
 	dEnergy = ((MaxEnergy / 10) * sc->DeltaEnergy) / (UnitGlobalTime * 100);
 	DropEnergy = MaxEnergy * sc->DropEnergy / 100;
-	DelayDrop = sc->DropTime;
+		DelayDrop = (int)round(sc->DropTime * GAME_TIME_COEFF);
 	ImpulsePower = (MaxEnergy / 100) * sc->MaxFly;
 	OxigenResource = MaxOxigenResource = sc->MaxOxigen;
 	PowerFlag = sc->MaxFire;
@@ -14113,6 +14551,7 @@ void VangerUnit::ChangeVangerProcess(void)
 	FrontPoint.pPrevLink = pPrevLink;
 	FrontPoint.pBranch = pBranch;
 	FrontPoint.pNode = pNode;
+	FrontStepAccum = 0.0;
 	PrevBranch = pBranch;
 	OtherFlag = MECHOS_RECALC_FRONT | MECHOS_TARGET_MOVE;
 	CheckWayCount = MaxWayCount = 50;
@@ -14261,7 +14700,8 @@ void NetCheckRemovePlayer(PlayerData* p)
 
 		switch(my_server_data.GameType){
 			case MECHOSOMA:
-				if((p->body.MechosomaStat.ItemCount1 + p->body.MechosomaStat.ItemCount2) >= (my_server_data.Mechosoma.ProductQuantity1 + my_server_data.Mechosoma.ProductQuantity2)){
+				if(p->body.MechosomaStat.ItemCount1 >= my_server_data.Mechosoma.ProductQuantity1 &&
+				   p->body.MechosomaStat.ItemCount2 >= my_server_data.Mechosoma.ProductQuantity2){
 					RaceTxtBuff < p->name;
 					if(lang() == RUSSIAN) RaceTxtBuff < rPlayerWinnerSecondMessage;
 					else RaceTxtBuff < PlayerWinnerSecondMessage;

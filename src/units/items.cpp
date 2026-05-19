@@ -42,12 +42,232 @@
 #include "../sound/hsound.h"
 #include "magnum.h"
 
+#include <cstdio>
 
 extern int RAM16;
 extern iGameMap* curGMap;
 extern uchar* FireColorTable;
+extern int frame; // kdsplus.cpp
 
 const char DEBRIS_LIFE_TIME = 100;
+
+static int CheckLiveVangerPointer(VangerUnit* p)
+{
+	GeneralObject* n;
+	VangerUnit* v;
+
+	if(!p) return 0;
+
+	n = ActD.Tail;
+	while(n){
+		if(n == (GeneralObject*)p){
+			if(n->ID != ID_VANGER) return 0;
+			if(n->Status & SOBJ_DISCONNECT) return 0;
+
+			v = (VangerUnit*)n;
+			if(!v->uvsPoint || !v->uvsPoint->Pmechos) return 0;
+
+			return 1;
+		};
+		n = n->NextTypeList;
+	};
+
+	return 0;
+};
+
+static void NetworkLogStuffObject(const char* tag,StuffObject* p,const char* extra)
+{
+	if(!p)
+		return;
+	network_log_item_event(tag,
+		p->NetID,
+		p->NetDeviceID,
+		p->NetOwner,
+		p->Owner ? p->Owner->NetID : 0,
+		p->DataID,
+		p->ActIntBuffer.type,
+		p->ActIntBuffer.data0,
+		p->ActIntBuffer.data1,
+		p->CreateMode,
+		p->OutFlag,
+		p->Status,
+		p->Visibility,
+		extra);
+}
+
+static inline int debris_lifetime_ticks(void)
+{
+	int ticks = (int)round((DEBRIS_LIFE_TIME + 1) * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int bullet_random_target_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool bullet_random_target_legacy_step(void)
+{
+	return !(frame % bullet_random_target_ticks());
+}
+
+static inline int bullet_particle_draw_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool bullet_particle_draw_legacy_step(void)
+{
+	return !(frame % bullet_particle_draw_ticks());
+}
+
+static inline int bullet_laser_draw_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool bullet_laser_draw_local_step(int& delay)
+{
+	int ticks = bullet_laser_draw_ticks();
+	if(ticks <= 1) return 1;
+	if(delay < ticks - 1){
+		delay++;
+		return 0;
+	}
+	delay = 0;
+	return 1;
+}
+
+static inline int bullet_crater_draw_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool bullet_crater_draw_local_step(int& delay)
+{
+	int ticks = bullet_crater_draw_ticks();
+	if(ticks <= 1) return 1;
+	if(delay > 0){
+		delay--;
+		return 0;
+	}
+	delay = ticks - 1;
+	return 1;
+}
+
+static inline void accumulate_runtime_vector_step(const Vector& legacy_step,double& accum_x,double& accum_y,double& accum_z,Vector& out_step)
+{
+	accum_x += legacy_step.x * XTCORE_FRAME_NORMAL;
+	accum_y += legacy_step.y * XTCORE_FRAME_NORMAL;
+	accum_z += legacy_step.z * XTCORE_FRAME_NORMAL;
+
+	out_step.x = accum_x > 0.0 ? (int)floor(accum_x) : (int)ceil(accum_x);
+	out_step.y = accum_y > 0.0 ? (int)floor(accum_y) : (int)ceil(accum_y);
+	out_step.z = accum_z > 0.0 ? (int)floor(accum_z) : (int)ceil(accum_z);
+
+	accum_x -= out_step.x;
+	accum_y -= out_step.y;
+	accum_z -= out_step.z;
+}
+
+static inline int machotine_laser_random_spread(void)
+{
+	return 3 - (int)RND(6);
+}
+
+static inline int bullet_target_steer_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool bullet_target_steer_legacy_step(int& delay)
+{
+	int ticks = bullet_target_steer_ticks();
+	if(ticks <= 1) return 1;
+	if(delay > 0){
+		delay--;
+		return 0;
+	}
+	delay = ticks - 1;
+	return 1;
+}
+
+static inline int fish_warrior_attack_ticks(void)
+{
+	int ticks = (int)round(FISH_WARRIOR_ATTACK_TIME * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int fish_warrior_state_ticks(int legacy_delay)
+{
+	int ticks = (int)round((legacy_delay + 1) * GAME_TIME_COEFF) - 1;
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int fish_warrior_random_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool fish_warrior_random_legacy_step(void)
+{
+	return !(frame % fish_warrior_random_ticks());
+}
+
+static inline int skyfarmer_random_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool skyfarmer_random_legacy_step(void)
+{
+	return !(frame % skyfarmer_random_ticks());
+}
+
+static inline int crypt_quant_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool crypt_quant_legacy_step(void)
+{
+	return !(frame % crypt_quant_ticks());
+}
+
+static inline int spobs_destroy_palette_ticks(void)
+{
+	int ticks = (int)round(50 * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int threall_destroy_palette_ticks(void)
+{
+	int ticks = (int)round(50 * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline int runtime_toggle_scale_counter(int value,double old_coeff,double new_coeff)
+{
+	if(value <= 0 || old_coeff <= 0.0 || new_coeff <= 0.0) return value;
+	return (int)round(value * new_coeff / old_coeff);
+}
+
+static inline void apply_world_bullet_runtime_scale(WorldBulletTemplate& p)
+{
+	p.LifeTime = (int)round(p.LegacyLifeTime * GAME_TIME_COEFF);
+	if(p.LifeTime <= 0) p.LifeTime = 1;
+	p.DeltaPower = (p.LastPower - p.Power) / p.LifeTime;
+	if(p.BulletID != BULLET_TYPE_ID::CHAIN_GUN)
+		p.WaitTime = (p.LegacyWaitTime + 1) * GAME_TIME_COEFF - 1;
+}
 
 //extern XStream MechosLst;
 extern int AdvancedView;
@@ -109,6 +329,55 @@ int SkyFarmerWayTableSize;
 SensorDataType* SkyFarmerWayTable;
 
 int WeaponWaitTime;
+
+void reconfigure_runtime_fps_scaled_state(double old_coeff,double new_coeff)
+{
+	int i;
+	BaseObject* p;
+	ActionUnit* a;
+
+	if(old_coeff <= 0.0 || new_coeff <= 0.0 || old_coeff == new_coeff)
+		return;
+
+	for(i = 0; i < GameBulletNum; i++)
+		apply_world_bullet_runtime_scale(GameBulletData[i]);
+
+	p = (BaseObject*)(BulletD.Tail);
+	while(p){
+		BulletObject* b = (BulletObject*)p;
+		if(!(b->Status & SOBJ_DISCONNECT)){
+			b->Time = runtime_toggle_scale_counter(b->Time,old_coeff,new_coeff);
+			if(b->DataID >= 0 && b->DataID < GameBulletNum)
+				b->DeltaPower = GameBulletData[b->DataID].DeltaPower;
+			b->LegacyLaserDrawDelay = 0;
+			b->LegacyCraterDrawDelay = 0;
+			b->LegacyLaserDrawAccum = Vector(0,0,0);
+			if(b->BulletID == BULLET_TYPE_ID::LASER)
+				b->LegacyLaserDrawCached = Vector(-b->vDelta.x,-b->vDelta.y,-b->vDelta.z);
+		}
+		p = (BaseObject*)(p->NextTypeList);
+	}
+
+	a = (ActionUnit*)(ActD.Tail);
+	while(a){
+		a->MaxSpeed = 50;
+		a->MaxVelocity = 200;
+
+		if(a->ID == ID_VANGER){
+			VangerUnit* v = (VangerUnit*)a;
+			v->MaxHideSpeed = (int)round((double)(TotalVangerSpeed)*v->speed_factor);
+			for(i = 0; i < MAX_ACTIVE_SLOT; i++){
+				GunSlot& slot = v->GunSlotData[i];
+				if(slot.pData && slot.GunStatus == GUN_WAIT)
+					slot.Time = runtime_toggle_scale_counter(slot.Time,old_coeff,new_coeff);
+			}
+		}else{
+			a->MaxHideSpeed = 50;
+		}
+
+		a = (ActionUnit*)(a->NextTypeList);
+	}
+}
 
 extern int ProtoCryptTableSize[WORLD_MAX];
 extern SensorDataType* ProtoCryptTable[WORLD_MAX];
@@ -498,7 +767,7 @@ void DebrisObject::Quant(void)
 		analysis();
 		cycleTor(R_curr.x,R_curr.y);
 	}else{
-		if(Time > DEBRIS_LIFE_TIME)
+		if(Time >= debris_lifetime_ticks())
 			Status |= SOBJ_DISCONNECT;			
 	};
 };
@@ -516,6 +785,10 @@ void StuffObject::Init(StorageType* s)
 	Status = SOBJ_DISCONNECT;
 	Owner = NULL;
 	CreateMode = STUFF_CREATE_NONE;
+	ActIntBuffer.flags = 0;
+	ActIntBuffer.slot = -1;
+	ActIntBuffer.actintOwner = NULL;
+	ActIntBuffer.stuffOwner = NULL;
 };
 
 void StuffObject::Free(void)
@@ -566,7 +839,7 @@ void StuffObject::Quant(void)
 				if(CurrentWorld == WORLD_XPLO && ActD.FunctionSpobsDestroyActive){
 					if(!ActD.SpobsDestroy && (dynamic_state & GROUND_COLLISION) && GetTouchSensor("Spot1")){
 						ActD.SpobsDestroy = 1;
-						PalCD.Set(CPAL_SPOBS_TO,50);
+						PalCD.Set(CPAL_SPOBS_TO,spobs_destroy_palette_ticks());
 						Status |= SOBJ_DISCONNECT;
 						ActD.XploKeyEnable = 0;
 						aciOpenWorldLink(WORLD_HMOK,WORLD_HMOK);
@@ -582,13 +855,13 @@ void StuffObject::Quant(void)
 					if(ActD.ThreallDestroy){
 						if(LightData) LightData->set_position(R_curr.x,R_curr.y,512);
 						else LightData = MapD.CreateLight(R_curr.x,R_curr.y,512,80,63,LIGHT_TYPE::DYNAMIC);
-						if(R_curr.z < 255) impulse(Vector(0,0,64),RND(15),RND(8));
+						if(R_curr.z < 255) continuous_impulse(Vector(0,0,64),RND(15),RND(8));
 					}else{
 						if((dynamic_state & GROUND_COLLISION) && GetTouchSensor("SIGN") && ActD.FunctionThreallDestroyActive){
 							ActD.ThreallDestroy = 1;
 							aciOpenWorldLink(WORLD_HMOK,WORLD_HMOK);
 							aciPrepareWorldsMenu();
-							PalCD.Set(CPAL_THREALL_TO,50);
+							PalCD.Set(CPAL_THREALL_TO,threall_destroy_palette_ticks());
 							start_vibration();
 							SOUND_SPOPS_ALIES();
 							ActD.FunctionThreallDestroyActive = 0;
@@ -785,8 +1058,9 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 		NETWORK_OUT_STREAM < (short)(R_curr.x);
 		NETWORK_OUT_STREAM < (short)(R_curr.y);
 		NETWORK_OUT_STREAM < (int)(NetOwner);
-		NETWORK_OUT_STREAM.end_body();		
+		NETWORK_OUT_STREAM.end_body();
 	};
+	NetworkLogStuffObject("StuffObject::CreateStuff",this,"phase=after_create");
 };
 
 void StuffObject::CreateDevice(Vector v,VangerUnit* own,StuffObject* p)
@@ -825,8 +1099,9 @@ void StuffObject::CreateDevice(Vector v,VangerUnit* own,StuffObject* p)
 		NETWORK_OUT_STREAM < (short)(R_curr.x);
 		NETWORK_OUT_STREAM < (short)(R_curr.y);
 		NETWORK_OUT_STREAM < (int)(NetOwner);
-		NETWORK_OUT_STREAM.end_body();		
+		NETWORK_OUT_STREAM.end_body();
 	};
+	NetworkLogStuffObject("StuffObject::CreateDevice",this,"phase=after_create");
 };
 
 void StuffObject::DeviceIn(void)
@@ -857,11 +1132,7 @@ void StuffObject::DeviceIn(void)
 	};
 
 	if(NetworkON && (Owner->Status & SOBJ_ACTIVE)){
-		NETWORK_OUT_STREAM.delete_object(NetID);
-		NETWORK_OUT_STREAM < (uchar)(1);
-		NETWORK_OUT_STREAM.end_body();
-
-		NETWORK_OUT_STREAM.create_permanent_object(NetDeviceID,xImpulse,yImpulse,radius);
+		NETWORK_OUT_STREAM.begin_item_transfer(ITEM_TRANSFER_PICKUP,NetID,NetDeviceID,xImpulse,yImpulse,radius);
 		NETWORK_OUT_STREAM < (uchar)(DataID);
 		NETWORK_OUT_STREAM < (int)(NetID);
 		NETWORK_OUT_STREAM < (short)(R_curr.z);
@@ -875,6 +1146,7 @@ void StuffObject::DeviceIn(void)
 		NETWORK_OUT_STREAM < (int)(NetOwner);
 		NETWORK_OUT_STREAM.end_body();
 	};
+	NetworkLogStuffObject("StuffObject::DeviceIn",this,"phase=after_device_in");
 };
 
 void GunDevice::DeviceIn(void)
@@ -894,7 +1166,7 @@ void GunDevice::DeviceIn(void)
 				break;
 			case ACI_MECHOSCOPE:
 				if(NetworkON){
-					if(PrevOwner && PrevOwner != Owner && (Owner->Status & SOBJ_ACTIVE) && PrevOwner->Visibility == VISIBLE && !(PrevOwner->Status & SOBJ_WAIT_CONFIRMATION)){
+					if(CheckLiveVangerPointer(Owner) && CheckLiveVangerPointer(PrevOwner) && PrevOwner != Owner && (Owner->Status & SOBJ_ACTIVE) && PrevOwner->Visibility == VISIBLE && !(PrevOwner->Status & SOBJ_WAIT_CONFIRMATION)){
 						if(!(Owner->VangerChanger) && !(PrevOwner->VangerChanger)){
 							Owner->NetChanger = GET_STATION(PrevOwner->NetID);
 							Owner->ShellUpdateFlag = 1;
@@ -909,7 +1181,7 @@ void GunDevice::DeviceIn(void)
 						};
 					};
 				}else{
-					if(PrevOwner && PrevOwner != Owner && PrevOwner->Visibility == VISIBLE && Owner->Visibility == VISIBLE && ((PrevOwner->Status & SOBJ_ACTIVE) || (Owner->Status & SOBJ_ACTIVE))){
+					if(CheckLiveVangerPointer(Owner) && CheckLiveVangerPointer(PrevOwner) && PrevOwner != Owner && PrevOwner->Visibility == VISIBLE && Owner->Visibility == VISIBLE && ((PrevOwner->Status & SOBJ_ACTIVE) || (Owner->Status & SOBJ_ACTIVE))){
 						if(ActD.Active)
 							SOUND_INCARNATOR_SHOT(getDistX(ActD.Active->R_curr.x,Owner->R_curr.x));
 						Owner->VangerChanger = PrevOwner;
@@ -1165,11 +1437,7 @@ void StuffObject::DeviceOut(Vector v1,int flag,Vector v2)
 	OutFlag = flag;
 
 	if(NetworkON && (Owner->Status & SOBJ_ACTIVE)){
-		NETWORK_OUT_STREAM.delete_object(NetDeviceID);
-		NETWORK_OUT_STREAM < (uchar)(1);
-		NETWORK_OUT_STREAM.end_body();
-
-		NETWORK_OUT_STREAM.create_permanent_object(NetID,xImpulse,yImpulse,radius);
+		NETWORK_OUT_STREAM.begin_item_transfer(ITEM_TRANSFER_DROP,NetDeviceID,NetID,xImpulse,yImpulse,radius);
 		NETWORK_OUT_STREAM < (uchar)(DataID);
 		NETWORK_OUT_STREAM < (int)(NetDeviceID);
 		NETWORK_OUT_STREAM < (short)(R_curr.z);
@@ -1182,7 +1450,8 @@ void StuffObject::DeviceOut(Vector v1,int flag,Vector v2)
 		NETWORK_OUT_STREAM < (short)(R_curr.y);
 		NETWORK_OUT_STREAM < (int)(NetOwner);
 		NETWORK_OUT_STREAM.end_body();
-	};	
+	};
+	NetworkLogStuffObject("StuffObject::DeviceOut",this,"phase=after_device_out");
 	Owner = NULL;
 };
 
@@ -1235,6 +1504,9 @@ void StuffObject::GetDevice(StuffObject* p)
 	ModelID = p->ModelID;
 	uvsDeviceType = p->uvsDeviceType;
 	ActIntBuffer.type = p->ActIntBuffer.type;
+	ActIntBuffer.flags = 0;
+	ActIntBuffer.slot = -1;
+	ActIntBuffer.actintOwner = NULL;
 	ActIntBuffer.stuffOwner = (void*)(this);
 	SizeID = p->SizeID;
 };
@@ -1246,6 +1518,15 @@ void BulletObject::Init(void)
 	ID = ID_BULLET;
 	Status = SOBJ_DISCONNECT;
 	radius = 1;
+	TargetSteerDelay = 0;
+	LegacyLaserDraw = 0;
+	LegacyLaserDrawDelay = 0;
+	LegacyCraterDrawDelay = 0;
+	LegacyLaserDrawCached = Vector(0,0,0);
+	LegacyLaserDrawAccum = Vector(0,0,0);
+	MoveAccumX = 0.0;
+	MoveAccumY = 0.0;
+	MoveAccumZ = 0.0;
 };
 
 void BulletObject::CreateBullet(Vector fv,Vector tv,GeneralObject* target,WorldBulletTemplate* p,GeneralObject* _Owner,int _speed)
@@ -1280,7 +1561,16 @@ void BulletObject::CreateBullet(Vector fv,Vector tv,GeneralObject* target,WorldB
 	vTail = R_curr;
 	
 	vDelta = vTarget = Vector(0,0,0);
+	MoveAccumX = 0.0;
+	MoveAccumY = 0.0;
+	MoveAccumZ = 0.0;
 	FrameCount = 0;
+	TargetSteerDelay = 0;
+	LegacyLaserDraw = 0;
+	LegacyLaserDrawDelay = 0;
+	LegacyCraterDrawDelay = 0;
+	LegacyLaserDrawCached = Vector(0,0,0);
+	LegacyLaserDrawAccum = Vector(0,0,0);
 //	OwnerTouchFlag = BULLET_OWNER_TOUCH | BULLET_OWNER_CHECK;
 
 	Speed = p->Speed + _speed;
@@ -1298,6 +1588,10 @@ void BulletObject::CreateBullet(Vector fv,Vector tv,GeneralObject* target,WorldB
 //	};
 
 	DataID = p->ID;
+	if(BulletID == BULLET_TYPE_ID::LASER){
+		LegacyLaserDrawCached = Vector(-vDelta.x,-vDelta.y,-vDelta.z);
+		LegacyLaserDrawAccum = Vector(0,0,0);
+	}
  };
 
 
@@ -1329,15 +1623,27 @@ void BulletObject::CreateBullet(GunSlot* p,WorldBulletTemplate* n)
 	vTail = R_curr;
 
 	vDelta = vTarget = Vector(0,0,0);
+	MoveAccumX = 0.0;
+	MoveAccumY = 0.0;
+	MoveAccumZ = 0.0;
 	FrameCount = 0;
+	TargetSteerDelay = 0;
+	LegacyLaserDraw = 0;
+	LegacyLaserDrawDelay = 0;
+	LegacyCraterDrawDelay = 0;
+	LegacyLaserDrawCached = Vector(0,0,0);
+	LegacyLaserDrawAccum = Vector(0,0,0);
 //	OwnerTouchFlag = BULLET_OWNER_TOUCH | BULLET_OWNER_CHECK;
 
 	Speed = n->Speed;
 	if(BulletMode & BULLET_CONTROL_MODE::SPEED) Speed += (int)round(p->RealSpeed / GAME_TIME_COEFF);
 
 	if(BulletID == BULLET_TYPE_ID::LASER)
-		vDelta = Vector(Speed,(3 - (int)(RND(6))),0)*p->mFire; //machotine bullet dispersion
-	else 
+	{
+		LegacyLaserDraw = 1;
+		vDelta = Vector(Speed,machotine_laser_random_spread(),0)*p->mFire; //machotine bullet dispersion
+	}
+	else
 		vDelta = Vector(Speed,0,0)*p->mFire;
 
 	if(TargetObject && (BulletMode & BULLET_CONTROL_MODE::AIM)){
@@ -1352,6 +1658,11 @@ void BulletObject::CreateBullet(GunSlot* p,WorldBulletTemplate* n)
 	AltOffset = n->AltOffset;
 	vWallTarget = R_curr;
 	DataID = n->ID;
+
+	if(BulletID == BULLET_TYPE_ID::LASER){
+		LegacyLaserDrawCached = Vector(-vDelta.x,-vDelta.y,-vDelta.z);
+		LegacyLaserDrawAccum = Vector(0,0,0);
+	}
 
 	LightData = NULL;
 };
@@ -1470,7 +1781,7 @@ void BulletObject::Event(int type)
 		case BULLET_EVENT_ID::TOUCH:
 			switch(ShowID){
 				case BULLET_SHOW_TYPE_ID::PARTICLE:
-					R_prev = R_curr - vDelta;
+					R_prev = R_curr - vDelta * XTCORE_FRAME_NORMAL;
 					R_prev.x = XCYCL(R_prev.x);
 					R_prev.y = YCYCL(R_prev.y);
 					for(i = 0;i < 6;i++){
@@ -1528,7 +1839,7 @@ void BulletObject::TimeOutQuant(void)
 				vTarget = Vector(-vDelta.y,vDelta.x,0);
 				break;
 			case BULLET_TARGET_MODE::RANDOM:
-				if(RND(100) < 10) vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
+				if(bullet_random_target_legacy_step() && RND(100) < 10) vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 				break;
 			case BULLET_TARGET_MODE::WALL:				
 				v.x = getDistX(R_curr.x,vWallTarget.x);
@@ -1540,15 +1851,22 @@ void BulletObject::TimeOutQuant(void)
 		};
 
 		d = vTarget.vabs();
-		if(d){
+		if(d && bullet_target_steer_legacy_step(TargetSteerDelay)){
 			vDelta += vTarget * Precision / d;
 			d = vDelta.vabs();
 			if(d > Speed) vDelta = vDelta * Speed / d;
 		};
 	};
 
+	Vector runtime_step;
+	double prevMoveAccumX,prevMoveAccumY,prevMoveAccumZ;
+
 	vTail = R_curr;
-	R_curr += vDelta;
+	prevMoveAccumX = MoveAccumX;
+	prevMoveAccumY = MoveAccumY;
+	prevMoveAccumZ = MoveAccumZ;
+	accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,runtime_step);
+	R_curr += runtime_step;
 	cycleTor(R_curr.x,R_curr.y);	
 
 	Time--;
@@ -1563,7 +1881,11 @@ void BulletObject::TimeOutQuant(void)
 				if(d < PALLADIUM_RADIUS){
 					vDelta = Vector(Speed,0,0)*DBM(PI/2 + v.psi(),Z_AXIS);
 					R_curr = vTail;
-					R_curr += vDelta;
+					MoveAccumX = prevMoveAccumX;
+					MoveAccumY = prevMoveAccumY;
+					MoveAccumZ = prevMoveAccumZ;
+					accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,runtime_step);
+					R_curr += runtime_step;
 					cycleTor(R_curr.x,R_curr.y);
 				};
 				break;
@@ -1635,9 +1957,9 @@ void BulletObject::Touch(GeneralObject* p)
 
 		if(BulletMode & BULLET_CONTROL_MODE::IMPULSE){
 			if(/*(BulletMode & BULLET_CONTROL_MODE::FLY) && */(ShowID != BULLET_SHOW_TYPE_ID::CRATER))
-				((VangerUnit*)(p))->impulse(vDelta,Power / BULLET_IMPULSE_POWER,Power / BULLET_IMPULSE_ARM);
+				((VangerUnit*)(p))->instant_impulse(vDelta,Power / BULLET_IMPULSE_POWER,Power / BULLET_IMPULSE_ARM);
 			else{
-				((VangerUnit*)(p))->impulse(Vector(0,0,64),4*Power / BULLET_IMPULSE_POWER,4*Power / BULLET_IMPULSE_ARM);
+				((VangerUnit*)(p))->instant_impulse(Vector(0,0,64),4*Power / BULLET_IMPULSE_POWER,4*Power / BULLET_IMPULSE_ARM);
 			};
 		};
 
@@ -1655,13 +1977,19 @@ void BulletObject::Touch(GeneralObject* p)
 void BulletObject::DrawQuant(void)
 {
 	int tx,ty,s;
-	Vector vCheck;	
+	int update_prev;
+	Vector vCheck;
 
+	update_prev = 1;
 	switch(ShowID){
-		case BULLET_SHOW_TYPE_ID::PARTICLE:			
-			EffD.CreateParticle(ExtShowType,R_prev,R_curr,ShowType);
-			if(BulletScale) 
+		// It's also "flys" on Fostral
+		case BULLET_SHOW_TYPE_ID::PARTICLE:
+			if(bullet_particle_draw_legacy_step()){
 				EffD.CreateParticle(ExtShowType,R_prev,R_curr,ShowType);
+				if(BulletScale)
+					EffD.CreateParticle(ExtShowType,R_prev,R_curr,ShowType);
+			}else
+				update_prev = 0;
 			break;
 		case BULLET_SHOW_TYPE_ID::FIREBALL:
 			if(AdvancedView) s = G2LF(R_curr,tx,ty);
@@ -1671,7 +1999,10 @@ void BulletObject::DrawQuant(void)
 			EffD.FireBallData[ShowType].Show(tx,ty,R_curr.z,s,FrameCount);
 			EffD.FireBallData[ShowType].CheckOut(FrameCount);
 			if(LightData) 
-				LightData->set_position(XCYCL(R_curr.x + vDelta.x),YCYCL(R_curr.y + vDelta.y),R_curr.z);
+			{
+				Vector step = vDelta * XTCORE_FRAME_NORMAL;
+				LightData->set_position(XCYCL(R_curr.x + step.x),YCYCL(R_curr.y + step.y),R_curr.z);
+			}
 			else 
 				LightData = MapD.CreateLight(R_curr.x,R_curr.y,R_curr.z,40,32,LIGHT_TYPE::DYNAMIC);
 			break;
@@ -1684,24 +2015,45 @@ void BulletObject::DrawQuant(void)
 		case BULLET_SHOW_TYPE_ID::DUST:
 			if(frame % (int)GAME_TIME_COEFF == 0){
 				MapD.CreateDust(Vector(R_curr.x, R_curr.y, MapLevel), ShowType);
-			}			
+			}
 			break;
 		case BULLET_SHOW_TYPE_ID::CRATER:
+		{
 			if(MapLevel && (vDelta.x != 0 || vDelta.y != 0 || vDelta.z != 0)){
+				bool create_crater_spot = bullet_crater_draw_local_step(LegacyCraterDrawDelay);
 				if(ExtShowType){
 					if(BulletScale){
-						if(LightData) 
+						if(LightData)
 							LightData->set_position(R_prev.x,R_prev.y,R_prev.z + 63);
-						else 
+						else
 							LightData = MapD.CreateLight(R_curr.x,R_curr.y,R_curr.z,20,32,LIGHT_TYPE::STATIC);
 
-						MapD.CreateLavaSpot(R_curr,5,5,20,10,0,0,1,8,83,0,4,1,ExtShowType);
-					}else MapD.CreateLavaSpot(R_curr,5,2,10,7,0,0,2,7,83,0,4,1,ExtShowType);
-				}else MapD.CreateLavaSpot(R_curr,5,2,10,7,0,0,2,7,83,0,4,1,83);
-			};				
+						if(create_crater_spot)
+							MapD.CreateLavaSpot(R_curr,5,5,20,10,0,0,1,8,83,0,4,1,ExtShowType);
+					}else if(create_crater_spot)
+						MapD.CreateLavaSpot(R_curr,5,2,10,7,0,0,2,7,83,0,4,1,ExtShowType);
+				}else if(create_crater_spot)
+					MapD.CreateLavaSpot(R_curr,5,2,10,7,0,0,2,7,83,0,4,1,83);
+			};
 			break;
+		}
 		case BULLET_SHOW_TYPE_ID::LASER:
-			vCheck = Vector(getDistX(R_prev.x,R_curr.x),getDistY(R_prev.y,R_curr.y),R_prev.z - R_curr.z);
+		{
+			Vector motionDraw = Vector(getDistX(R_prev.x,R_curr.x),getDistY(R_prev.y,R_curr.y),R_prev.z - R_curr.z);
+			Vector rawDraw;
+
+			if(LegacyLaserDraw){
+				LegacyLaserDrawAccum += motionDraw;
+				if(bullet_laser_draw_local_step(LegacyLaserDrawDelay)){
+					if(LegacyLaserDrawAccum.x || LegacyLaserDrawAccum.y || LegacyLaserDrawAccum.z)
+						LegacyLaserDrawCached = LegacyLaserDrawAccum;
+					LegacyLaserDrawAccum = Vector(0,0,0);
+				}
+				rawDraw = LegacyLaserDrawCached;
+			}else
+				rawDraw = motionDraw;
+
+			vCheck = rawDraw;
 
 			vCheck.x = 2*vCheck.x / 3;
 			vCheck.y = 2*vCheck.y / 3;
@@ -1709,10 +2061,12 @@ void BulletObject::DrawQuant(void)
 
 			vCheck += R_curr;
 			cycleTor(vCheck.x,vCheck.y);
-			ScreenLineTrace(R_curr,vCheck,FireColorTable,0);
+			ScreenLaserTrace(R_curr,vCheck,FireColorTable,0);
 			break;
+		}
 	};
-	R_prev = vTail;
+	if(update_prev)
+		R_prev = vTail;
 };
 
 
@@ -1851,9 +2205,9 @@ void JumpBallObject::CreateBullet(GunSlot* p,WorldBulletTemplate* n)
 	}else{
 		vCheck = Vector(n->Speed,0,0)*p->mFire;
 	};
-	vCheck *= n->LifeTime + Owner->Speed;
+	int legacy_lifetime = (int)round(n->LifeTime * XTCORE_FRAME_NORMAL);
+	vCheck *= legacy_lifetime + Owner->Speed;
 	vCheck /= n->Speed;
-	vCheck /= (int)GAME_TIME_COEFF;
 	precise_impulse(R_curr,XCYCL(vCheck.x + R_curr.x),YCYCL(vCheck.y + R_curr.y));
 };
 
@@ -1879,7 +2233,7 @@ void JumpBallObject::Quant(void)
 				vCheck = Vector(getDistX(R_curr.x,g->vR.x),getDistY(R_curr.y,g->vR.y),R_curr.z - g->vR.z);
 				l = vCheck.vabs();
 				if(l < PALLADIUM_RADIUS)
-					impulse(vCheck,30 * (PALLADIUM_RADIUS - l) / PALLADIUM_RADIUS,0);
+					continuous_impulse(vCheck,30 * (PALLADIUM_RADIUS - l) / PALLADIUM_RADIUS,0);
 				break;
 			};
 			g = g->Next;
@@ -1936,7 +2290,7 @@ void JumpBallObject::Touch(GeneralObject* p)
 			SOUND_BARREL_DESTROY(getDistX(ActD.Active->R_curr.x,R_curr.x))
 		if(Mode == BULLET_TARGET_MODE::CONTROL){
 			EffD.CreateExplosion(R_curr + Vector(0,0,20),EFF_EXPLOSION02);
-			((VangerUnit*)(p))->impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),8 + RND(15),20);
+			((VangerUnit*)(p))->instant_impulse(Vector(32 - RND(64),32 - RND(64),RND(64)),8 + RND(15),20);
 			if(ActD.Active)
 				SOUND_BARREL_DESTROY(getDistX(ActD.Active->R_curr.x,R_curr.x))
 		}else{
@@ -1995,6 +2349,19 @@ void ChangerDevice::DeviceOut(Vector v,int flag,Vector v2)
 
 const int ACI_CHECK_RADIUS = 1;
 
+static void aciUpdateWorldMousePoint(int tx,int ty)
+{
+	if(ActD.Active)
+		GeneralMousePoint = Vector(getDistX(tx,ActD.Active->R_curr.x),getDistY(ty,ActD.Active->R_curr.y),0);
+}
+
+void aciUpdateScreenMousePoint(int x,int y)
+{
+	int tx,ty;
+	S2G(x,y,tx,ty);
+	aciUpdateWorldMousePoint(tx,ty);
+}
+
 int aciGetScreenItem(int x,int y)
 {
 	BaseObject* p;
@@ -2006,10 +2373,7 @@ int aciGetScreenItem(int x,int y)
 	mp = NULL;
 	rz = -1;
 	S2G(x,y,tx,ty);
-	
-	if (ActD.Active) {
-		GeneralMousePoint = Vector(getDistX(tx, ActD.Active->R_curr.x), getDistY(ty, ActD.Active->R_curr.y), 0);
-	}
+	aciUpdateWorldMousePoint(tx,ty);
 
 	p = (BaseObject*)(ItemD.Tail);
 	while(p){
@@ -2131,7 +2495,7 @@ void SkyFarmerObject::Quant(void)
 	}else{
 		if(d < radius*7) skyfarmer_set_direction(vTrack);
 		else{
-			if(!RND(3)) skyfarmer_set_direction(vTrack);
+			if(skyfarmer_random_legacy_step() && !RND(3)) skyfarmer_set_direction(vTrack);
 		};
 	};
 
@@ -2286,16 +2650,17 @@ void WorldBulletTemplate::Init(Parser& in)
 	BulletID = Name2Int(name,BULLET_ID_NAME,MAX_BULLET_ID);
 
 	in.search_name("LifeTime");
-	LifeTime = (int)round(in.get_int() * GAME_TIME_COEFF);
+	LegacyLifeTime = in.get_int();
 
 	in.search_name("FirstPower");
 	Power = (in.get_int() << 16) / 100;
 
 	in.search_name("LastPower");
-	DeltaPower = (((in.get_int() << 16) / 100) - Power) / LifeTime;
+	LastPower = (in.get_int() << 16) / 100;
 
 	in.search_name("CraterType");
 	CraterType = in.get_int();
+	LegacyWaitTime = 0;
 
 	in.search_name("BulletMode");
 	name = in.get_name();
@@ -2332,8 +2697,9 @@ void WorldBulletTemplate::Init(Parser& in)
 		in.search_name("TapeSize");
 		TapeSize = in.get_int();
 		in.search_name("WaitTime");
-		WaitTime = (int)round((WeaponWaitTime * in.get_int() >> 8) * GAME_TIME_COEFF); // fps fix
+		LegacyWaitTime = (WeaponWaitTime * in.get_int() >> 8);
 	};
+	apply_world_bullet_runtime_scale(*this);
 	Time = 0;
 };
 
@@ -2445,19 +2811,19 @@ void FishWarrior::Quant(void)
 					if(AttackTime > 0){
 						vTarget = Vector(getDistX(TargetObject->R_curr.x,R_curr.x),getDistY(TargetObject->R_curr.y,R_curr.y),TargetObject->R_curr.z - R_curr.z);
 						AttackTime--;
-					}else{
+					}else if(fish_warrior_random_legacy_step()){
 						if(!RND(15)){
 							if(!RND(4)){
 								vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 								Speed = RND(MaxSpeed >> 2);
 							};
 						}else{
-							AttackTime = FISH_WARRIOR_ATTACK_TIME;
+							AttackTime = fish_warrior_attack_ticks();
 							Speed = MaxSpeed;
 						};
 					};
 				}else{
-					if(!RND(50)){
+					if(fish_warrior_random_legacy_step() && !RND(50)){
 						vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 						Speed = RND(MaxSpeed);
 					};
@@ -2468,14 +2834,14 @@ void FishWarrior::Quant(void)
 				if(TargetObject && TargetObject->ExternalDraw && TargetObject->draw_mode == NORMAL_DRAW_MODE && !(TargetObject->BeebonationFlag)) vTarget = Vector(getDistX(TargetObject->R_curr.x,R_curr.x),getDistY(TargetObject->R_curr.y,R_curr.y),TargetObject->R_curr.z - R_curr.z);
 				else{
 					TargetObject = ActD.Active;
-					if(!RND(50)){
+					if(fish_warrior_random_legacy_step() && !RND(50)){
 						vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 						Speed = RND(MaxSpeed);
 					};
 				};
 				break;
 			case FISH_WARRIOR_NONE:
-				if(!RND(50)){
+				if(fish_warrior_random_legacy_step() && !RND(50)){
 					vTarget = Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 					Speed = RND(MaxSpeed);
 				};
@@ -2495,7 +2861,7 @@ void FishWarrior::Quant(void)
 				v = Vector(getDistX(R_curr.x,g->vR.x),getDistY(R_curr.y,g->vR.y),R_curr.z - g->vR.z);
 				d = v.vabs();
 				if(d < PALLADIUM_RADIUS)
-					impulse(v,30 * (PALLADIUM_RADIUS - d) / PALLADIUM_RADIUS,0);
+					continuous_impulse(v,30 * (PALLADIUM_RADIUS - d) / PALLADIUM_RADIUS,0);
 				break;
 			};
 			g = g->Next;
@@ -2534,12 +2900,12 @@ void FishWarrior::Quant(void)
 			switch (zStatus) {
 				case 0:
 					CreateDestroyEffect(R_curr,MAP_POINT_CRATER09,DT_DEFORM02,DEFORM_WATER_ONLY,EFF_EXPLOSION01,-1);
-					Time = 30;
+					Time = fish_warrior_state_ticks(30);
 					zStatus = 1;
 					break;
 				case 1:
 					R_curr = Vector(RND(map_size_x),RND(map_size_y),10);
-					Time = 900 + RND(900);
+					Time = fish_warrior_state_ticks(900 + RND(900));
 					zStatus = 0;
 					break;
 				}
@@ -2557,7 +2923,7 @@ void FishWarrior::CreateFish(Vector v,int _Speed,int Angle,int _Precision,int _T
 {
 	MaxSpeed = Speed = _Speed;
 	Precision = _Precision;
-	Time = _Time;
+	Time = NetworkON ? fish_warrior_state_ticks(_Time) : _Time;
 	Mode = _Mode;
 	vDelta = Vector(Speed,0,0)*DBM(Angle,Z_AXIS);
 
@@ -2595,7 +2961,7 @@ void FishWarrior::Touch(GeneralObject *p)
 	if (!NetworkON) {
 		Status |= SOBJ_DISCONNECT;
 	} else {
-		Time = 30;
+		Time = fish_warrior_state_ticks(30);
 		zStatus = 1;
 	}
 };
@@ -2716,6 +3082,8 @@ void HordeObject::Quant(void)
 
 	if(Status & SOBJ_DISCONNECT) return;
 
+	vMove = Vector(0,0,0);
+
 	lv = Visibility;
 	GetVisible();
 
@@ -2731,6 +3099,12 @@ void HordeObject::Quant(void)
 		switch(Mode){
 			case HORDE_RESTORE_MODE:
 				vDelta = Vector(0,0,0);
+				SteerAccumX = 0.0;
+				SteerAccumY = 0.0;
+				SteerAccumZ = 0.0;
+				MoveAccumX = 0.0;
+				MoveAccumY = 0.0;
+				MoveAccumZ = 0.0;
 				radius8 = radius << 8;
 				vTarget = R_curr << 8;
 				for(i = 0,p = Data;i < NumParticle;i++,p++){
@@ -2779,13 +3153,17 @@ void HordeObject::Quant(void)
 							
 							d = vTarget.vabs();
 							if(d){
-								vDelta += vTarget*Precision / d;
+								Vector legacy_step, steer_step;
+								legacy_step = vTarget * Precision / d;
+								accumulate_runtime_vector_step(legacy_step,SteerAccumX,SteerAccumY,SteerAccumZ,steer_step);
+								vDelta += steer_step;
 								d = vDelta.vabs();
 								if(d > Speed) vDelta = vDelta * Speed / d;
-							};						
+							};
 						};
 
-						R_curr += vDelta;
+						accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,vMove);
+						R_curr += vMove;
 						cycleTor(R_curr.x,R_curr.y);
 					};
 				}else{
@@ -2797,9 +3175,10 @@ void HordeObject::Quant(void)
 							if(d < PALLADIUM_RADIUS){
 								vDelta = v * Speed;
 								vDelta /= d;
-								R_curr += vDelta;
+								accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,vMove);
+								R_curr += vMove;
 								cycleTor(R_curr.x,R_curr.y);
-							};								
+							};
 							break;
 						};
 						g = g->Next;
@@ -2810,12 +3189,16 @@ void HordeObject::Quant(void)
 
 						d = vTarget.vabs();
 						if(d){
-							vDelta += vTarget*Precision / d;
+							Vector legacy_step, steer_step;
+							legacy_step = vTarget * Precision / d;
+							accumulate_runtime_vector_step(legacy_step,SteerAccumX,SteerAccumY,SteerAccumZ,steer_step);
+							vDelta += steer_step;
 							d = vDelta.vabs();
 							if(d > Speed) vDelta = vDelta * Speed / d;
 						};
 
-						R_curr += vDelta;
+						accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,vMove);
+						R_curr += vMove;
 						cycleTor(R_curr.x,R_curr.y);
 
 						md = AttackRadius - radius;
@@ -2838,7 +3221,7 @@ void HordeObject::Quant(void)
 								};
 							};
 							n = (VangerUnit*)(n->NextTypeList);
-						};					
+						};
 					};
 				};
 				break;
@@ -2866,25 +3249,43 @@ void HordeObject::Quant(void)
 
 					d = vTarget.vabs();
 					if(d){
-						vDelta += vTarget*Precision / d;
+						Vector legacy_step, steer_step;
+						legacy_step = vTarget * Precision / d;
+						accumulate_runtime_vector_step(legacy_step,SteerAccumX,SteerAccumY,SteerAccumZ,steer_step);
+						vDelta += steer_step;
 						d = vDelta.vabs();
 						if(d > Speed) vDelta = vDelta * Speed / d;
-					}else vDelta = Vector(0,0,0);
+					}else{
+						vDelta = Vector(0,0,0);
+						MoveAccumX = 0.0;
+						MoveAccumY = 0.0;
+						MoveAccumZ = 0.0;
+					};
 
-					R_curr += vDelta;
-					cycleTor(R_curr.x,R_curr.y);					
+					accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,vMove);
+					R_curr += vMove;
+					cycleTor(R_curr.x,R_curr.y);
 				};
 			}else{
 				vTarget = Vector(getDistX(vZone.x,R_curr.x),getDistY(vZone.y,R_curr.y),vZone.z - R_curr.z);
 
 				d = vTarget.vabs();
 				if(d){
-					vDelta += vTarget*Precision / d;
+					Vector legacy_step, steer_step;
+					legacy_step = vTarget * Precision / d;
+					accumulate_runtime_vector_step(legacy_step,SteerAccumX,SteerAccumY,SteerAccumZ,steer_step);
+					vDelta += steer_step;
 					d = vDelta.vabs();
 					if(d > Speed) vDelta = vDelta * Speed / d;
-				}else vDelta = Vector(0,0,0);
+				}else{
+					vDelta = Vector(0,0,0);
+					MoveAccumX = 0.0;
+					MoveAccumY = 0.0;
+					MoveAccumZ = 0.0;
+				};
 
-				R_curr += vDelta;
+				accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,vMove);
+				R_curr += vMove;
 				cycleTor(R_curr.x,R_curr.y);
 			};
 		};
@@ -2896,6 +3297,7 @@ void HordeObject::DrawQuant(void)
 	int i;
 	SimpleParticleType* p;
 	Vector vPos;
+	Vector carrier;
 	int tx,ty;
 
 	//std::cout<<"HordeObject::DrawQuant "<<ActD.Active<<std::endl;
@@ -2904,28 +3306,36 @@ void HordeObject::DrawQuant(void)
 	if(ActD.Active)
 		SOUND_HORDE(getDistX(ActD.Active->R_curr.x,R_curr.x));
 
+	carrier = vDelta * (XTCORE_FRAME_NORMAL * (double)(1 << 8));
+
 	if(AdvancedView){
 		for(i = 0,p = Data;i < NumParticle;i++,p++){
-			p->QuantP(R_curr << 8, vDelta << 8,3 << 8,5);
+			p->QuantP(R_curr << 8, carrier,3 << 8,5);
 			vPos = p->vR;
 			vPos >>= 8;
 			G2LQ(vPos,tx,ty);
-			if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+			if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+				XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+			}
 		};
 	}else{
 		if(CurrentWorld < MAIN_WORLD_MAX - 1){
 			for(i = 0,p = Data;i < NumParticle;i++,p++){
-				p->QuantP(R_curr << 8, vDelta << 8,3 << 8,5);
+				p->QuantP(R_curr << 8, carrier,3 << 8,5);
 				tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 				ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
-				if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+				if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+					XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+				}
 			};
 		}else{
 			for(i = 0,p = Data;i < NumParticle;i++,p++){
-				p->QuantP(R_curr << 8, vDelta << 8,3 << 8,5);
+				p->QuantP(R_curr << 8, carrier,3 << 8,5);
 				tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 				ty = ((int)round(SPGetDistY(p->vR.y,SPViewY) * ScaleMapInvFlt) >> 8) + ScreenCY;
-				if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+				if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+					XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+				}
 			};
 		};
 	};
@@ -2934,12 +3344,19 @@ void HordeObject::DrawQuant(void)
 void HordeObject::CreateHorde(Vector v,int r,int z,int cZ,VangerUnit* own)
 {
 	ID = ID_HORDE;
-	Speed = 10 / GAME_TIME_COEFF;
-	Precision = 7 / GAME_TIME_COEFF;
+	Speed = 10;
+	Precision = 7;
 	Power = (int)round(((50 << 16) / UnitGlobalTime) / GAME_TIME_COEFF);
 	Mode = HORDE_RESTORE_MODE;
 	NumParticle = HORDE_PARTICLE_NUM;
 	vDelta = Vector(0,0,0);
+	vMove = Vector(0,0,0);
+	SteerAccumX = 0.0;
+	SteerAccumY = 0.0;
+	SteerAccumZ = 0.0;
+	MoveAccumX = 0.0;
+	MoveAccumY = 0.0;
+	MoveAccumZ = 0.0;
 	R_curr = v;
 	cycleTor(R_curr.x,R_curr.y);
 	GetVisible();
@@ -3273,6 +3690,10 @@ void StuffObject::NetOwnerQuant(int impulse)
 {
 	StuffObject* p;
 	VangerUnit* n;
+	char net_owner_extra[64];
+
+	snprintf(net_owner_extra,sizeof(net_owner_extra),"phase=begin impulse=%d",impulse);
+	NetworkLogStuffObject("StuffObject::NetOwnerQuant",this,net_owner_extra);
 
 	if(NetOwner){
 		if(Owner){
@@ -3341,6 +3762,8 @@ void StuffObject::NetOwnerQuant(int impulse)
 			Status &= ~SOBJ_WAIT_CONFIRMATION;
 		};
 	};
+	snprintf(net_owner_extra,sizeof(net_owner_extra),"phase=end impulse=%d",impulse);
+	NetworkLogStuffObject("StuffObject::NetOwnerQuant",this,net_owner_extra);
 };
 
 void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
@@ -3348,6 +3771,10 @@ void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
 	char ch;
 	short st;
 	int t;
+	char net_event_extra[256];
+
+	snprintf(net_event_extra,sizeof(net_event_extra),"phase=begin event_type=%d id=0x%08X creator=%d x=%d y=%d body_size=%d",type,(unsigned int)id,creator,x,y,NETWORK_IN_STREAM.current_body_size());
+	NetworkLogStuffObject("StuffObject::NetEvent",this,net_event_extra);
 
 	switch(type){
 		case UPDATE_OBJECT:
@@ -3405,6 +3832,8 @@ void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
 //			if(Owner && !NetOwner) NetStuffLog < "\nBad Update Owner";
 			Status |= SOBJ_WAIT_CONFIRMATION;
 			NetOwnerQuant(1);
+			snprintf(net_event_extra,sizeof(net_event_extra),"phase=after_update event_type=%d id=0x%08X creator=%d x=%d y=%d",type,(unsigned int)id,creator,x,y);
+			NetworkLogStuffObject("StuffObject::NetEvent",this,net_event_extra);
 			break;
 		case CREATE_OBJECT:
 			NETWORK_IN_STREAM > t;
@@ -3510,6 +3939,8 @@ void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
 //				R_curr.y = yImpulse;				
 			};
 //			if(Owner && !NetOwner) NetStuffLog < "\nBad Create Owner";
+			snprintf(net_event_extra,sizeof(net_event_extra),"phase=after_create event_type=%d id=0x%08X creator=%d x=%d y=%d",type,(unsigned int)id,creator,x,y);
+			NetworkLogStuffObject("StuffObject::NetEvent",this,net_event_extra);
 			break;
 		case DELETE_OBJECT:
 			if(NETWORK_IN_STREAM.current_body_size())
@@ -3518,6 +3949,7 @@ void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
 				ch = 0;
 			if(!ch){
 				if(Owner){
+					NetworkLogStuffObject("StuffObject::NetEvent",this,"event_type=DELETE_OBJECT delete_reason=remove_from_owner_inventory");
 					Owner->CheckOutDevice(this);
 					if(Owner->Status & SOBJ_ACTIVE){
 						ActD.CheckDevice(this);
@@ -3525,18 +3957,130 @@ void StuffObject::NetEvent(int type,int id,int creator,int x,int y)
 					};
 					Owner->DelDevice(this);
 					Storage->Deactive(this);
-				}else 
+				}else{
+					NetworkLogStuffObject("StuffObject::NetEvent",this,"event_type=DELETE_OBJECT delete_reason=disconnect_world_object");
 					Status |= SOBJ_DISCONNECT;
-			}else Status |= SOBJ_WAIT_CONFIRMATION;
-			break;		
+				}
+			}else{
+				Status |= SOBJ_WAIT_CONFIRMATION;
+				NetworkLogStuffObject("StuffObject::NetEvent",this,"event_type=DELETE_OBJECT delete_reason=wait_confirmation");
+			}
+			break;
 	};
 };
+
+static StuffObject* FindNetworkStuffObject(int id)
+{
+	StuffObject* p;
+	VangerUnit* v;
+	int net_type = GET_NETWORK_ID(id);
+
+	v = (VangerUnit*)(ActD.Tail);
+	while(v){
+		p = v->DeviceData;
+		while(p){
+			if((net_type == NID_DEVICE && p->NetDeviceID == id) ||
+			   (net_type != NID_DEVICE && p->NetID == id))
+				return p;
+			p = p->NextDeviceList;
+		};
+		v = (VangerUnit*)(v->NextTypeList);
+	};
+
+	p = (StuffObject*)(ItemD.Tail);
+	while(p){
+		if((net_type == NID_DEVICE && p->NetDeviceID == id) ||
+		   (net_type != NID_DEVICE && p->NetID == id))
+			return p;
+		p = (StuffObject*)(p->NextTypeList);
+	};
+
+	return NULL;
+}
+
+void ItemsDispatcher::NetItemState(int item_state,int previous_id,int item_id)
+{
+	StuffObject* p;
+
+	network_log_printf("ItemsDispatcher::NetItemState","phase=begin item_state=%d previous_id=0x%08X item_id=0x%08X creator=%d body_size=%d",
+		item_state,(unsigned int)previous_id,(unsigned int)item_id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_body_size());
+
+	if(previous_id){
+		p = FindNetworkStuffObject(previous_id);
+		if(p){
+			if(p->Status & SOBJ_DISCONNECT){
+				NetworkLogStuffObject("ItemsDispatcher::NetItemState",p,"decision=previous_object_already_disconnected");
+			}else{
+				// A non-zero previous id means the authoritative item state is
+				// switching between paired STUFF/DEVICE forms.  Keep the local
+				// StuffObject alive and let the following state update convert it.
+				p->Status |= SOBJ_WAIT_CONFIRMATION;
+				NetworkLogStuffObject("ItemsDispatcher::NetItemState",p,"decision=previous_object_marked_wait_confirmation");
+			}
+		}else{
+			network_log_printf("ItemsDispatcher::NetItemState","item_state=%d previous_id=0x%08X item_id=0x%08X decision=previous_object_missing",
+				item_state,(unsigned int)previous_id,(unsigned int)item_id);
+		}
+	}
+
+	switch(GET_NETWORK_ID(item_id)){
+		case NID_DEVICE:
+			NetDevice(UPDATE_OBJECT,item_id);
+			break;
+		case NID_STUFF:
+			NetEvent(UPDATE_OBJECT,item_id);
+			break;
+		default:
+			network_log_printf("ItemsDispatcher::NetItemState","item_state=%d previous_id=0x%08X item_id=0x%08X decision=ignored_bad_item_type",
+				item_state,(unsigned int)previous_id,(unsigned int)item_id);
+			NETWORK_IN_STREAM.ignore_event();
+			break;
+	}
+
+	network_log_printf("ItemsDispatcher::NetItemState","phase=end item_state=%d previous_id=0x%08X item_id=0x%08X",
+		item_state,(unsigned int)previous_id,(unsigned int)item_id);
+}
+
+void ItemsDispatcher::NetItemRemoved(int item_id,int paired_id,int reason)
+{
+	StuffObject* p = FindNetworkStuffObject(item_id);
+	if(!p && paired_id)
+		p = FindNetworkStuffObject(paired_id);
+
+	network_log_printf("ItemsDispatcher::NetItemRemoved","phase=begin item_id=0x%08X paired_id=0x%08X reason=%d found=%d",
+		(unsigned int)item_id,(unsigned int)paired_id,reason,p ? 1 : 0);
+
+	if(!p){
+		network_log_printf("ItemsDispatcher::NetItemRemoved","item_id=0x%08X paired_id=0x%08X reason=%d delete_reason=ignored_missing_object decision=ignored_missing_object",
+			(unsigned int)item_id,(unsigned int)paired_id,reason);
+		return;
+	}
+
+	if(p->Owner){
+		NetworkLogStuffObject("ItemsDispatcher::NetItemRemoved",p,"delete_reason=remove_from_owner_inventory");
+		p->Owner->CheckOutDevice(p);
+		if(p->Owner->Status & SOBJ_ACTIVE){
+			ActD.CheckDevice(p);
+			aciRemoveItem(&p->ActIntBuffer);
+		}
+		p->Owner->DelDevice(p);
+		p->Storage->Deactive(p);
+	}else{
+		NetworkLogStuffObject("ItemsDispatcher::NetItemRemoved",p,"delete_reason=disconnect_world_object");
+		p->Status |= SOBJ_DISCONNECT;
+	}
+
+	network_log_printf("ItemsDispatcher::NetItemRemoved","phase=end item_id=0x%08X paired_id=0x%08X reason=%d",
+		(unsigned int)item_id,(unsigned int)paired_id,reason);
+}
 
 void ItemsDispatcher::NetDevice(int type,int id)
 {
 	StuffObject* p;
 	VangerUnit* v;
 	uchar t;
+
+	network_log_printf("ItemsDispatcher::NetDevice","phase=begin event_type=%d id=0x%08X creator=%d body_size=%d",type,(unsigned int)id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_body_size());
 
 	p = NULL;
 	v = (VangerUnit*)(ActD.Tail);
@@ -3551,8 +4095,10 @@ void ItemsDispatcher::NetDevice(int type,int id)
 	};
 
 	if(p){
-		if(p->Status & SOBJ_DISCONNECT)	NETWORK_IN_STREAM.ignore_event();
-		else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
+		if(p->Status & SOBJ_DISCONNECT){
+			NetworkLogStuffObject("ItemsDispatcher::NetDevice",p,"decision=ignored_disconnected");
+			NETWORK_IN_STREAM.ignore_event();
+		}else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
 	}else{
 		p = (StuffObject*)(ItemD.Tail);
 		while(p){
@@ -3561,17 +4107,26 @@ void ItemsDispatcher::NetDevice(int type,int id)
 		};
 		
 		if(p){
-			if(p->Status & SOBJ_DISCONNECT)	NETWORK_IN_STREAM.ignore_event();
-			else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
+			if(p->Status & SOBJ_DISCONNECT){
+				NetworkLogStuffObject("ItemsDispatcher::NetDevice",p,"decision=ignored_disconnected");
+				NETWORK_IN_STREAM.ignore_event();
+			}else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
 		}else{
 			if(type == UPDATE_OBJECT){
 				NETWORK_IN_STREAM > t;
 				p = (StuffObject*)(ItemD.GetObject(DevicetStorageID[ItemD.DeviceTypeData[t]->StuffType]));
 				if(p){
 					p->DataID = t;
+					NetworkLogStuffObject("ItemsDispatcher::NetDevice",p,"decision=create_missing_from_update");
 					p->NetEvent(CREATE_OBJECT,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
-				}else NETWORK_IN_STREAM.ignore_event();
-			}else NETWORK_IN_STREAM.ignore_event();
+				}else{
+					network_log_printf("ItemsDispatcher::NetDevice","event_type=%d id=0x%08X delete_reason=ignored_missing_object decision=ignored_missing_object",type,(unsigned int)id);
+					NETWORK_IN_STREAM.ignore_event();
+				}
+			}else{
+				network_log_printf("ItemsDispatcher::NetDevice","event_type=%d id=0x%08X delete_reason=ignored_missing_object decision=ignored_missing_object",type,(unsigned int)id);
+				NETWORK_IN_STREAM.ignore_event();
+			}
 		};
 	};
 };
@@ -3582,10 +4137,14 @@ void ItemsDispatcher::NetEvent(int type,int id)
 	uchar t;
 	VangerUnit* v;
 
+	network_log_printf("ItemsDispatcher::NetEvent","phase=begin event_type=%d id=0x%08X creator=%d body_size=%d",type,(unsigned int)id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_body_size());
+
 	p = (StuffObject*)(GetNetObject(id));
 	if(p){
-		if(p->Status & SOBJ_DISCONNECT)	NETWORK_IN_STREAM.ignore_event();
-		else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());		
+		if(p->Status & SOBJ_DISCONNECT){
+			NetworkLogStuffObject("ItemsDispatcher::NetEvent",p,"decision=ignored_disconnected");
+			NETWORK_IN_STREAM.ignore_event();
+		}else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
 	}else{
 		v = (VangerUnit*)(ActD.Tail);
 		while(v){
@@ -3599,17 +4158,26 @@ void ItemsDispatcher::NetEvent(int type,int id)
 		};
 
 		if(p){
-			if(p->Status & SOBJ_DISCONNECT)	NETWORK_IN_STREAM.ignore_event();
-			else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());		
+			if(p->Status & SOBJ_DISCONNECT){
+				NetworkLogStuffObject("ItemsDispatcher::NetEvent",p,"decision=ignored_disconnected");
+				NETWORK_IN_STREAM.ignore_event();
+			}else p->NetEvent(type,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
 		}else{
 			if(type == UPDATE_OBJECT){
 				NETWORK_IN_STREAM > t;
 				p = (StuffObject*)(ItemD.GetObject(DevicetStorageID[ItemD.DeviceTypeData[t]->StuffType]));
 				if(p){
 					p->DataID = t;
+					NetworkLogStuffObject("ItemsDispatcher::NetEvent",p,"decision=create_missing_from_update");
 					p->NetEvent(CREATE_OBJECT,id,NETWORK_IN_STREAM.current_creator(),NETWORK_IN_STREAM.current_x(),NETWORK_IN_STREAM.current_y());
-				}else NETWORK_IN_STREAM.ignore_event();
-			}else NETWORK_IN_STREAM.ignore_event();
+				}else{
+					network_log_printf("ItemsDispatcher::NetEvent","event_type=%d id=0x%08X delete_reason=ignored_missing_object decision=ignored_missing_object",type,(unsigned int)id);
+					NETWORK_IN_STREAM.ignore_event();
+				}
+			}else{
+				network_log_printf("ItemsDispatcher::NetEvent","event_type=%d id=0x%08X delete_reason=ignored_missing_object decision=ignored_missing_object",type,(unsigned int)id);
+				NETWORK_IN_STREAM.ignore_event();
+			}
 		};
 	};
 };
@@ -4040,7 +4608,7 @@ void ItemsDispatcher::CryptQuant(void)
 	listElem* p;
 	uvsItem* n;
 
-	if(ActD.Active && Num < Total / 4 && !RND(200*ActD.NumVisibleVanger)){
+	if(crypt_quant_legacy_step() && ActD.Active && Num < Total / 4 && !RND(200*ActD.NumVisibleVanger)){
 		if(CreateEnableCrypt() > NumVisibleItem){
 			for(i = 0;i < ProtoCryptTableSize[CurrentWorld];i++){
 				if(ProtoCryptTable[CurrentWorld][i].Enable){

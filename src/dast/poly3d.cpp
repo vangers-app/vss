@@ -126,16 +126,29 @@ void dastPoly3D::set(  Vector _p, int _n_, int _count_ ){
 	quant = 0;
 }
 
+static inline int dast_effect_step_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool dast_effect_legacy_step(int& quant)
+{
+	if(quant <= 0){
+		quant = dast_effect_step_ticks() - 1;
+		return 1;
+	}
+	quant--;
+	return 0;
+}
+
 int dastPoly3D::quant_make_sign(void){
 	Vector lp;
 	int dx, dy;
 	int _z = p->z;
 
-	quant++;
-	if (quant < GAME_TIME_COEFF) {
-		return (count != dastResSign->poly[n]); //skip frame on high fps
-	}
-	quant = 0;
+	if(!dast_effect_legacy_step(quant))
+		return (count != dastResSign->poly[n]);
 
 	for( int s = 0; s < dastResSign->once[n]; s++){
 
@@ -799,13 +812,16 @@ int dastPoly3D::make_first_mole( dastResourcePoly3D* res ){
 
 	int dz = *get_down_ground( (p->x) & clip_mask_x, p->y );
 
-	n -= 3;
-	count -= 3;
-
 	if ( dz < 50 ) scale = 1 << 15;
 	else if ( dz < 160 ) scale = 1 << 14;
 	else if ( dz < 220 ) scale = 1 << 13;
 	else return 0;
+
+	if(!dast_effect_legacy_step(quant))
+		return 1;
+
+	n -= 3;
+	count -= 3;
 
 	for( int i = 1; i < 32; i++, A += dA)
 //		if ( !RND(16 - (count/5)) ){
@@ -864,6 +880,9 @@ int dastPoly3D::make_catch_dolly( dastResourcePoly3D* res ){
 	else if ( dz < 160 ) scale = 1 << 14;
 	else if ( dz < 220 ) scale = 1 << 13;
 	else return 0;
+
+	if(!dast_effect_legacy_step(quant))
+		return 1;
 
 
 	for( int i = 1; i < 32; i++, A += dA)

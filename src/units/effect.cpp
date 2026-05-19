@@ -55,6 +55,41 @@ inline unsigned effectRND(unsigned m)
 	return effectRNDVAL%m;
 }
 
+static inline int particle_generator_ticks(int legacy_ticks)
+{
+	int ticks = (int)round(legacy_ticks * GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool particle_generator_legacy_step(int time_left)
+{
+	return time_left > 0 && (time_left % particle_generator_ticks(1)) == 0;
+}
+
+static inline void accumulate_runtime_vector_step(const Vector& legacy_step,double& accum_x,double& accum_y,double& accum_z,Vector& out_step)
+{
+	accum_x += legacy_step.x * XTCORE_FRAME_NORMAL;
+	accum_y += legacy_step.y * XTCORE_FRAME_NORMAL;
+	accum_z += legacy_step.z * XTCORE_FRAME_NORMAL;
+
+	out_step.x = accum_x > 0.0 ? (int)floor(accum_x) : (int)ceil(accum_x);
+	out_step.y = accum_y > 0.0 ? (int)floor(accum_y) : (int)ceil(accum_y);
+	out_step.z = accum_z > 0.0 ? (int)floor(accum_z) : (int)ceil(accum_z);
+
+	accum_x -= out_step.x;
+	accum_y -= out_step.y;
+	accum_z -= out_step.z;
+}
+
+static inline int accumulate_runtime_scalar_step(int legacy_step,double& accum)
+{
+	accum += legacy_step * XTCORE_FRAME_NORMAL;
+
+	int runtime_step = accum > 0.0 ? (int)floor(accum) : (int)ceil(accum);
+	accum -= runtime_step;
+	return runtime_step;
+}
+
 void MakeColorTable(int fc,int lc,uchar* d,uchar* pal)
 {
 	int ind;
@@ -94,7 +129,7 @@ void ExplosionObject::Init(StorageType* s)
 void ExplosionObject::Quant(void)
 {
 	GetVisible();
-	Scale += dScale;
+	Scale += dScale * XTCORE_FRAME_NORMAL;
 
 	if(Scale > dScale) radius = (FirstRadius * Scale) >> 15;
 	if(Owner){
@@ -376,7 +411,7 @@ void EffectDispatcher::CreateExplosion(const Vector& v,unsigned char _type,BaseO
 		p->CreateExplosion(v,_owner,_scale,_dscale);
 		ConnectTypeList(p);
 		GameD.ConnectBaseList(p);
-	};	
+	};
 };
 
 void EffectDispatcher::CreateFireBall(const Vector& v,unsigned char _type,BaseObject* _owner,int _scale,int _dscale)
@@ -393,6 +428,7 @@ void EffectDispatcher::CreateFireBall(const Vector& v,unsigned char _type,BaseOb
 	};
 };
 
+// Something like Fly on Fostral
 void EffectDispatcher::CreateParticle(char _init,const Vector& v1,const Vector& v2,unsigned char _type)
 {
 	ParticleObject* p;
@@ -532,7 +568,7 @@ void DeformObject::CreateDeform(const Vector& v,char _fl,WaveProcess* p)
 
 void DeformObject::Quant(void)
 {
-	GetVisible();	
+	GetVisible();
 	if(wProcess->CheckOffset(Offset) || Visibility == UNVISIBLE) Status |= SOBJ_DISCONNECT;
 };
 
@@ -574,29 +610,29 @@ void ParticleObject::Quant(void)
 		int zz = round(A_g2s.a[6]*xt + A_g2s.a[7]*yy) - R_curr.z + ViewZ;
 		int xx = round(A_g2s.a[0]*xt + A_g2s.a[1]*yy);
 		yy = round(A_g2s.a[3]*xt + A_g2s.a[4]*yy);
-		if(zz < -radius || abs(xx) > zz*TurnSideX/ViewZ + radius*2 ||  abs(yy) > zz*TurnSideY/ViewZ + radius*2) 
+		if(zz < -radius || abs(xx) > zz*TurnSideX/ViewZ + radius*2 ||  abs(yy) > zz*TurnSideY/ViewZ + radius*2)
 			Visibility = UNVISIBLE;
-		else 
+		else
 			Visibility = VISIBLE;
 		}
 	else{
-		if(abs(getDistX(R_curr.x,ViewX)) - (radius << 1) < TurnSideX && abs(getDistY(R_curr.y,ViewY)) -  (radius << 1) < TurnSideY) 
+		if(abs(getDistX(R_curr.x,ViewX)) - (radius << 1) < TurnSideX && abs(getDistY(R_curr.y,ViewY)) -  (radius << 1) < TurnSideY)
 			Visibility = VISIBLE;
-		else 
+		else
 			Visibility = UNVISIBLE;
 		}
-	if(Time++ >= LifeTime) Status |= SOBJ_DISCONNECT;
+	if(Time++ >= LifeTime * GAME_TIME_COEFF) Status |= SOBJ_DISCONNECT;
 };
 
 void SimpleParticleType::Quant(void)
 {
-	vR.x += (int)round(vD.x / GAME_TIME_COEFF);
-	vR.y += (int)round(vD.y / GAME_TIME_COEFF);
-	vR.z += (int)round(vD.z / GAME_TIME_COEFF);
+	vR.x += (int)round(vD.x * XTCORE_FRAME_NORMAL);
+	vR.y += (int)round(vD.y * XTCORE_FRAME_NORMAL);
+	vR.z += (int)round(vD.z * XTCORE_FRAME_NORMAL);
 
-    vR.x &= (int)round(PTrack_mask_x);
-    vR.y &= (int)round(PTrack_mask_y);
-	Color += dColor;
+	vR.x &= PTrack_mask_x;
+	vR.y &= PTrack_mask_y;
+	Color += dColor / GAME_TIME_COEFF;
 };
 
 const int PARTICLE_MAX_DELTA = 15 << 8;
@@ -604,7 +640,6 @@ const int PARTICLE_MAX_DELTA = 15 << 8;
 void SimpleParticleType::QuantRingOfLord(Vector v,int s,int c)
 {
 	int tx,ty,px,py,d;
-	c *= XTCORE_FRAME_NORMAL;
 	tx = v.x - vR.x;
 	ty = v.y - vR.y;
 
@@ -613,12 +648,12 @@ void SimpleParticleType::QuantRingOfLord(Vector v,int s,int c)
 
 	if(tx > (SPX_100))
 		tx -= SPTorXSize;
-	else if((tx) < (-SPX_100)) 
-		tx += SPTorXSize;		
+	else if((tx) < (-SPX_100))
+		tx += SPTorXSize;
 
 	if(ty > (SPY_100))
 		ty -= SPTorYSize;
-	else if((ty) < (-SPY_100)) 
+	else if((ty) < (-SPY_100))
 		ty += SPTorYSize;
 
 	px = ty*c;
@@ -632,74 +667,56 @@ void SimpleParticleType::QuantRingOfLord(Vector v,int s,int c)
 		vD.x = tx * s / d;
 		vD.y = ty * s / d;
 	};
-	
-	vR += vD;
+
+	vR += vD * XTCORE_FRAME_NORMAL;
 	vR.z = v.z;
-	
+
 	vR.x &= PTrack_mask_x;
-//	vR.y &= PTrack_mask_y;
-	Color += dColor;
+	vR.y &= PTrack_mask_y;
+	Color += dColor / GAME_TIME_COEFF;
 };
 
 //Angry horde animation quant
 void SimpleParticleType::QuantP(Vector _c, Vector _n, int s,int c)
 {
 	int tx,ty,d;
-	vD = Vector(0,0,0);
+	int legacy_stride;
 
 	tx = -(vR.x - _c.x);
 	ty = -(vR.y - _c.y);
 
-	int SPX_100 = (int)round((SPTorXSize - (300<<8))*XTCORE_FRAME_NORMAL);
-	int SPY_100 = (int)round((SPTorYSize - (300<<8))*XTCORE_FRAME_NORMAL);
+	int SPX_100 = SPTorXSize - (300<<8);
+	int SPY_100 = SPTorYSize - (300<<8);
 
-	if(tx > (SPX_100))
-		tx -= (int)round(SPTorXSize*XTCORE_FRAME_NORMAL);
-	else if((tx) < (-SPX_100)) 
-		tx += (int)round(SPTorXSize*XTCORE_FRAME_NORMAL);
+	if(tx > SPX_100)
+		tx -= SPTorXSize;
+	else if(tx < -SPX_100)
+		tx += SPTorXSize;
 
-	if(ty > (SPY_100) )
-		ty -= (int)round(SPTorYSize*XTCORE_FRAME_NORMAL);
-	else if((ty) < (-SPY_100)) 
-		ty += (int)round(SPTorYSize*XTCORE_FRAME_NORMAL);
+	if(ty > SPY_100)
+		ty -= SPTorYSize;
+	else if(ty < -SPY_100)
+		ty += SPTorYSize;
 
-	/*px = ty*c;
-	py = -tx*c;
+	legacy_stride = (int)round(GAME_TIME_COEFF);
+	if(legacy_stride <= 1 || !RND(legacy_stride)){
+		vD = Vector(0,0,0);
+		d = abs(tx) + abs(ty);
+		if(d > 100 && !RND(4)){
+			vD.x = tx * s / d;
+			vD.y = ty * s / d;
+		};
 
-	if (RND(3)){
-		tx += px;
-		ty += py;
-	} else {
-		tx = px - tx;
-		ty = py - ty;
-	} */
+		vD.x += ((3 - RND(7))<<8);
+		vD.y += ((3 - RND(7))<<8);
+	}
 
-//	vD.x >>= 1;
-//	vD.y >>= 1;
-
-	d = abs(tx) + abs(ty);
-	if(d > 100 && !RND(4)){
-		vD.x = tx * s / d;
-		vD.y = ty * s / d;
-	};
-	
-	vD += _n;
-	vD.x += ((3 - RND(7))<<8);
-	vD.y += ((3 - RND(7))<<8);
-	/*d = abs(tx) + abs(ty);
-	if(d){
-		vD.x += tx * s / d;
-		vD.y += ty * s / d;
-		vD.z += (_n.z - _c.z) * s / d;
-	};*/
-	vR += vD;
+	vR += _n;
+	vR += vD * XTCORE_FRAME_NORMAL;
 
 	vR.x &= PTrack_mask_x;
 	vR.y &= PTrack_mask_y;
 	vR.z = _c.z;
-	
-	// vR.x &= PTrack_mask_x;
-	// vR.y &= PTrack_mask_y;
 };
 
 void SimpleParticleType::QuantT(int x,int y,int s)
@@ -708,18 +725,18 @@ void SimpleParticleType::QuantT(int x,int y,int s)
 	int d;
 	vTrack.x = x - vR.x;
 	vTrack.y = y - vR.y;
-	int SPX_100 = SPTorXSize - (100<<8);
-	int SPY_100 = SPTorYSize - (100<<8);
+	int SPX_100 = SPTorXSize - (100 << 8);
+	int SPY_100 = SPTorYSize - (100 << 8);
 
-	if(vTrack.x > (SPX_100) )
+	if(vTrack.x > SPX_100)
 		vTrack.x -= SPTorXSize;
-	else if((vTrack.x) < (-SPX_100)) 
-		vTrack.x += SPTorXSize;		
+	else if(vTrack.x < -SPX_100)
+		vTrack.x += SPTorXSize;
 
-	if(vTrack.y > (SPY_100) )
+	if(vTrack.y > SPY_100)
 		vTrack.y -= SPTorYSize;
-	else if((vTrack.y) < (-SPY_100)) 
-		vTrack.y += SPTorYSize;		
+	else if(vTrack.y < -SPY_100)
+		vTrack.y += SPTorYSize;
 
 	vTrackP.x = vTrack.y;
 	vTrackP.y = -vTrack.x;
@@ -727,22 +744,26 @@ void SimpleParticleType::QuantT(int x,int y,int s)
 	vTrack.x += vTrackP.x;
 	vTrack.y += vTrackP.y;
 
-	d = (abs(vTrack.x) + abs(vTrack.y))>>2;
+	d = (abs(vTrack.x) + abs(vTrack.y)) >> 2;
 //	d <<= WATER_PARTICLE_DIVISION;
-	if(d){
+	if(d) {
 		vD.x = vTrack.x * s / d;
 		vD.y = vTrack.y * s / d;
-	};
+		vD.x -= vD.x >> 4;
+		vD.y -= vD.y >> 4;
+	} else {
+		vD.x -= (vD.x >> 4) * XTCORE_FRAME_NORMAL;
+		vD.y -= (vD.y >> 4) * XTCORE_FRAME_NORMAL;
+	}
 
 //	d = abs(vD.x) + abs(vD.y);
-	vD.x -= vD.x >> 4;
-	vD.y -= vD.y >> 4;
 
-	vR += vD;
-//	vR += vTrack;
+
+	vR += vD * XTCORE_FRAME_NORMAL;
+	// vR += vTrack;
 	vR.x &= PTrack_mask_x;
 	vR.y &= PTrack_mask_y;
-	Color += dColor;
+	Color += dColor / GAME_TIME_COEFF;
 };
 
 void ParticleObject::DrawQuant(void)
@@ -751,33 +772,37 @@ void ParticleObject::DrawQuant(void)
 	SimpleParticleType* p;
 	Vector vPos;
 	int tx,ty;
-	int phi,dphi;
+	double phi,dphi,spiralSpeed;
 
 	if(Mode){
-		if(Time < LifeTime){
-			dphi = (Time*PI << 8) / (2*NumParticle * LifeTime);
+		if(Time < LifeTime * GAME_TIME_COEFF){
+			dphi = (Time * XTCORE_FRAME_NORMAL * M_PI) / (2 * NumParticle * LifeTime);
 			phi = 0;
 		}else{
-			phi = PI / 2;
+			phi = M_PI / 2;
 			dphi = 0;
 		};
 
 		if(AdvancedView){
-			for(i = 0,p = Data;i < NumParticle;i++,p++){				
-				p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),abs(25 * SI[rPI(phi >> 8)] >> 8),32);
+			for(i = 0,p = Data;i < NumParticle;i++,p++){
+				spiralSpeed = round(std::abs(sin(phi)) * 6400.0);
+				p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),(int)spiralSpeed,32);
 				vPos = p->vR;
 				vPos >>= 8;
 //				if(GetAltLevel(vPos)){
 					G2LQ(vPos,tx,ty);
 	//				G2L(vPos.x,vPos.y,tx,ty);
-					if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+					if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+						XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+					}
 //				};
 				phi += dphi;
 			};
 		}else{
-			if(CurrentWorld < MAIN_WORLD_MAX - 1){			
+			if(CurrentWorld < MAIN_WORLD_MAX - 1){
 				for(i = 0,p = Data;i < NumParticle;i++,p++){
-					p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),abs(25 * SI[rPI(phi >> 8)] >> 8),32);
+					spiralSpeed = round(std::abs(sin(phi)) * 6400.0);
+					p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),(int)spiralSpeed,32);
 					vPos = p->vR;
 					vPos >>= 8;
 	//				if(GetAltLevel(vPos)){
@@ -787,13 +812,16 @@ void ParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 	//				};
-					phi +=dphi;
+					phi += dphi;
 				};
 			}else{
 				for(i = 0,p = Data;i < NumParticle;i++,p++){
-					p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),abs(25 * SI[rPI(phi >> 8)] >> 8),32);
+					spiralSpeed = round(std::abs(sin(phi)) * 6400.0);
+					p->QuantRingOfLord(Vector(R_curr.x << 8,R_curr.y << 8,R_curr.z << 8),(int)spiralSpeed,32);
 					vPos = p->vR;
 					vPos >>= 8;
 	//				if(GetAltLevel(vPos)){
@@ -803,12 +831,15 @@ void ParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round(SPGetDistY(p->vR.y,SPViewY) * ScaleMapInvFlt) >> 8) + ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 	//				};
-					phi +=dphi;
+					phi += dphi;
 				};
 			};
 		};
+		// std::cout<<"Time:"<<Time*XTCORE_FRAME_NORMAL<<" dphi:"<<dphi<<" spiralSpeed:"<<spiralSpeed<<std::endl;
 	}else{
 		if(AdvancedView){
 			for(i = 0,p = Data;i < NumParticle;i++,p++){
@@ -818,7 +849,9 @@ void ParticleObject::DrawQuant(void)
 				if(GetAltLevel(vPos)){
 					G2LQ(vPos,tx,ty);
 	//				G2L(vPos.x,vPos.y,tx,ty);
-					if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+					if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+						XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+					}
 				};
 			};
 		}else{
@@ -834,7 +867,9 @@ void ParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			}else{
@@ -849,7 +884,9 @@ void ParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round(SPGetDistY(p->vR.y,SPViewY) * ScaleMapInvFlt) >> 8) + ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			};
@@ -897,7 +934,7 @@ void ParticleObject::CreateParticle(ParticleInitDataType* n,const Vector& v1,con
 
 	Time = 0;
 
-	LifeTime = (int)round(n->LifeTime * GAME_TIME_COEFF);
+	LifeTime = n->LifeTime;
 
 	FirstColor = n->FirstColor << 8;
 	DeltaColor = ((n->EndColor << 8) - FirstColor) / LifeTime;
@@ -931,8 +968,16 @@ void ParticleObject::CreateParticle(ParticleInitDataType* n,const Vector& v1,con
 		SignRadius = Radius << 1;
 		p->Color = FirstColor;
 		p->dColor = DeltaColor;
-		p->vD = Vector(Velocity - effectRND(SignVelocity),Velocity - effectRND(SignVelocity),Velocity - effectRND(SignVelocity));
-		p->vR = vPos + Vector(Radius - effectRND(SignRadius),Radius - effectRND(SignRadius),Radius - effectRND(SignRadius));
+		p->vD = Vector(
+			Velocity - effectRND(SignVelocity),
+			Velocity - effectRND(SignVelocity),
+			Velocity - effectRND(SignVelocity)
+		);
+		p->vR = vPos + Vector(
+			Radius - effectRND(SignRadius),
+			Radius - effectRND(SignRadius),
+			Radius - effectRND(SignRadius)
+		);
 		vPos += vDelta;
 		Radius += DeltaRadius;
 	};
@@ -949,7 +994,7 @@ void ParticleObject::CreateParticle(ParticleInitDataType* n,const Vector& v1,con
 	Time = 0;
 	Mode = 0;
 
-	LifeTime = (int)round(n->LifeTime * GAME_TIME_COEFF);
+	LifeTime = n->LifeTime;
 
 	FirstColor = n->FirstColor << 8;
 	DeltaColor = ((n->EndColor << 8) - FirstColor) / LifeTime;
@@ -1002,7 +1047,7 @@ void ParticleObject::CreateParticle(int _LifeTime,int _Velocity,int _FirstRadius
 	Time = 0;
 	Mode = 0;
 
-	LifeTime = (int)round(_LifeTime * GAME_TIME_COEFF);
+	LifeTime = _LifeTime;
 
 	FirstColor = _FirstColor << 8;
 	DeltaColor = ((_EndColor << 8) - FirstColor) / LifeTime;
@@ -1053,7 +1098,7 @@ void ParticleObject::CreateParticle(int _LifeTime,int _Velocity,int _FirstRadius
 	Time = 0;
 	Mode = 0;
 
-	LifeTime = (int)round(_LifeTime * GAME_TIME_COEFF);
+	LifeTime = _LifeTime;
 
 	FirstColor = _FirstColor << 8;
 	DeltaColor = ((_EndColor << 8) - FirstColor) / LifeTime;
@@ -1103,7 +1148,7 @@ void ParticleObject::CreateParticle(ParticleInitDataType* n,const Vector& v)
 	int Alpha,StepAlpha;
 
 	Time = 0;
-	LifeTime = (int)round(n->LifeTime * GAME_TIME_COEFF);
+	LifeTime = n->LifeTime;
 
 	Mode = 0;
 
@@ -1119,7 +1164,7 @@ void ParticleObject::CreateParticle(ParticleInitDataType* n,const Vector& v)
 	Velocity = n->Velocity;
 	SignVelocity = Velocity << 1;
 
-	vPos = Vector(v.x << 8,v.y << 8,v.z << 8);	
+	vPos = Vector(v.x << 8,v.y << 8,v.z << 8);
 
 	StepAlpha = rPI(2*PI / NumParticle);
 	Alpha = RND(PI);
@@ -1181,7 +1226,7 @@ void ParticleObject::CreateDirectParticle(ParticleInitDataType* n,const Vector& 
 	Mode = 0;
 
 	Time = 0;
-	LifeTime = (int)round(n->LifeTime );
+	LifeTime = n->LifeTime;
 
 	FirstColor = n->FirstColor << 8;
 	DeltaColor = ((n->EndColor << 8) - FirstColor) / LifeTime;
@@ -1216,6 +1261,7 @@ void TargetParticleObject::InitParicle(int num)
 	NumParticle = num;
 	Data = new TargetParticleType[num];
 	FadeTime = FadeNum = 0;
+	FadeAccum = 0.0;
 };
 
 void TargetParticleObject::Free(void)
@@ -1247,14 +1293,22 @@ void TargetParticleObject::Quant(void)
 	};
 	if(TargetType){
 		if(Time == 0){
-			FadeTime = LifeTime - (TARGET_PARTICLE_FADE_TIME * GAME_TIME_COEFF);
-			FadeNum = CurrParticle / (TARGET_PARTICLE_FADE_TIME * GAME_TIME_COEFF);
+			FadeTime = LifeTime - TARGET_PARTICLE_FADE_TIME;
+			FadeNum = CurrParticle / TARGET_PARTICLE_FADE_TIME;
+			FadeAccum = 0.0;
 		}else{
-			if(Time >= FadeTime) 
-				CurrParticle -= FadeNum;
+			if(Time >= FadeTime * GAME_TIME_COEFF){
+				FadeAccum += FadeNum * XTCORE_FRAME_NORMAL;
+				int fade_step = (int)floor(FadeAccum);
+				if(fade_step){
+					CurrParticle -= fade_step;
+					FadeAccum -= fade_step;
+				}
+			}
 		};
 	};
-	if(++Time > LifeTime) 	Status |= SOBJ_DISCONNECT;	
+	if(++Time > LifeTime * GAME_TIME_COEFF)
+		Status |= SOBJ_DISCONNECT;
 };
 
 
@@ -1348,33 +1402,42 @@ void TargetParticleType::aQuant(void)
 
 		tx = tx * s / d;
 		ty = ty * s / d;
-		tx += (ty >> TARGET_PARTICLE_NORMAL_SHIFT);
-		ty -= (tx >> TARGET_PARTICLE_NORMAL_SHIFT);
-		tx /= GAME_TIME_COEFF;
-		ty /= GAME_TIME_COEFF;
-		vD.x += tx;
-		vD.y += ty;
+
+		int legacy_dx = tx + (ty >> TARGET_PARTICLE_NORMAL_SHIFT);
+		int legacy_dy = ty - (tx >> TARGET_PARTICLE_NORMAL_SHIFT);
+
+		vD.x += accumulate_runtime_scalar_step(legacy_dx,AccelAccumX);
+		vD.y += accumulate_runtime_scalar_step(legacy_dy,AccelAccumY);
 
 		if(pDist < d){
-			vD.x -= vD.x >> 4;
-			vD.y -= vD.y >> 4;
+			vD.x -= accumulate_runtime_scalar_step(vD.x >> 4,DragAccumX);
+			vD.y -= accumulate_runtime_scalar_step(vD.y >> 4,DragAccumY);
+		}else{
+			DragAccumX = 0.0;
+			DragAccumY = 0.0;
 		};
 
-		vR.x += vD.x;
-		vR.y += vD.y;
-		vR.z += vD.z;
+		{
+			Vector move_step;
+			accumulate_runtime_vector_step(vD,MoveAccumX,MoveAccumY,MoveAccumZ,move_step);
+			vR += move_step;
+		}
 
 		vR.x &= PTrack_mask_x;
 //		vR.y &= PTrack_mask_y;
 		pDist = d;
 		if (AdvancedView) {
-			G2LQ(Vector(vR.x >> 8, vR.y >> 8, vR.z), tx, ty);
+			G2LQ(Vector(vR.x >> 8, vR.y >> 8, vR.z >> 8), tx, ty);
 		} else {
 			tx = ((int)round(SPGetDistX(vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 			ty = ((int)round((vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 		}
-		
+
 		if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,Color);
+	}else{
+		MoveAccumX = MoveAccumY = MoveAccumZ = 0.0;
+		AccelAccumX = AccelAccumY = 0.0;
+		DragAccumX = DragAccumY = 0.0;
 	};
 };
 
@@ -1382,7 +1445,7 @@ void TargetParticleObject::CreateParticle(const Vector& _vTarget,int _LifeTime,c
 {
 	Time = 0;
 	CurrParticle = 0;
-	LifeTime = (int)round(_LifeTime * GAME_TIME_COEFF);
+	LifeTime = _LifeTime;
 	R_curr = _vTarget;
 	cycleTor(R_curr.x,R_curr.y);
 	vTarget.x = R_curr.x << 8;
@@ -1393,6 +1456,7 @@ void TargetParticleObject::CreateParticle(const Vector& _vTarget,int _LifeTime,c
 	MapLevel = 1;
 	TargetType = type;
 	FadeTime = FadeNum = 0;
+	FadeAccum = 0.0;
 };
 
 void TargetParticleObject::AddVertex(const Vector& _vR,int _Color,int _Speed1,int _Speed2)
@@ -1425,17 +1489,20 @@ void TargetParticleObject::AddVertex(const Vector& _vR,int _Color,int _Speed1,in
 
 		d = vCheck.vabs();
 		if(d){
-			vCheck.x = (int)round(_Speed1) * vCheck.x / d;
-			vCheck.y = (int)round(_Speed1) * vCheck.y / d;
+			vCheck.x = _Speed1 * vCheck.x / d;
+			vCheck.y = _Speed1 * vCheck.y / d;
 			p->vD.x = vCheck.x + vCheck.y;
 			p->vD.y = vCheck.y - vCheck.x;
 		}else p->vD = Vector(0,0,0);
 
 		p->vD.z = (vCheck.z << 8) / LifeTime;
 
-		p->s = (int)round(_Speed2);
+		p->s = _Speed2;
 		p->vT = vTarget;
 		p->pDist = d;
+		p->MoveAccumX = p->MoveAccumY = p->MoveAccumZ = 0.0;
+		p->AccelAccumX = p->AccelAccumY = 0.0;
+		p->DragAccumX = p->DragAccumY = 0.0;
 		CurrParticle++;
 	};
 };
@@ -1444,6 +1511,10 @@ void TargetParticleObject::AddVertex(const Vector& _vR,int _Color,int _Speed1,in
 void TargetParticleType::aQuant2(void)
 {
 	int tx,ty;
+
+	if (pDist <= 0 && !type) {
+		return;
+	}
 
 	tx = SPGetDistX(vT.x,vR.x);
 	ty = vT.y - vR.y;
@@ -1456,21 +1527,21 @@ void TargetParticleType::aQuant2(void)
 //	vR.y &= PTrack_mask_y;
 	pDist--;
 
-	if (!pDist && type){
+	if (pDist <= 0 && type){
 		pDist = LifeTime;
 
 		vT = vD;
 	}
 
 	if (AdvancedView) {
-		G2LQ(Vector(vR.x >> 8, vR.y >> 8, vR.z), tx, ty);
+		G2LQ(Vector(vR.x >> 8, vR.y >> 8, vR.z >> 8), tx, ty);
 	} else {
 		tx = ((int)round(SPGetDistX(vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 		ty = ((int)round((vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 	}
-	
+
 	if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,Color);
-};     
+};
 
 void TargetParticleObject::AddVertex2(const Vector& _vR,const Vector& _vT, int _Color, int _type)
 {
@@ -1491,7 +1562,7 @@ void TargetParticleObject::AddVertex2(const Vector& _vR,const Vector& _vT, int _
 
 		p->Color = _Color;
 		p->type = _type;
-		p->LifeTime = (int)round(LifeTime );
+		p->LifeTime = LifeTime * GAME_TIME_COEFF;
 
 		if (_type){
 			p->vT.x = vCheck.x << 8;
@@ -1523,12 +1594,15 @@ void TargetParticleObject::AddVertex2(const Vector& _vR,const Vector& _vT, int _
 			p->vT.y = vCheck.y << 8;
 			p->vT.z = vCheck.z << 8;
 		}
-		p->pDist = LifeTime;
+		p->pDist = LifeTime * GAME_TIME_COEFF;
 		if ( _type ) {
 			p->pDist >>= 1;
 			p->LifeTime >>= 1;
 		}
 		p->s =((_vR.z  - _vT.z) << 8) / p->pDist;
+		p->MoveAccumX = p->MoveAccumY = p->MoveAccumZ = 0.0;
+		p->AccelAccumX = p->AccelAccumY = 0.0;
+		p->DragAccumX = p->DragAccumY = 0.0;
 
 		CurrParticle++;
 	};
@@ -1571,7 +1645,7 @@ void WaterParticleObject::Quant(void)
 		};
 	};
 //	if(z >= (1 << TOUCH_SHIFT)) VsFlag = oUNVISIBLE;
-	if(Time > LifeTime) Status |= SOBJ_DISCONNECT;
+	if(Time > LifeTime * GAME_TIME_COEFF) Status |= SOBJ_DISCONNECT;
 	Time++;
 };
 
@@ -1581,9 +1655,9 @@ void WaterParticleObject::DrawQuant(void)
 	SimpleParticleType* p;
 	Vector vPos;
 	int tx,ty;
-	
+
 	if(TargetType){
-		if(Time == SetLifeTime){
+		if(Time == SetLifeTime * GAME_TIME_COEFF){
 			if(AdvancedView){
 				for(i = 0,p = Data;i < NumParticle;i++,p++){
 					p->QuantT(vCenter.x,vCenter.y,Velocity);
@@ -1592,7 +1666,9 @@ void WaterParticleObject::DrawQuant(void)
 					vPos >>= 8;
 					if(WaterAltLevel(vPos)){
 						G2LQ(vPos,tx,ty);
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			}else{
@@ -1604,7 +1680,9 @@ void WaterParticleObject::DrawQuant(void)
 					if(WaterAltLevel(vPos)){
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			};
@@ -1616,7 +1694,9 @@ void WaterParticleObject::DrawQuant(void)
 					vPos >>= 8;
 					if(GetAltLevel(vPos)){
 						G2LQ(vPos,tx,ty);
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			}else{
@@ -1628,13 +1708,15 @@ void WaterParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			};
 		};
 	}else{
-		if(Time == SetLifeTime){
+		if(Time == SetLifeTime * GAME_TIME_COEFF){
 			if(AdvancedView){
 				for(i = 0,p = Data;i < NumParticle;i++,p++){
 					p->Quant();
@@ -1643,7 +1725,9 @@ void WaterParticleObject::DrawQuant(void)
 					vPos >>= 8;
 					if(WaterAltLevel(vPos)){
 						G2LQ(vPos,tx,ty);
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			}else{
@@ -1656,7 +1740,9 @@ void WaterParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			};
@@ -1668,7 +1754,9 @@ void WaterParticleObject::DrawQuant(void)
 					vPos >>= 8;
 					if(GetAltLevel(vPos)){
 						G2LQ(vPos,tx,ty);
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			}else{
@@ -1680,7 +1768,9 @@ void WaterParticleObject::DrawQuant(void)
 						tx = ((int)round(SPGetDistX(p->vR.x,SPViewX) * ScaleMapInvFlt) >> 8) + ScreenCX;
 						ty = ((int)round((p->vR.y - SPViewY) * ScaleMapInvFlt) >> 8)+ ScreenCY;
 
-						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) XGR_SetPixelFast(tx,ty,p->Color >> 8);
+						if(tx > UcutLeft && tx < UcutRight && ty > VcutUp && ty < VcutDown) {
+							XGR_SetPixelFast(tx, ty, (int)round(p->Color) >> 8);
+						}
 					};
 				};
 			};
@@ -1697,8 +1787,8 @@ void WaterParticleObject::CreateParticle(int _LifeTime,int _SetLifeTime,int _Vel
 
 	Time = 0;
 
-	LifeTime = (int)round(_LifeTime * GAME_TIME_COEFF);
-	SetLifeTime = (int)round(_SetLifeTime * GAME_TIME_COEFF);
+	LifeTime = _LifeTime;
+	SetLifeTime = _SetLifeTime;
 
 	FirstColor = _FirstColor << 8;
 	SetColor = _SetColor << 8;
@@ -1722,7 +1812,7 @@ void WaterParticleObject::CreateParticle(int _LifeTime,int _SetLifeTime,int _Vel
 
 	vCenter.x = R_curr.x << 8;
 	vCenter.y = R_curr.y << 8;
-	vCenter.z = R_curr.z << 8;	
+	vCenter.z = R_curr.z << 8;
 
 /*	for(i = 0,p = Data;i < NumParticle;i++,p++){
 		p->Color = FirstColor;
@@ -1741,7 +1831,11 @@ void WaterParticleObject::CreateParticle(int _LifeTime,int _SetLifeTime,int _Vel
 		Radius = RND(radius8);
 		//Radius = radius8 - RND(10);
 		p->vR = vCenter + Vector(round(Cos(phi)*Radius),round(Sin(phi)*Radius),0);
-		p->vD = Vector(_Velocity - effectRND(SignVelocity),_Velocity - effectRND(SignVelocity),_Velocity - effectRND(SignVelocity));
+		p->vD = Vector(
+			_Velocity - effectRND(SignVelocity),
+			_Velocity - effectRND(SignVelocity),
+			_Velocity - effectRND(SignVelocity)
+		);
 	};
 };
 
@@ -1775,7 +1869,7 @@ void FireBallObject::Init(StorageType* s)
 void FireBallObject::Quant(void)
 {
 	GetVisible();
-	Scale += dScale;
+	Scale += (int)round(dScale * XTCORE_FRAME_NORMAL);
 	radius = (FirstRadius * Scale) >> 8;
 	if(Owner){
 		if(Owner->Status & SOBJ_DISCONNECT) Owner = NULL;
@@ -1834,7 +1928,7 @@ void ParticleGenerator::CreateGenerator(Vector vC,Vector vT,Vector vD,int mode)
 			Speed = 15;
 			MoveMode = PG_MODE_MOVE_TARGET;
 			TargetMode = PG_RADIUS;
-			Time = 300;
+			Time = particle_generator_ticks(300);
 			FlyRadius = 100;
 			radius = FlyRadius;
 			Precision = 5;
@@ -1850,7 +1944,7 @@ void ParticleGenerator::CreateGenerator(Vector vC,Vector vT,Vector vD,int mode)
 			Speed = 8;
 			MoveMode = PG_MODE_TRUE_MASS;
 			TargetMode = PG_RADIUS;
-			Time = 40;
+			Time = particle_generator_ticks(40);
 			FlyRadius = RND(50);
 			radius = FlyRadius;
 			Precision = 5;
@@ -1866,7 +1960,7 @@ void ParticleGenerator::CreateGenerator(Vector vC,Vector vT,Vector vD,int mode)
 			Speed = 5;
 			MoveMode = PG_MODE_TRUE_MASS;
 			TargetMode = PG_TARGET_RANDOM | PG_TARGET_RIGHT | PG_TARGET;
-			Time = CHANGE_VANGER_TIME;
+			Time = particle_generator_ticks(CHANGE_VANGER_TIME);
 			FlyRadius = 100;
 			radius = FlyRadius;
 			Precision = 2;
@@ -1874,6 +1968,12 @@ void ParticleGenerator::CreateGenerator(Vector vC,Vector vT,Vector vD,int mode)
 			break;
 	};
 	R_prev = R_curr;
+	SteerAccumX = 0.0;
+	SteerAccumY = 0.0;
+	SteerAccumZ = 0.0;
+	MoveAccumX = 0.0;
+	MoveAccumY = 0.0;
+	MoveAccumZ = 0.0;
 	Status = 0;
 };
 
@@ -1888,6 +1988,7 @@ void ParticleGenerator::Quant(void)
 	uchar alt;
 	Vector vT;
 	int d;
+	const bool legacy_step = particle_generator_legacy_step(Time);
 
 	vT = Vector(0,0,0);
 
@@ -1904,7 +2005,7 @@ void ParticleGenerator::Quant(void)
 	if(TargetMode & PG_TARGET)
 		vT += Vector(getDistX(vTarget.x,R_curr.x),getDistY(vTarget.y,R_curr.y),0);
 
-	if((TargetMode & PG_TARGET_RANDOM) && RND(100) < 50)
+	if((TargetMode & PG_TARGET_RANDOM) && legacy_step && RND(100) < 50)
 		vT += Vector(BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2),BMAX_TARGET_VECTOR - RND(BMAX_TARGET_VECTOR2));
 
 	if(TargetMode & PG_TARGET_RANDOM)
@@ -1919,14 +2020,20 @@ void ParticleGenerator::Quant(void)
 
 	d = vT.vabs();
 	if(d){
-		vDelta += vT * Precision / d;
+		Vector legacy_step, steer_step;
+		legacy_step = vT * Precision / d;
+		accumulate_runtime_vector_step(legacy_step,SteerAccumX,SteerAccumY,SteerAccumZ,steer_step);
+		vDelta += steer_step;
 		d = vDelta.vabs();
 		if(!(MoveMode & PG_MODE_TRUE_MASS) || d > Speed) vDelta = vDelta * Speed / d;
 	};
 
-	R_prev = R_curr;
-	R_curr += vDelta;
-	cycleTor(R_curr.x,R_curr.y);	
+	{
+		Vector move_step;
+		accumulate_runtime_vector_step(vDelta,MoveAccumX,MoveAccumY,MoveAccumZ,move_step);
+		R_curr += move_step;
+	}
+	cycleTor(R_curr.x,R_curr.y);
 
 	Time--;
 	GetAlt(R_curr,alt);
@@ -1936,14 +2043,17 @@ void ParticleGenerator::Quant(void)
 
 void ParticleGenerator::DrawQuant(void)
 {
-	EffD.CreateParticle(ParticleType,R_prev,R_curr,ParticleStorage);
+	if(particle_generator_legacy_step(Time)){
+		EffD.CreateParticle(ParticleType,R_prev,R_curr,ParticleStorage);
+		R_prev = R_curr;
+	}
 };
 
 void EffectDispatcher::CreateParticleGenerator(Vector vC,Vector vT,Vector vD,int mode)
 {
 	ParticleGenerator* pg;
 	pg = (ParticleGenerator*)(UnitStorage[EFF_PARTICLE_GENERATOR].Active());
-	if(pg){		
+	if(pg){
 		pg->CreateGenerator(vC,vT,vD,mode);
 		ConnectTypeList(pg);
 		GameD.ConnectBaseList(pg);

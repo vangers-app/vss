@@ -654,6 +654,17 @@ extern int RealNumLocation[WORLD_MAX];
 extern char** SkipLocationName[WORLD_MAX];
 extern int* NumLocationData[WORLD_MAX];
 
+#ifdef _ROAD_
+static int should_load_world_mobile_location(const char* fname)
+{
+	for(int j = 0;j < NumSkipLocation[CurrentWorld];j++){
+		if(!strcmp(fname,SkipLocationName[CurrentWorld][NumLocationData[CurrentWorld][j]]))
+			return j < RealNumLocation[CurrentWorld];
+	}
+	return 1;
+}
+#endif
+
 void MLload(void)
 {
 	int i,j,t;
@@ -710,13 +721,17 @@ MLTableSize = 0;
 	if (n < 0) 
 		perror("scandir"); 
 	else { 
-		while(n--) { 
+		while(n--) {
 			std::string name = namelist[n]->d_name;
-			if (name.find(".vot")!=std::string::npos)
+			if (name.find(".vot")!=std::string::npos
+#ifdef _ROAD_
+				&& should_load_world_mobile_location(name.c_str())
+#endif
+				)
 				MLTableSize++;
-			free(namelist[n]); 
-		} 
-	free(namelist); 
+			free(namelist[n]);
+		}
+	free(namelist);
 	} 
 	
 
@@ -735,13 +750,7 @@ MLTableSize = 0;
 	while(fn){
 		t = 1;
 #ifdef _ROAD_
-		for(j = 0;j < NumSkipLocation[CurrentWorld];j++){
-			if(!strcmp(fn,SkipLocationName[CurrentWorld][NumLocationData[CurrentWorld][j]])){
-				if(j >= RealNumLocation[CurrentWorld])
-					t = 0;
-				break;
-				}
-			}
+		t = should_load_world_mobile_location(fn);
 #endif
 		if(t){
 			(MLTable[i] = new MobileLocation) -> load(fn);
@@ -754,19 +763,23 @@ MLTableSize = 0;
 	n = scandir(tmp.c_str(), &namelist2, 0, alphasort); 
 	if (n < 0) 
 		perror("scandir"); 
-	else { 
-		while(n--) { 
+	else {
+		while(n--) {
 			std::string name = namelist2[n]->d_name;
-			if (name.find(".vot")!=std::string::npos)
-				{
+			if (name.find(".vot")!=std::string::npos){
+				t = 1;
+#ifdef _ROAD_
+				t = should_load_world_mobile_location(name.c_str());
+#endif
+				if(t){
 				(MLTable[i] = new MobileLocation) -> load(namelist2[n]->d_name);
 				i++;
 				}
-			else
-				free(namelist2[n]); 
-		} 
-	//free(namelist2); 
-	} 
+			}
+			free(namelist2[n]);
+		}
+	free(namelist2);
+	}
 #endif
 	VLload();
 	ML_FRAME_DELTA = new uchar[ML_FRAME_SIZE];
@@ -1150,25 +1163,23 @@ int MobileLocation::quant(int render,int skipVZ,int skipCheck)
 	if(!skipCheck){
 		checked = table[cFrame].check(dy);
 		if(checked && frozen){
+#ifdef _ROAD_
+			frozen = 0;
+#else
 			steps[cFrame] = 0;
 			cFrame = 0;
 			frozen = 0;
-#ifdef _ROAD_
-			cStage = -1;
-			setPhase(0,1);
-			goPh = 0;
 #endif
 			return 0;
 			}
 		else {
 			if(!checked && !frozen){
+#ifdef _ROAD_
+				frozen = 1;
+#else
 				steps[cFrame] = 0;
 				cFrame = 0;
 				frozen = 1;
-#ifdef _ROAD_		
-				cStage = -1;
-				goPh = 0;
-//				vMap->delink(YCYCL(y0 - altSy),YCYCL(y0 + altSy));
 #endif
 				return 0;
 				}
@@ -3681,6 +3692,17 @@ static char Mask_for_crash[] = {
 
 };
 
+static inline int landslide_noise_ticks(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks > 0 ? ticks : 1;
+}
+
+static inline bool landslide_noise_legacy_step(void)
+{
+	return !(frame % landslide_noise_ticks());
+}
+
 void LandSlideType::makeLittelNoise(void){
 	int firtst_time = 68 * GAME_TIME_COEFF;
 	int end_time = 55 * GAME_TIME_COEFF;
@@ -3714,6 +3736,8 @@ void LandSlideType::makeLittelNoise(void){
 		Time = 0;
 		return;
 	} else if (Time < end_time)return;
+
+	if(!landslide_noise_legacy_step()) return;
 
 	for( i = 0; i < for_one; i++){ 
 		int rnd1 = RND(259), rnd2 = RND(259);
@@ -3796,7 +3820,7 @@ void MapLandHole::Quant(void)
 				SOUND_TEAR(getDistX(ActD.Active->R_curr.x,R_curr.x))
 			break;
 		case 1:
-			if(Time > LifeTime) Mode = 2;
+			if(Time > LifeTime * GAME_TIME_COEFF) Mode = 2;
 			else Time++;
 			break;
 		case 2:
@@ -3812,16 +3836,19 @@ void MapLandHole::Quant(void)
 
 void MapAcidSpot::CreateAcid(Vector v,int fRad,int lRad,int fDelta,int lDelta,int lTime)
 {
+	int ticks = (int)round(lTime * GAME_TIME_COEFF);
+	if(ticks <= 0) ticks = 1;
+
 	R_curr = v;
 	ID = ID_MOBILE_LOCATION;
 	Status = 0;
 	cycleTor(R_curr.x,R_curr.y);
 
-	Time = lTime;
+	Time = ticks;
 	Radius = fRad << 8;
-	dRadius = ((lRad << 8) - Radius) / lTime;	
+	dRadius = ((lRad << 8) - Radius) / ticks;
 	Delta = fDelta << 8;
-	dDelta = ((lDelta << 8) - Delta) / lTime;	
+	dDelta = ((lDelta << 8) - Delta) / ticks;
 };
 
 void MapAcidSpot::Quant(void)

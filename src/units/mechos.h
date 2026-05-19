@@ -223,6 +223,10 @@ struct ActionUnit : Object
 	int PrevVisibility;
 
 	int Count;
+	double HideTurnAccum;
+	double ActionSpeedAccum;
+	double ActionHideMoveAccumX;
+	double ActionHideMoveAccumY;
 
 	int WavePhase;
 	WaveProcess* wProcess;
@@ -275,6 +279,7 @@ struct TrackUnit : ActionUnit , TrackLinkType
 	int EnvirReaction,TargetReaction;
 
 	int NullTime;
+	double FrontStepAccum;
 
 	char MoveDir,FrontDir;
 	BranchType* PrevBranch;
@@ -756,6 +761,9 @@ struct VangerUnit : TrackUnit , uvsUnitType , aiFactorType
 	dastPoly3D* MolePoint1;
 	dastPoly3D* MolePoint2;
 	int Molerizator;
+	Vector MoleTrailPrev;
+	int MoleTrailStep;
+	int MoleTrailValid;
 	int VangerCloneID;
 
 	VangerUnit* VangerChanger;
@@ -897,6 +905,8 @@ struct InsectUnit : ActionUnit
 {
 	Vector Target;
 	int BeebType;
+	double VisibleDirectSpeedAccum;
+	double HideMoveAccumX,HideMoveAccumY;
 
 	void Init(void);
 
@@ -955,7 +965,8 @@ struct CompasObject
 //const int SPEETLE_AMMO = 0;
 //const int CRUSTEST_AMMO = 1;
 
-const int RES_DRAW_LEFT = 150;
+const int RES_DRAW_LEFT = 80;
+const int RES_DRAW_RIGHT = 100;
 const int RES_DRAW_DOWN = 80;
 const int RES_DRAW_STEP_Y = 10;
 const int RES_DRAW_MAX_SIZE = 300;
