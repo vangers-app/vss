@@ -15,9 +15,9 @@ ninja -j<n>
 # Testing
 
 ```
-cd frontend
+cd app
 yarn
 yarn run vite
 ```
 
-Then open `localhost:5173` in the browser
+Then open `localhost:1420` in the browser

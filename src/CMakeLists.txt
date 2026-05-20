@@ -174,10 +174,10 @@ else()
 			"--profiling-funcs"
 		)
 		set_target_properties(vangers PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/frontend/src"
+			RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/app/src"
 			SUFFIX ".mjs")
 		add_custom_command(TARGET vangers POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/frontend/public"
-			COMMAND ${CMAKE_COMMAND} -E rename "$<TARGET_FILE_DIR:vangers>/vangers.data" "${PROJECT_SOURCE_DIR}/frontend/public/vangers.data")
+			COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/app/public"
+			COMMAND ${CMAKE_COMMAND} -E rename "$<TARGET_FILE_DIR:vangers>/vangers.data" "${PROJECT_SOURCE_DIR}/app/public/vangers.data")
 	ENDIF(EMSCRIPTEN)
 endif(ANDROID)
