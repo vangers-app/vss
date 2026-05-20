@@ -1,3 +1,8 @@
+# Prerequisites
+1. Check out this repository with submodules
+2. You should have the Steam version installed (to package data)
+
+
 # Build for WebAssembly
 
 ```

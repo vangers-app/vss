@@ -16,7 +16,8 @@ function App() {
                 onRuntimeInitialized: () => {
                     console.log("Runtime initialized");
                     installVssBrowser(Module);
-                    Module.callMain(["-vss", "/addon"]);
+                    // Module.callMain(["-vss", "/addon"]);
+                    Module.callMain([]);
                 }
             };
             Vangers(Module);
