@@ -1,5 +1,5 @@
 import { useContext } from "preact/hooks";
-import { BridgeContext } from "../ui/bridge";
+import { BridgeContext } from "../mobile/bridge";
 
 const tData: { [lang: string]: { [key: string]: string } } = {
     en: {
@@ -40,7 +40,18 @@ const tData: { [lang: string]: { [key: string]: string } } = {
     },
 };
 
+function detectLang(): "en" | "ru" {
+    const stored = window.localStorage.getItem("mobile.language");
+    if (stored === "en" || stored === "ru") {
+        return stored;
+    }
+    const navLang = (navigator.language || "").toLowerCase();
+    return navLang.startsWith("ru") ? "ru" : "en";
+}
+
 export function t(key: string): string {
     const bridge = useContext(BridgeContext);
-    return tData[bridge.native.language()][key] ?? tData.en[key] ?? key;
+    const nativeLang = bridge?.native.language();
+    const lang: "en" | "ru" = nativeLang === "en" || nativeLang === "ru" ? nativeLang : detectLang();
+    return tData[lang][key] ?? tData.en[key] ?? key;
 }
