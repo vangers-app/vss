@@ -1,6 +1,6 @@
 import { Bridge, BridgeContext } from "./bridge";
 import { Road } from "./gamepix/road";
-import { UIType } from "./native-bridge";
+import { UIType } from "./api";
 import { Way83 } from "./way83/way83";
 import { Way83Inventory } from "./way83/way83-inventory";
 

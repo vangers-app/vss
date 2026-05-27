@@ -12,7 +12,7 @@ type InventoryStorage = {
     customProps?: Record<string, string>;
 };
 
-const storageKey = "vss:/addon:ls";
+const storageKey = "vss:addons";
 
 function readStorage(): InventoryStorage {
     const raw = window.localStorage.getItem(storageKey);
@@ -53,8 +53,8 @@ export function writeInventoryItems(items: InventoryItem[]) {
     writeStorage(storage);
 }
 
-export function isAddonEnabled(id: string) {
-    return readInventoryItems().some((item) => item.id === id && item.enabled);
+export function isAddonEnabled(id: string, defaultEnabled = false) {
+    return readInventoryItems().find((item) => item.id === id)?.enabled ?? defaultEnabled;
 }
 
 export function readCustomProp(name: string) {

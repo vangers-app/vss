@@ -1,13 +1,14 @@
 import { createContext } from "preact";
-import { Event, NativeBridge, UIType } from "./native-bridge";
+import { Event, Api, UIType } from "./api";
 import { init as initOptions } from "./controls/options";
 import { fromHex } from "../encoder";
+import { installCellStyle, renderCellStyle } from "../ui/cell-style";
 
 const textDecoder = new TextDecoder();
 export const BridgeContext = createContext<Bridge>(null as any);
 
 export class Bridge {
-    public native: NativeBridge;
+    public native: Api;
 
     private readyFn?: (bridge: Bridge) => void;
     public rendererWidth = 0;
@@ -41,7 +42,7 @@ export class Bridge {
     private tokenReject: (reason?: any) => void = () => { };
     private uiStyleSheet: HTMLStyleElement | null = null;
 
-    constructor(native: NativeBridge, readFn: (bridge: Bridge) => void) {
+    constructor(native: Api, readFn: (bridge: Bridge) => void) {
         this.native = native;
         this.readyFn = readFn;
 
@@ -178,83 +179,9 @@ export class Bridge {
     }
 
     renderUiStyleSheet(scale: number) {
-        const cellSizeInPx = Math.floor(Math.min(this.pageWidth / this.cellCount,
-            this.pageHeight / this.cellCount)) * scale;
-        this.cellSizeInPx = cellSizeInPx;
-        let css = "";
-
-        for (let cell = -1; cell < this.cellCount; ++cell) {
-            css += `
-.cl-${cell + 1} {
-    left: ${(cell + 1) * cellSizeInPx}px;
-}
-.cl-${cell + 1}\\.5 {
-    left: ${(cell + 1.5) * cellSizeInPx}px;
-}
-.cr-${cell + 1} {
-    right: ${(cell + 1) * cellSizeInPx}px;
-}
-.cr-${cell + 1}\\.5 {
-    right: ${(cell + 1.5) * cellSizeInPx}px;
-}
-.ct-${cell + 1} {
-    top: ${(cell + 1) * cellSizeInPx}px;
-}
-.ct-${cell + 1}\\.5 {
-    top: ${(cell + 1.5) * cellSizeInPx}px;
-}
-.cb-${cell + 1} {
-    bottom: ${(cell + 1) * cellSizeInPx}px;
-}
-.cb-${cell + 1}\\.5 {
-    bottom: ${(cell + 1.5) * cellSizeInPx}px;
-}
-.cw-${cell + 1} {
-    width: ${(cell + 1) * cellSizeInPx}px;
-}
-.ch-${cell + 1} {
-    height: ${(cell + 1) * cellSizeInPx}px;
-}
-            `;
-        }
-
-        css += `
-.cw-0\\.5 {
-    width: ${cellSizeInPx * 0.5}px;
-}
-.ch-0\\.5 {
-    height: ${cellSizeInPx * 0.5}px;
-}
-.cw-0\\.8 {
-    width: ${cellSizeInPx * 0.8}px;
-}
-.ch-0\\.8 {
-    height: ${cellSizeInPx * 0.8}px;
-}
-.cw-1\\.5 {
-    width: ${cellSizeInPx * 1.5}px;
-}
-.ch-1\\.5 {
-    height: ${cellSizeInPx * 1.5}px;
-}
-.cw-1\\.8 {
-    width: ${cellSizeInPx * 1.8}px;
-}
-.ch-1\\.8 {
-    height: ${cellSizeInPx * 1.8}px;
-}
-`;
-
-        const head = document.head || document.getElementsByTagName("head")[0];
-        if (this.uiStyleSheet !== null) {
-            head.removeChild(this.uiStyleSheet);
-        }
-
-        this.uiStyleSheet = document.createElement("style");
-        this.uiStyleSheet.type = "text/css";
-        this.uiStyleSheet.appendChild(document.createTextNode(css));
-
-        head.appendChild(this.uiStyleSheet);
+        const cellStyle = renderCellStyle(this.pageWidth, this.pageHeight, this.cellCount, scale);
+        this.cellSizeInPx = cellStyle.cellSizeInPx;
+        this.uiStyleSheet = installCellStyle(this.uiStyleSheet, cellStyle.css);
     }
 
     proceedInapp(onInappResult: () => void) {

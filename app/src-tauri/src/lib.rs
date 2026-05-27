@@ -34,7 +34,7 @@ fn get_vangers_steam_path() -> Option<PathBuf> {
 fn find_steam_install() -> Option<Vec<String>> {
     let path = get_vangers_steam_path()?;
 
-    let files = std::fs::read_dir(&path)
+    let files = std::fs::read_dir(&path.join("data"))
         .ok()?
         .filter_map(|e| e.ok())
         .map(|e| e.file_name().to_string_lossy().to_string())

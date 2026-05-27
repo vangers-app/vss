@@ -5,7 +5,7 @@ import {
     Open, Reverse, RollLeft, RollRight, Text,
 } from "../controls/keys";
 import { bindMouseControl } from "../controls/mouse";
-import { UIType } from "../native-bridge";
+import { UIType } from "../api";
 import { createNippleHandler, createMovingHandler, distanceScale, tracctionScale, Position } from "../nipple/nipple";
 import { MenuActivate, MenuDown, MenuUp } from "../controls/keys";
 import { DynamicRing, ringSlots } from "../nipple/ring";

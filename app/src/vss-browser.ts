@@ -1,7 +1,19 @@
+import * as frame from "./addons/frame";
+import * as redrawQuant from "./addons/redraw-quant";
+import * as sys from "./addons/sys";
+import * as traction from "./addons/traction";
+import * as uiOptions from "./addons/ui-options";
+import * as uiTypeSelector from "./addons/ui-type-selector";
+import * as vssFilesMod from "./addons/vss-files-mod";
+import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
+import * as vssMusic from "./addons/vss-music";
+import { isAddonEnabled } from "./inventory/storage";
+import vss from "./addons/vss";
+import { find_steam_install } from "./compat";
+
+
 type VssModule = {
     FS: {
-        readdir(path: string): string[];
-        readFile(path: string, options?: { encoding?: "utf8" }): string | Uint8Array;
         stat(path: string): unknown;
     };
     HEAPU8: Uint8Array;
@@ -15,10 +27,6 @@ type VssModule = {
     _vss_bridge_renderLine(line: number): void;
     _vss_bridge_sendEvent(code: number, data: number): void;
     _vss_bridge_toggleShopAvi(): void;
-};
-
-type CommonJsModule = {
-    exports: Record<string, unknown>;
 };
 
 type Quant = {
@@ -111,18 +119,55 @@ for (let i = 0; i < 26; i++) {
 const global = globalThis as typeof globalThis & {
     bridge?: Record<string, unknown>;
     config?: unknown;
-    ls?: unknown;
     onVssQuant?: (name: string, payload: Record<string, unknown>) => QuantResult | undefined;
+    ui?: UiAdapter;
     vss?: unknown;
     __vssBrowser?: VssBrowser;
+    __VSS_MOBILE__?: boolean;
 };
+
+type AddonManifest = {
+    id: string;
+    scope: "global" | "mobile";
+    defaultEnabled: boolean;
+    loader: () => boolean | void;
+};
+
+type UiAdapter = {
+    joyActive(): boolean;
+    joyAngle(): number;
+    joyDistance(): number;
+    joyReverse(): boolean;
+    portraitMode(): boolean;
+    sendMessage(payload: string): void;
+    sendObject(payload: Record<string, unknown>): void;
+    log(message: string): void;
+    localStorageUpdates(): string[];
+    registerFramesData(...frames: Uint8Array[]): void;
+    lockFrames(): void;
+    unlockFrames(): void;
+    filterEvent(code: number): boolean;
+    tick(): void;
+    enabled(id: string): boolean;
+};
+
+const addonManifest: AddonManifest[] = [
+    { id: "frame", scope: "mobile", defaultEnabled: true, loader: () => frame.init() },
+    { id: "redraw-quant", scope: "mobile", defaultEnabled: true, loader: () => redrawQuant.init() },
+    { id: "sys", scope: "mobile", defaultEnabled: true, loader: () => sys.init() },
+    { id: "traction", scope: "mobile", defaultEnabled: true, loader: () => traction.init() },
+    { id: "ui-options", scope: "mobile", defaultEnabled: true, loader: () => uiOptions.init() },
+    { id: "ui-type-selector", scope: "global", defaultEnabled: true, loader: () => uiTypeSelector.init() },
+    { id: "vss-files-mod", scope: "global", defaultEnabled: true, loader: () => vssFilesMod.init() },
+    { id: "vss-music", scope: "global", defaultEnabled: false, loader: () => vssMusic.init() },
+    { id: "vss-fullscreen-game", scope: "global", defaultEnabled: true, loader: () => vssFullscreenGame.init() },
+];
 
 class VssBrowser {
     private folder = "";
     private Module: VssModule;
     private nextQuantId = 1;
     private nextResultId = 1;
-    private modules: Record<string, CommonJsModule> = {};
     private quants: Record<number, Quant> = {};
     private results: Record<number, QuantResult> = {};
     private pressedScanCodes = new Set<number>();
@@ -136,15 +181,36 @@ class VssBrowser {
 
     initScripts(folder: string) {
         this.folder = folder;
-        this.modules = {};
         this.quants = {};
         this.results = {};
         delete global.config;
-        delete global.ls;
-        delete global.onVssQuant;
-        delete global.vss;
         global.bridge = this.createBridge();
-        this.require("main");
+        global.ui = global.ui ?? createDesktopUiAdapter();
+
+        const localInstall = new Map<string, string>();
+        find_steam_install().then((files) => {
+            if (files !== null) {
+                for (const file of files) {
+                    console.log("== local install:", file);
+                    localInstall.set(file, file);
+                }
+            }
+        });
+
+        vss.addQuantListener("file_open", (payload) => {
+            const { file, flags } = payload;
+            console.log("== file_open:", file, flags);
+        });
+
+        for (const next of addonManifest) {
+            if (this.isAddonActive(next)) {
+                const started = next.loader();
+                console.log("== vss:", next.id, started === false ? "failed" : "started");
+            } else {
+                console.log("== vss:", next.id, "disabled");
+            }
+        }
+
         return true;
     }
 
@@ -207,38 +273,11 @@ class VssBrowser {
         this.Module._vss_bridge_toggleShopAvi();
     }
 
-    private require = (id: string) => {
-        const fileName = this.resolve(id);
-        const cached = this.modules[fileName];
-        if (cached !== undefined) {
-            return cached.exports;
-        }
-        const module = { exports: {} };
-        this.modules[fileName] = module;
-        new Function(
-            "require",
-            "exports",
-            "module",
-            `${this.readText(fileName)}\n//# sourceURL=${this.folder}/${fileName}`,
-        )(this.require, module.exports, module);
-        return module.exports;
-    };
-
-    private resolve(id: string) {
-        const fileName = id.startsWith("./") ? id.substring(2) : id;
-        return fileName.endsWith(".js") ? fileName : `${fileName}.js`;
-    }
-
-    private readText(fileName: string) {
-        return this.Module.FS.readFile(`${this.folder}/${fileName}`, { encoding: "utf8" }) as string;
-    }
-
     private createBridge() {
         return {
             fatal: (msg: string) => {
                 throw new Error(msg);
             },
-            scripts: () => this.Module.FS.readdir(this.folder).filter((value) => value.endsWith(".js")),
             initScripts: (folder: string) => this.initScripts(folder),
             getScriptsFolder: () => this.folder,
             sendEvent: (code: number, data?: number) => {
@@ -294,23 +333,17 @@ class VssBrowser {
                     type: this.Module._vss_bridge_getShopItemType(),
                 };
             },
-            readLocalStorage: () => {
-                const key = this.localStorageKey();
-                let value = window.localStorage.getItem(key);
-                if (value === null) {
-                    value = this.readText("ls.json");
-                    window.localStorage.setItem(key, value);
-                }
-                return value;
-            },
-            writeLocalStorage: (value: string) => {
-                window.localStorage.setItem(this.localStorageKey(), value);
-            },
         };
     }
 
-    private localStorageKey() {
-        return `vss:${this.folder}:ls`;
+    private isAddonActive(addon: AddonManifest) {
+        if (addon.scope === "mobile") {
+            return global.__VSS_MOBILE__ === true && addon.defaultEnabled;
+        }
+        if (addon.id === "vss-fullscreen-game" && global.__VSS_MOBILE__ === true) {
+            return true;
+        }
+        return isAddonEnabled(addon.id, addon.defaultEnabled);
     }
 
     private onKeyDown = (event: KeyboardEvent) => {
@@ -334,4 +367,32 @@ class VssBrowser {
 
 export function installVssBrowser(Module: VssModule) {
     global.__vssBrowser = new VssBrowser(Module);
+}
+
+function createDesktopUiAdapter(): UiAdapter {
+    return {
+        joyActive: () => false,
+        joyAngle: () => 0,
+        joyDistance: () => 0,
+        joyReverse: () => false,
+        portraitMode: () => false,
+        sendMessage: () => {
+        },
+        sendObject: (payload) => {
+            window.dispatchEvent(new CustomEvent("vss-ui-event", { detail: payload }));
+        },
+        log: () => {
+        },
+        localStorageUpdates: () => [],
+        registerFramesData: () => {
+        },
+        lockFrames: () => {
+        },
+        unlockFrames: () => {
+        },
+        filterEvent: () => false,
+        tick: () => {
+        },
+        enabled: (id: string) => isAddonEnabled(id),
+    };
 }

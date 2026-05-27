@@ -1,6 +1,6 @@
-import { toHex } from "./encoder";
-import { isAddonEnabled, readCustomProp, writeCustomProp } from "./inventory/storage";
-import type { NativeBridge } from "./ui/native-bridge";
+import { toHex } from "../encoder";
+import { isAddonEnabled, readCustomProp, writeCustomProp } from "../inventory/storage";
+import type { Api } from "./api";
 
 type UiAddonBridge = {
     joyActive(): boolean;
@@ -50,7 +50,7 @@ const scanCodeToKeyboardEvent: Record<number, { code: string; key: string }> = {
     82: { code: "ArrowUp", key: "ArrowUp" },
 };
 
-class BrowserMobileBridge implements NativeBridge {
+class BrowserMobileApi implements Api {
     private joyIsActive = false;
     private joyCurrentAngle = 0;
     private joyCurrentDistance = 0;
@@ -283,11 +283,15 @@ class BrowserMobileBridge implements NativeBridge {
 }
 
 const global = window as typeof window & {
-    bridge?: NativeBridge;
     ui?: UiAddonBridge;
 };
 
-export const mobileBrowser = new BrowserMobileBridge();
+let mobileApi: BrowserMobileApi | null = null;
 
-global.bridge = mobileBrowser;
-global.ui = mobileBrowser.ui;
+export function installMobileBrowser() {
+    if (mobileApi === null) {
+        mobileApi = new BrowserMobileApi();
+    }
+    global.ui = mobileApi.ui;
+    return mobileApi;
+}

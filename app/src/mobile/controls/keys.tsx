@@ -339,6 +339,14 @@ export function InappOpen(props: {
         />;
     }
 
+    return <InventoryOpenButton {...props} />;
+}
+
+export function InventoryOpenButton(props: {
+    class?: string,
+    style?: JSX.CSSProperties,
+    onButtonUp?: () => void,
+}) {
     return <Button
         class={props.class}
         style={props.style}

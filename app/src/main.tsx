@@ -1,21 +1,30 @@
 import { render } from 'preact'
+import type { ComponentType } from "preact";
 import Vangers from "./vangers.mjs";
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { installVssBrowser } from "./vss-browser";
-import { Frame } from "./ui/frame";
-import "./mobile-browser";
+import { InventoryFrame } from "./inventory/inventory-frame";
+import { installCellStyle, renderCellStyle } from "./ui/cell-style";
+import { InventoryOpenButton } from "./mobile/controls/keys";
+import type { Api, Event, UIType } from "./mobile/api";
 import "./index.css";
 
-import { opfsList } from "./opfs-worker";
-import { find_steam_install } from './compat';
+function isMobile(): boolean {
+    if (typeof window === "undefined") {
+        return false;
+    }
+    if (window.matchMedia?.("(pointer: coarse)").matches) {
+        return true;
+    }
+    return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
 function App() {
     const [ready, setReady] = useState(false);
     useEffect(() => {
         (async () => {
-            // const list = await opfsList("/vss");
-            // console.log(list);
-            console.log(await find_steam_install());
+            (window as any).__VSS_MOBILE__ = isMobile();
+            setReady(true);
         })();
     }, []);
 
@@ -35,8 +44,7 @@ function Game() {
                 onRuntimeInitialized: () => {
                     console.log("Runtime initialized");
                     installVssBrowser(Module);
-                    // Module.callMain(["-vss", "/addon"]);
-                    Module.callMain([]);
+                    Module.callMain(["-vss", "/app-addons"]);
                 }
             };
             Vangers(Module);
@@ -45,8 +53,58 @@ function Game() {
 
     return <div class="game-root">
         <canvas id="canvas" ref={canvas} width={800} height={600}></canvas>
-        <Frame />
+        {(window as any).__VSS_MOBILE__ !== true && <DesktopFrame />}
+        {(window as any).__VSS_MOBILE__ === true && <MobileFrame />}
     </div>
+}
+
+function DesktopFrame() {
+    const [open, setOpen] = useState(false);
+    const [uiType, setUiType] = useState<UIType>("main-menu");
+    const style = useRef<HTMLStyleElement | null>(null);
+    useEffect(() => {
+        function renderStyle() {
+            style.current = installCellStyle(style.current,
+                renderCellStyle(window.innerWidth, window.innerHeight, 10, 1).css);
+        }
+        renderStyle();
+        window.addEventListener("resize", renderStyle);
+        return () => {
+            window.removeEventListener("resize", renderStyle);
+            if (style.current !== null) {
+                document.head.removeChild(style.current);
+                style.current = null;
+            }
+        };
+    }, []);
+    useEffect(() => {
+        function onUiEvent(event: CustomEvent<Event>) {
+            if (event.detail.type === "ui_type_changed") {
+                setUiType(event.detail.uiType);
+            }
+        }
+        window.addEventListener("vss-ui-event", onUiEvent as EventListener);
+        return () => window.removeEventListener("vss-ui-event", onUiEvent as EventListener);
+    }, []);
+    if (open) {
+        return <div class="frame">
+            <InventoryFrame closeActiveUi={() => setOpen(false)} />
+        </div>;
+    }
+    if (uiType !== "main-menu" && uiType !== "shop" && uiType !== "default") {
+        return null;
+    }
+    return <InventoryOpenButton class="absolute cl-0 ct-0" onButtonUp={() => setOpen(true)} />;
+}
+
+function MobileFrame() {
+    const [Frame, setFrame] = useState<ComponentType<{ mobileApi: Api }> | null>(null);
+    const [mobileApi, setMobileApi] = useState<Api | null>(null);
+    useEffect(() => {
+        import("./mobile/mobile-api").then((module) => setMobileApi(module.installMobileBrowser()));
+        import("./mobile/frame").then((module) => setFrame(() => module.Frame));
+    }, []);
+    return Frame === null || mobileApi === null ? null : <Frame mobileApi={mobileApi} />;
 }
 
 render(<App />, document.getElementById('app')!)

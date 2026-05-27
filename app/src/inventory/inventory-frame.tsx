@@ -3,17 +3,13 @@ import inventoryBgUrl from "../assets/inventory-bg.jpg";
 import type { InventoryItem } from "./items";
 import { t } from "./i18n";
 import {
-    readCustomProp,
     readInventoryItems,
-    writeCustomProp,
     writeInventoryItems,
 } from "./storage";
 
 export function InventoryFrame(props: { closeActiveUi: () => void }) {
     const [items, setItems] = useState<InventoryItem[]>(readInventoryItems());
     const [activeId, setActiveId] = useState<string>("");
-    const [fullscreenLock, setFullscreenLock] =
-        useState<boolean>(readCustomProp("vss-fullscreen-game.locked") !== "false");
     const active = items.find((item) => item.id === activeId) ?? null;
 
     function toggleActive() {
@@ -29,12 +25,6 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
         } : item);
         writeInventoryItems(nextItems);
         setItems(nextItems);
-    }
-
-    function toggleFullscreenLock() {
-        const nextValue = !fullscreenLock;
-        writeCustomProp("vss-fullscreen-game.locked", nextValue ? "true" : "false");
-        setFullscreenLock(nextValue);
     }
 
     return <div class="inventory-frame h-full flex flex-row" style={{ backgroundImage: `url(${inventoryBgUrl})` }}>
@@ -93,14 +83,6 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                         </div>}
                     <p class="mt-4">{t(active.descriptionKey)}</p>
                     <p class="font-bold text-lg text-shadow-sm text-yellow-800">{t("owned")}</p>
-                    {active.id === "vss-fullscreen-game" &&
-                        <label class="inventory-setting ml-4 text-2xl mt-4 flex flex-row text-shadow-sm text-white cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={fullscreenLock}
-                                onChange={toggleFullscreenLock} />
-                            <span>{t("fullscreen_lock")}</span>
-                        </label>}
                 </>}
         </section>
     </div>;

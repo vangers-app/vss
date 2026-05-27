@@ -32,7 +32,7 @@ export enum RuntimeObjectId {
     RTO_SHOW_AVI_ID, // 12
 }
 
-export interface NativeBridge {
+export interface Api {
     ready(): void;
     debug(): boolean;
     artifactoryUrl(): string;

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { BridgeContext } from "../bridge";
-import { UIType } from "../native-bridge";
+import { UIType } from "../api";
 import { CalendarButton, InappOpen, Lang, MobileButton, QuestionButton, SizeToggle, Telegram, TextInput } from "./keys";
 import { bindMouseControl } from "./mouse";
 

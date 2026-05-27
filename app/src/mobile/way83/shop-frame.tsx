@@ -4,7 +4,7 @@ import { BridgeContext } from "../bridge";
 import { InappOpen, QuestionButton, ZoomButton } from "../controls/keys";
 import { bindMouseControl } from "../controls/mouse";
 import { fromHex } from "../../encoder";
-import { UIType } from "../native-bridge";
+import { UIType } from "../api";
 
 const aspect = shopFrame.width / shopFrame.height;
 

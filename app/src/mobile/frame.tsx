@@ -2,8 +2,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { Bridge, BridgeContext } from "./bridge";
 import { DefaultControls } from "./controls/default-controls";
-import { UIType } from "./native-bridge";
-import { NoopNativeBrige } from "./noop-native";
+import { Api, UIType } from "./api";
 import { PauseFrame } from "./way83/pause-frame";
 import {
     isMirroredEnabled, setMirrored as setMirroredEnabled,
@@ -20,19 +19,18 @@ import { ControlSelector } from "./controls/control-selector";
 import { MapControlsKind, renderMapFrame } from "./map-frame";
 import { CalendarFrame } from "./calendar-frame";
 
-export function Frame() {
+export function Frame(props: { mobileApi: Api }) {
     const [bridge, setBridge] = useState<Bridge | null>(null);
 
     useEffect(() => {
         if (bridge === null) {
-            const nativeBridge = (window as any).bridge;
             new Bridge(
-                nativeBridge ?? new NoopNativeBrige(),
+                props.mobileApi,
                 setBridge,
             );
             return;
         }
-    }, [bridge]);
+    }, [bridge, props.mobileApi]);
 
     if (bridge === null) {
         return;
@@ -50,7 +48,7 @@ function FrameWithBridge(props: { bridge: Bridge }) {
     const [cameraFollow, _setCameraFollow] = useState<boolean>(isCameraFollowEnabled());
     const [roadZoom, _setRoadZoom] = useState<number>(getRoadZoom());
     const [uiType, _setUiType] =
-        useState<UIType>(bridge.native instanceof NoopNativeBrige ? "way83+" : "main-menu");
+        useState<UIType>("main-menu");
     const [network, setNetwork] = useState<boolean>(false);
     const [controlsKind, _setControlsKind] =
         useState<MapControlsKind | null>(getControlsKind());

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { BridgeContext } from "../bridge";
-import { UIType } from "../native-bridge";
+import { UIType } from "../api";
 import { MenuDown, Escape, InappOpen, MenuUp } from "./keys";
 import { bindMouseControl } from "./mouse";
 
