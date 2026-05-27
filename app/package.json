@@ -10,17 +10,18 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "preact": "^10.25.1",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-opener": "^2",
+    "preact": "^10.25.1"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.9.3",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
     "@tauri-apps/cli": "^2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
   }
 }
