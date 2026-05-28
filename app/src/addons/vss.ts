@@ -200,6 +200,11 @@ class Vss {
         }
     }
 
+    removeAllQuantListeners() {
+        this.quantListeners = {};
+        this.quantResultListeners = {};
+    }
+
     addQuantResultListener<K extends VssQuantName>(quant: K, listener: VssQuantResultListener<K>) {
         if (this.quantResultListeners[quant] === undefined) {
             this.quantResultListeners[quant] = [];

@@ -187,11 +187,13 @@ class VssBrowser {
         this.folder = folder;
         this.quants = {};
         this.results = {};
+        vss.removeAllQuantListeners();
         delete global.config;
         global.bridge = this.createBridge();
         global.ui = global.ui ?? createDesktopUiAdapter();
 
         const loadedFiles = new Map<string, string>();
+        const inflight = new Map<string, Promise<{ file: string }>>();
 
         const dirs = new Set<string>();
         for (const rel of localInstall.keys()) {
@@ -226,19 +228,27 @@ class VssBrowser {
             if (cached !== undefined) {
                 return { file: cached };
             }
+            const pending = inflight.get(normalized);
+            if (pending !== undefined) {
+                return pending;
+            }
             const abs = localInstall.get(normalized);
             if (abs === undefined) {
                 return;
             }
             const fsPath = "/" + normalized;
-            return read_file(abs).then((bytes) => {
+            const promise = read_file(abs).then((bytes) => {
                 this.Module.FS.writeFile(fsPath, new Uint8Array(bytes));
                 loadedFiles.set(normalized, fsPath);
+                inflight.delete(normalized);
                 return { file: fsPath };
             }).catch((err) => {
+                inflight.delete(normalized);
                 console.error("== read_file failed:", abs, err);
-                return {};
+                return { file: "" };
             });
+            inflight.set(normalized, promise);
+            return promise;
         });
 
         for (const next of addonManifest) {

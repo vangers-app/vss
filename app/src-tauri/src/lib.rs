@@ -69,6 +69,9 @@ fn find_steam_install() -> Option<Vec<LocalFile>> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    std::env::set_var("JSC_useOMGJIT", "false");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![find_steam_install])
