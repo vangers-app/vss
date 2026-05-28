@@ -1,5 +1,6 @@
 {
   "name": "app",
+  "description": "Vangers — a video game that combines elements of the racing and role-playing genres.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

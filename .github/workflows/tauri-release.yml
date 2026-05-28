@@ -1,0 +1,172 @@
+name: Tauri Release
+
+on:
+  push:
+    branches: [wip-js-runtime-alpha, vss]
+    tags: ['v*']
+  pull_request:
+    branches: [wip-js-runtime-alpha, vss]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tauri-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            runs-on: ubuntu-22.04
+            rust-target: x86_64-unknown-linux-gnu
+            bundles: appimage
+            artifact-glob: app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+            artifact-ext: AppImage
+          - target: windows-x86_64
+            runs-on: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            bundles: nsis
+            artifact-glob: app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+            artifact-ext: exe
+          - target: macos-x86_64
+            runs-on: macos-13
+            rust-target: x86_64-apple-darwin
+            bundles: dmg
+            artifact-glob: app/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            artifact-ext: dmg
+          - target: macos-aarch64
+            runs-on: macos-14
+            rust-target: aarch64-apple-darwin
+            bundles: dmg
+            artifact-glob: app/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            artifact-ext: dmg
+
+    steps:
+      - name: Rewrite SSH submodule URLs to HTTPS
+        shell: bash
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            patchelf \
+            ninja-build \
+            file
+
+      - name: Install Ninja (Windows/macOS)
+        if: runner.os != 'Linux'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 5.0.2
+          actions-cache-folder: emsdk-cache-${{ matrix.target }}
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: app/yarn.lock
+
+      - name: Configure WebAssembly build (emscripten)
+        shell: bash
+        run: |
+          mkdir -p emscripten
+          cd emscripten
+          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel ..
+
+      - name: Build vangers (WebAssembly)
+        shell: bash
+        run: ninja -C emscripten vangers
+
+      - name: Install frontend dependencies
+        shell: bash
+        working-directory: app
+        run: yarn install --frozen-lockfile
+
+      - name: Build Tauri release
+        shell: bash
+        working-directory: app
+        run: yarn tauri build --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundles }}
+
+      - name: Collect & rename artifacts
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist-artifacts
+          shopt -s nullglob
+          files=( ${{ matrix.artifact-glob }} )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No artifacts matched ${{ matrix.artifact-glob }}"
+            exit 1
+          fi
+          ref_name="${GITHUB_REF_NAME//\//-}"
+          for f in "${files[@]}"; do
+            base="Vangers-${ref_name}-${{ matrix.target }}.${{ matrix.artifact-ext }}"
+            cp "$f" "dist-artifacts/${base}"
+            echo "Collected: dist-artifacts/${base}"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vangers-${{ matrix.target }}
+          path: dist-artifacts/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: ls -la dist-artifacts/
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-artifacts/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
