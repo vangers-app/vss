@@ -67,23 +67,42 @@ fn find_steam_install() -> Option<Vec<LocalFile>> {
     Some(files)
 }
 
-#[tauri::command]
-fn read_file(path: String) -> Result<tauri::ipc::Response, String> {
-    let install = get_vangers_steam_path().ok_or_else(|| "steam install not found".to_string())?;
-    let p = PathBuf::from(&path);
-    if !p.starts_with(&install) {
-        return Err("path outside steam install".to_string());
-    }
-    std::fs::read(&p)
-        .map(tauri::ipc::Response::new)
-        .map_err(|e| e.to_string())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![find_steam_install, read_file])
+        .invoke_handler(tauri::generate_handler![find_steam_install])
+        .register_uri_scheme_protocol("vfile", |_ctx, request| {
+            use tauri::http::{Response, StatusCode};
+            let build = |status: StatusCode, bytes: Vec<u8>| {
+                Response::builder()
+                    .status(status)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "GET, OPTIONS")
+                    .header("Access-Control-Allow-Headers", "*")
+                    .header("Content-Type", "application/octet-stream")
+                    .body(bytes)
+                    .unwrap()
+            };
+            let install = match get_vangers_steam_path() {
+                Some(p) => p,
+                None => return build(StatusCode::NOT_FOUND, Vec::new()),
+            };
+            let uri = request.uri();
+            let encoded = uri.path().trim_start_matches('/');
+            let decoded = match percent_decode(encoded) {
+                Some(s) => s,
+                None => return build(StatusCode::BAD_REQUEST, Vec::new()),
+            };
+            let path = PathBuf::from(&decoded);
+            if !path.starts_with(&install) {
+                return build(StatusCode::FORBIDDEN, Vec::new());
+            }
+            match std::fs::read(&path) {
+                Ok(bytes) => build(StatusCode::OK, bytes),
+                Err(_) => build(StatusCode::NOT_FOUND, Vec::new()),
+            }
+        })
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
@@ -96,4 +115,22 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn percent_decode(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hi = (bytes[i + 1] as char).to_digit(16)?;
+            let lo = (bytes[i + 2] as char).to_digit(16)?;
+            out.push((hi * 16 + lo) as u8);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
 }

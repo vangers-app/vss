@@ -205,6 +205,9 @@ class VssBrowser {
         }
         const emptyBytes = new Uint8Array(0);
         for (const rel of localInstall.keys()) {
+            if (!rel.includes("/data.vot/")) {
+                continue;
+            }
             const path = "/" + rel;
             try {
                 this.Module.FS.stat(path);

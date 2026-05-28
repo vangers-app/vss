@@ -16,5 +16,10 @@ export async function find_steam_install() {
 }
 
 export async function read_file(path: string) {
-    return invoke<ArrayBuffer>('read_file', { path });
+    const url = "vfile://localhost/" + encodeURIComponent(path);
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error("vfile fetch failed: " + response.status);
+    }
+    return response.arrayBuffer();
 }
