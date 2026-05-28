@@ -8,12 +8,14 @@
 
 #include "xbmp.h"
 
+extern "C" const char* sys_fileOpenQuant(const char* file, unsigned flags);
+
 using namespace renderer::compositor;
 
 Texture BMP_CreateTexture(const char *file, AbstractCompositor *renderer) {
 	return sdl_ext::texture_load_bmp(
-		*renderer, 
-		file, 
+		*renderer,
+		sys_fileOpenQuant(file, 1 /* XS_IN */),
 		TextureType::RGBA32,
 		BlendMode::Alpha
 	);

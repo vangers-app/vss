@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdexcept>
 
+extern "C" const char* sys_fileOpenQuant(const char* file, unsigned flags);
+
 static size_t stream_read_func  (void *ptr, size_t size, size_t nmemb, void *datasource) {
 	//LOG_DEBUG(("read(%p, %u, %u)", ptr, (unsigned)size, (unsigned)nmemb));
 	assert(datasource != NULL);
@@ -38,7 +40,7 @@ static long   stream_tell_func  (void *datasource) {
 }
 
 OggStream::OggStream(const std::string &fname) {
-	_file = fopen(fname.c_str(), "rb");
+	_file = fopen(sys_fileOpenQuant(fname.c_str(), 0x0001 /* XS_IN */), "rb");
 	if (_file == NULL) {
 		perror("fopen");
 		throw std::runtime_error("cannot open file");

@@ -181,6 +181,21 @@ EM_JS(char*, vss_browser_result_get_string,
         return result;
       });
 
+#ifdef __EMSCRIPTEN__
+EM_ASYNC_JS(char*, vss_browser_result_get_string_async,
+      (int id, const char* name, const char* defaultValue), {
+        var value = UTF8ToString(defaultValue);
+        if (globalThis.__vssBrowser && globalThis.__vssBrowser.getStringAsync) {
+          value = await globalThis.__vssBrowser.getStringAsync(
+              id, UTF8ToString(name), value);
+        }
+        var size = lengthBytesUTF8(value) + 1;
+        var result = _malloc(size);
+        stringToUTF8(value, result, size);
+        return result;
+      });
+#endif
+
 EM_JS(void, vss_browser_result_release, (int id), {
   if (globalThis.__vssBrowser && globalThis.__vssBrowser.releaseResult) {
     globalThis.__vssBrowser.releaseResult(id);
@@ -262,6 +277,20 @@ const char* QuantResult::getString(const char* name, const char* defaultValue) {
   free(value);
   return stringValue.c_str();
 }
+
+#ifdef __EMSCRIPTEN__
+const char* QuantResult::getStringAsync(const char* name,
+                                        const char* defaultValue) {
+  if (notHandled) {
+    return defaultValue;
+  }
+  auto value =
+      vss_browser_result_get_string_async(resultId, name, defaultValue);
+  stringValue = value;
+  free(value);
+  return stringValue.c_str();
+}
+#endif
 
 QuantBuilder::QuantBuilder(std::shared_ptr<Context>& context,
                            const char* eventName)
@@ -361,6 +390,10 @@ extern "C" const char* sys_fileOpenQuant(const char* file, unsigned flags) {
                     .prop("flags", (int)flags)
                     .send();
 
+#ifdef __EMSCRIPTEN__
+  resultFile = result.getStringAsync("file", file);
+#else
   resultFile = result.getString("file", file);
+#endif
   return resultFile.c_str();
 }

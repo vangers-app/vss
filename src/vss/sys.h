@@ -45,6 +45,9 @@ class QuantResult {
   int getInt(const char* name, int defaultValue);
   bool getBool(const char* name, bool defaultValue);
   const char* getString(const char* name, const char* defaultValue);
+#ifdef __EMSCRIPTEN__
+  const char* getStringAsync(const char* name, const char* defaultValue);
+#endif
 
  private:
   std::shared_ptr<Context> context;

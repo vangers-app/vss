@@ -43,14 +43,7 @@ const char* getOrigTrackPathName(int track) {
 }
 
 const char* getTrackPathName(int track) {
-	auto name = getOrigTrackPathName(track);
-	auto result = vss::sys()
-			.quant(vss::FILE_OPEN_QUANT)
-			.prop("file", name)
-			.prop("flags", 1 /* XS_IN */)
-			.send();
-
-	return result.getString("file", name);
+	return sys_fileOpenQuant(getOrigTrackPathName(track), 1 /* XS_IN */);
 }
 
 void xsInitMusic(void) {

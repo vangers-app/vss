@@ -2,7 +2,7 @@ const global = new Function("return this;")();
 
 export type VssQuantName = keyof VssQuantMap;
 export type VssQuantPayload<K extends keyof VssQuantMap> = VssQuantMap[K][0];
-export type VssQuantResult<K extends keyof VssQuantMap> = void | undefined | "preventDefault" | VssQuantMap[K][1];
+export type VssQuantResult<K extends keyof VssQuantMap> = void | undefined | "preventDefault" | VssQuantMap[K][1] | Promise<VssQuantMap[K][1]>;
 
 export interface VssQuantMap {
     "ready": [void, void],
@@ -238,6 +238,11 @@ class Vss {
             const result = next(payload, stopPropogation, quant);
             if (result === "preventDefault") {
                 resultRef.result.preventDefault = true;
+            } else if (result instanceof Promise) {
+                const prev = resultRef.result.__async;
+                resultRef.result.__async = prev === undefined
+                    ? result
+                    : Promise.all([prev, result]).then(([a, b]) => ({ ...a, ...b }));
             } else if (result !== undefined) {
                 resultRef.result = { ...resultRef.result, ...result };
             }

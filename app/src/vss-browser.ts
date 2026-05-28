@@ -8,13 +8,17 @@ import * as vssFilesMod from "./addons/vss-files-mod";
 import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
 import * as vssMusic from "./addons/vss-music";
 import { isAddonEnabled } from "./inventory/storage";
-import vss from "./addons/vss";
-import { find_steam_install } from "./compat";
+import vss, { FileOpenFlags } from "./addons/vss";
+import { read_file } from "./compat";
+
+export const localInstall = new Map<string, string>();
 
 
 type VssModule = {
     FS: {
         stat(path: string): unknown;
+        mkdirTree(path: string): void;
+        writeFile(path: string, data: Uint8Array): void;
     };
     HEAPU8: Uint8Array;
     UTF8ToString(ptr: number): string;
@@ -187,19 +191,51 @@ class VssBrowser {
         global.bridge = this.createBridge();
         global.ui = global.ui ?? createDesktopUiAdapter();
 
-        const localInstall = new Map<string, string>();
-        find_steam_install().then((files) => {
-            if (files !== null) {
-                for (const file of files) {
-                    console.log("== local install:", file);
-                    localInstall.set(file, file);
-                }
+        const loadedFiles = new Map<string, string>();
+
+        const dirs = new Set<string>();
+        for (const rel of localInstall.keys()) {
+            const dir = rel.substring(0, rel.lastIndexOf("/"));
+            if (dir.length > 0) {
+                dirs.add("/" + dir);
             }
-        });
+        }
+        for (const dir of dirs) {
+            this.Module.FS.mkdirTree(dir);
+        }
+        const emptyBytes = new Uint8Array(0);
+        for (const rel of localInstall.keys()) {
+            const path = "/" + rel;
+            try {
+                this.Module.FS.stat(path);
+            } catch {
+                this.Module.FS.writeFile(path, emptyBytes);
+            }
+        }
 
         vss.addQuantListener("file_open", (payload) => {
             const { file, flags } = payload;
-            console.log("== file_open:", file, flags);
+            if ((flags & FileOpenFlags.XS_IN) === 0) {
+                return;
+            }
+            const normalized = file.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\//, "").toLowerCase();
+            const cached = loadedFiles.get(normalized);
+            if (cached !== undefined) {
+                return { file: cached };
+            }
+            const abs = localInstall.get(normalized);
+            if (abs === undefined) {
+                return;
+            }
+            const fsPath = "/" + normalized;
+            return read_file(abs).then((bytes) => {
+                this.Module.FS.writeFile(fsPath, new Uint8Array(bytes));
+                loadedFiles.set(normalized, fsPath);
+                return { file: fsPath };
+            }).catch((err) => {
+                console.error("== read_file failed:", abs, err);
+                return {};
+            });
         });
 
         for (const next of addonManifest) {
@@ -258,6 +294,27 @@ class VssBrowser {
     getBool(id: number, name: string, defaultValue: boolean) {
         const value = this.results[id]?.[name];
         return typeof value === "boolean" ? value : defaultValue;
+    }
+
+    async getStringAsync(id: number, name: string, defaultValue: string) {
+        const result = this.results[id];
+        if (result === undefined) {
+            return defaultValue;
+        }
+        const pending = result.__async as Promise<Record<string, unknown> | undefined> | undefined;
+        if (pending !== undefined) {
+            delete result.__async;
+            try {
+                const resolved = await pending;
+                if (resolved !== undefined) {
+                    Object.assign(result, resolved);
+                }
+            } catch (err) {
+                console.error("== async listener failed:", err);
+            }
+        }
+        const value = result[name];
+        return typeof value === "string" ? value : defaultValue;
     }
 
     getString(id: number, name: string, defaultValue: string) {

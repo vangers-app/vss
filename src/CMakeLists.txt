@@ -147,11 +147,10 @@ else()
 	IF(EMSCRIPTEN)
 		target_link_options(vangers PRIVATE
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/vange-rs/res@/res/"
-			"SHELL:--preload-file $ENV{HOME}/.steam/steam/steamapps/common/Vangers/data@/"
 			"-sMIN_WEBGL_VERSION=2"
 			"-sMAX_WEBGL_VERSION=2"
 			"-sFULL_ES3=1"
-			"-sASYNCIFY=0"
+			"-sASYNCIFY=1"
 			"-sINVOKE_RUN=0"
 			"-sEXPORT_ES6=1"
 			"-sNO_EXIT_RUNTIME=1"

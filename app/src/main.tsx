@@ -2,11 +2,12 @@ import { render } from 'preact'
 import type { ComponentType } from "preact";
 import Vangers from "./vangers.mjs";
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { installVssBrowser } from "./vss-browser";
+import { installVssBrowser, localInstall } from "./vss-browser";
 import { InventoryFrame } from "./inventory/inventory-frame";
 import { installCellStyle, renderCellStyle } from "./ui/cell-style";
 import { InventoryOpenButton } from "./mobile/controls/keys";
 import type { Api, Event, UIType } from "./mobile/api";
+import { find_steam_install } from "./compat";
 import "./index.css";
 
 function isMobile(): boolean {
@@ -24,6 +25,12 @@ function App() {
     useEffect(() => {
         (async () => {
             (window as any).__VSS_MOBILE__ = isMobile();
+            const files = await find_steam_install();
+            if (files !== null) {
+                for (const { rel, abs } of files) {
+                    localInstall.set(rel, abs);
+                }
+            }
             setReady(true);
         })();
     }, []);
