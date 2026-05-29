@@ -2447,8 +2447,13 @@ void XGR_MouseFnc(SDL_Event* p)
 			return;
 		}
 		//std::cout<<"x:"<<p->motion.x<<" y:"<<p->motion.y<<std::endl;
-		x = p->motion.x;
-		y = p->motion.y;
+		// SDL reports the position in window pixels, but the game draws the
+		// cursor in the hdWidth x hdHeight logical surface that is letterboxed
+		// into the window. Invert that transform (mirrors the render path in
+		// flip()) so the drawn cursor matches the system pointer.
+		float scale = fmin((float) XGR_Obj.RealX / XGR_Obj.hdWidth, (float) XGR_Obj.RealY / XGR_Obj.hdHeight);
+		x = (int) ((p->motion.x - (XGR_Obj.RealX - XGR_Obj.hdWidth * scale) / 2) / scale);
+		y = (int) ((p->motion.y - (XGR_Obj.RealY - XGR_Obj.hdHeight * scale) / 2) / scale);
 
 		x1 = XGR_MouseObj.PosX;
 		y1 = XGR_MouseObj.PosY;
