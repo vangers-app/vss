@@ -30,7 +30,7 @@ You can get inspiration from looking other addons available under [vangers.app](
 
 ## The `vss` object
 
-Vangers Scripting Subsystem exports `vss` object as entry point to game API.
+Vangers: Soup Supervisor exports `vss` object as entry point to game API.
 You should use it to interact with game.
 
 In plain js you can access it with require:

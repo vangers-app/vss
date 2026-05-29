@@ -1,4 +1,4 @@
-## Vangers Scripting Subsystem (vss)
+## Vangers: Soup Supervisor (vss)
 
 Native implementation of scripting system based on [duktape](https://duktape.org/).
 

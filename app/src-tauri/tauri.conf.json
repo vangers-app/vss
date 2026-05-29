@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vangers",
+  "productName": "Vangers: Soup Supervisor",
   "version": "0.1.0",
   "identifier": "com.caiiiycuk.github.vangers.gp",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Vangers",
+        "title": "Vangers: Soup Supervisor",
         "width": 1280,
         "height": 720,
         "maximized": true
@@ -26,8 +26,8 @@
     "active": true,
     "targets": "all",
     "category": "Game",
-    "shortDescription": "Vangers",
-    "longDescription": "Vangers — a unique video game that combines elements of the racing and role-playing genres. Travel across surreal alien worlds and uncover their secrets.",
+    "shortDescription": "Vangers: Soup Supervisor",
+    "longDescription": "Vangers: Soup Supervisor — a unique video game that combines elements of the racing and role-playing genres. Travel across surreal alien worlds and uncover their secrets.",
     "copyright": "Copyright (c) 1998 K-D LAB. Released under GPLv3.",
     "publisher": "K-D LAB",
     "homepage": "https://github.com/caiiiycuk/vss",

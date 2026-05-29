@@ -259,7 +259,7 @@ class Vss {
 }
 
 /**
- * Vangers Scripting Subsystem exports `vss` object as entry point to game API
+ * Vangers: Soup Supervisor exports `vss` object as entry point to game API
  * you must use it to interact with game.
  */
 const vss: Vss = global.vss === undefined ? (() => {
