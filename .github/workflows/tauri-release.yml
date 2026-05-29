@@ -19,6 +19,7 @@ jobs:
   build:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -84,10 +85,15 @@ jobs:
           version: 5.0.2
           actions-cache-folder: emsdk-cache-${{ matrix.target }}
 
+      - name: Setup CMake 4
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.0.3'
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust-target }}
+          targets: ${{ matrix.rust-target }},wasm32-unknown-emscripten
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -102,16 +108,18 @@ jobs:
           cache: yarn
           cache-dependency-path: app/yarn.lock
 
-      - name: Configure WebAssembly build (emscripten)
+      - name: Build vangers (WebAssembly)
         shell: bash
         run: |
+          emsdk_dir="$EMSDK"
+          if command -v cygpath >/dev/null 2>&1; then
+            emsdk_dir="$(cygpath -u "$EMSDK")"
+          fi
+          source "$emsdk_dir/emsdk_env.sh"
           mkdir -p emscripten
           cd emscripten
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel ..
-
-      - name: Build vangers (WebAssembly)
-        shell: bash
-        run: ninja -C emscripten vangers
+          ninja vangers
 
       - name: Install frontend dependencies
         shell: bash
