@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vangers: Soup Supervisor</title>
+  <meta name="description" content="Vangers: Soup Supervisor — a deep rework of the original Vangers with first-class modding support and tools for supervising the soup of creatures." />
+  <meta name="theme-color" content="#160404" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+  <link rel="icon" href="./favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Vangers: Soup Supervisor" />
+  <meta property="og:description" content="A deep rework of the original Vangers with first-class modding support and tools for supervising the soup of creatures." />
+  <meta property="og:url" content="https://vangers.app/" />
+  <meta property="og:image" content="https://vangers.app/assets/logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <style>
+    :root {
+      --gold: #e8b923;
+      --gold-soft: #f3d98a;
+      --red: #d63b2a;
+      --ink: #f6e9d8;
+      --muted: #c7a98f;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 20px;
+      font-family: "Segoe UI", Roboto, "Helvetica Neue", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(10,2,2,.74) 0%, rgba(14,3,3,.62) 45%, rgba(8,1,1,.86) 100%),
+        radial-gradient(110% 80% at 50% 38%, rgba(20,4,4,.20) 0%, rgba(8,1,1,.78) 100%),
+        url("./assets/vss-bg.jpg") center / cover no-repeat fixed,
+        #160404;
+    }
+
+    main {
+      width: 100%;
+      max-width: 720px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 168px;
+      height: 168px;
+      border-radius: 24px;
+      border: 2px solid rgba(232,185,35,.55);
+      box-shadow: 0 0 38px rgba(214,59,42,.45), 0 0 14px rgba(232,185,35,.45);
+      background: rgba(0,0,0,.25);
+    }
+
+    h1 {
+      margin: 26px 0 4px;
+      font-size: clamp(2rem, 6vw, 3.3rem);
+      font-weight: 800;
+      letter-spacing: .01em;
+      color: var(--gold);
+      text-shadow: 0 2px 18px rgba(214,59,42,.55), 0 0 2px rgba(0,0,0,.6);
+    }
+
+    .tagline {
+      margin: 0 auto;
+      max-width: 600px;
+      font-size: clamp(1rem, 2.4vw, 1.2rem);
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    .tagline em { color: var(--gold-soft); font-style: italic; }
+
+    .actions {
+      margin: 32px 0 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px 24px;
+      border-radius: 12px;
+      font-size: 1.02rem;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    .btn-primary {
+      color: #2a1500;
+      background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+      box-shadow: 0 8px 26px rgba(232,185,35,.34);
+    }
+    .btn-primary:hover { box-shadow: 0 12px 34px rgba(232,185,35,.5); }
+
+    .btn-ghost {
+      color: var(--gold-soft);
+      background: rgba(20,4,4,.55);
+      border-color: rgba(232,185,35,.4);
+    }
+    .btn-ghost:hover { background: rgba(34,8,8,.7); border-color: rgba(232,185,35,.7); }
+
+    .label { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 30px 0 12px; }
+
+    .stores {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .resources {
+      margin: 34px auto 0;
+      padding-top: 22px;
+      border-top: 1px solid rgba(232,185,35,.18);
+      max-width: 560px;
+      color: var(--muted);
+      font-size: .96rem;
+      line-height: 1.6;
+    }
+
+    a.inline { color: var(--gold-soft); text-decoration: none; border-bottom: 1px solid rgba(243,217,138,.4); }
+    a.inline:hover { color: #fff; border-color: #fff; }
+
+    footer {
+      margin-top: 26px;
+      font-size: .82rem;
+      color: rgba(199,169,143,.7);
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 32px 16px; }
+      .logo { width: 132px; height: 132px; }
+      .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo" src="./assets/logo.png" alt="Vangers: Soup Supervisor logo" width="168" height="168" />
+
+    <h1>Vangers: Soup Supervisor</h1>
+
+    <p class="tagline">
+      A deep rework of the original <em>Vangers</em> — a unique video game that blends
+      racing and role-playing across surreal alien worlds. It extends the original game
+      with first-class modding support and tools for supervising the soup of creatures
+      that inhabit its worlds.
+    </p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/vangers-app/vss/releases">⬇ Download for desktop</a>
+      <a class="btn btn-ghost" href="https://t.me/vangers_mobile">Telegram</a>
+      <a class="btn btn-ghost" href="https://github.com/vangers-app/vss">GitHub</a>
+    </div>
+
+    <p class="label">Get it on mobile</p>
+    <div class="stores">
+      <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.caiiiycuk.github.vangers.gp">Google Play</a>
+      <a class="btn btn-ghost" href="https://www.rustore.ru/catalog/app/com.caiiiycuk.github.vangers.rustore">RuStore</a>
+    </div>
+
+    <p class="resources">
+      You also need the original game resources (maps, sounds, textures, etc.), which you
+      can take from the game purchased on
+      <a class="inline" href="http://store.steampowered.com/app/264080">Steam</a> or
+      <a class="inline" href="http://www.gog.com/game/vangers">GOG</a>.
+    </p>
+
+    <footer>Released under GPLv3 · © K-D LAB</footer>
+  </main>
+</body>
+</html>
