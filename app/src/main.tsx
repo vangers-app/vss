@@ -7,7 +7,9 @@ import { InventoryFrame } from "./inventory/inventory-frame";
 import { installCellStyle, renderCellStyle } from "./ui/cell-style";
 import { InventoryOpenButton } from "./mobile/controls/keys";
 import type { Api, Event, UIType } from "./mobile/api";
-import { find_steam_install } from "./compat";
+import { find_steam_install, TAURI_BUILD } from "./compat";
+import { useUiStore } from "./store";
+import { DataNotFound } from "./ui/data-not-found";
 import "./index.css";
 
 function isMobile(): boolean {
@@ -22,6 +24,7 @@ function isMobile(): boolean {
 
 function App() {
     const [ready, setReady] = useState(false);
+    const dataNotFound = useUiStore((state) => state.dataNotFound);
     useEffect(() => {
         (async () => {
             (window as any).__VSS_MOBILE__ = isMobile();
@@ -30,10 +33,17 @@ function App() {
                 for (const { rel, abs } of files) {
                     localInstall.set(rel, abs);
                 }
+            } else if (TAURI_BUILD) {
+                useUiStore.getState().setDataNotFound(true);
+                return;
             }
             setReady(true);
         })();
     }, []);
+
+    if (dataNotFound) {
+        return <DataNotFound />;
+    }
 
     if (!ready) {
         return null;

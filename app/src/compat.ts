@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
-const TAURI_BUILD = '__TAURI_INTERNALS__' in window;
+export const TAURI_BUILD = '__TAURI_INTERNALS__' in window;
 
 export type LocalFile = {
     rel: string;
