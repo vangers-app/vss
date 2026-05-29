@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vangers: Soup Supervisor",
+  "productName": "Vangers - Soup Supervisor",
   "version": "0.1.0",
   "identifier": "com.caiiiycuk.github.vangers.gp",
   "build": {

@@ -2117,6 +2117,14 @@ void iLoadData(void)
 			fh > aciAutoRun;
 			fh.close();
 		}
+
+		// These options live in localStorage (see the vss-default-options
+		// addon). iGetOptionValue() routes through vss and returns the
+		// localStorage value, so this pulls it back into the C++ option state:
+		// the options screen, options.dat persistence and gameplay all follow
+		// localStorage instead of whatever options.dat happened to contain.
+		for(int id : {iFPS_60, iAUTO_ACCELERATION, iCAMERA_TURN, iCAMERA_SLOPE})
+			iSetOptionValue(id, iGetOptionValue(id));
 	}
 
 	aciAutoRun = iGetOptionValue(iAUTO_ACCELERATION);

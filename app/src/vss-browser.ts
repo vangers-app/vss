@@ -3,6 +3,7 @@ import * as redrawQuant from "./addons/redraw-quant";
 import * as sys from "./addons/sys";
 import * as traction from "./addons/traction";
 import * as uiOptions from "./addons/ui-options";
+import * as vssDefaultOptions from "./addons/vss-default-options";
 import * as uiTypeSelector from "./addons/ui-type-selector";
 import * as vssFilesMod from "./addons/vss-files-mod";
 import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
@@ -161,6 +162,7 @@ const addonManifest: AddonManifest[] = [
     { id: "sys", scope: "mobile", defaultEnabled: true, loader: () => sys.init() },
     { id: "traction", scope: "mobile", defaultEnabled: true, loader: () => traction.init() },
     { id: "ui-options", scope: "mobile", defaultEnabled: true, loader: () => uiOptions.init() },
+    { id: "vss-default-options", scope: "global", defaultEnabled: true, loader: () => vssDefaultOptions.init() },
     { id: "ui-type-selector", scope: "global", defaultEnabled: true, loader: () => uiTypeSelector.init() },
     { id: "vss-files-mod", scope: "global", defaultEnabled: true, loader: () => vssFilesMod.init() },
     { id: "vss-music", scope: "global", defaultEnabled: false, loader: () => vssMusic.init() },

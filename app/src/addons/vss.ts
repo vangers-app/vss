@@ -763,6 +763,8 @@ export enum iScreenOptionId {
 
     iAUTO_ACCELERATION, // 46
 
+    iFPS_60, // 47
+
     iMAX_OPTION_ID
 };
 
