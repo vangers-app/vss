@@ -117,9 +117,16 @@ jobs:
             emsdk_dir="$(cygpath -u "$EMSDK")"
           fi
           source "$emsdk_dir/emsdk_env.sh"
+          # Invoke cmake with the Emscripten toolchain directly instead of the
+          # `emcmake` wrapper, which on Windows only ships as emcmake.bat and is
+          # not resolvable from git-bash. Use forward-slash form so native cmake
+          # accepts the path on every platform.
+          toolchain="${EMSDK//\\//}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
           mkdir -p emscripten
           cd emscripten
-          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel ..
+          cmake -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+            -DCMAKE_BUILD_TYPE=MinSizeRel ..
           ninja vangers
 
       - name: Install frontend dependencies
