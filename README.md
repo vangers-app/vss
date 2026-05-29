@@ -17,8 +17,4 @@ All source code is published under the GPLv3 license.
 Grab the latest build for your platform from the
 [GitHub Releases page](https://github.com/vangers-app/vss/releases).
 
-You also need the original game resources (maps, sounds, textures, etc.), which
-you can take from the game purchased here:
-
-* Steam — http://store.steampowered.com/app/264080
-* GOG — http://www.gog.com/game/vangers
+You also need the original game resources (maps, sounds, textures, etc.), which you can take from the game purchased on [Steam](http://store.steampowered.com/app/264080) or [GOG](http://www.gog.com/game/vangers).
