@@ -36,12 +36,13 @@ jobs:
             bundles: nsis
             artifact-glob: app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
             artifact-ext: exe
-          - target: macos-x86_64
-            runs-on: macos-13
-            rust-target: x86_64-apple-darwin
-            bundles: dmg
-            artifact-glob: app/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
-            artifact-ext: dmg
+          # macos-x86_64 temporarily disabled (macos-13 Intel runner availability)
+          # - target: macos-x86_64
+          #   runs-on: macos-13
+          #   rust-target: x86_64-apple-darwin
+          #   bundles: dmg
+          #   artifact-glob: app/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          #   artifact-ext: dmg
           - target: macos-aarch64
             runs-on: macos-14
             rust-target: aarch64-apple-darwin
