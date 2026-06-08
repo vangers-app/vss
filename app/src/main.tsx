@@ -78,7 +78,46 @@ function Game() {
                     Module.callMain(args);
                 }
             };
+            let shopRightClickActive = false;
+            let shopRightClickHandledAt = 0;
+            const hasShopItem = () =>
+                (window as any).__VSS_MOBILE__ !== true &&
+                typeof Module._vss_bridge_hasShopItem === "function" &&
+                Module._vss_bridge_hasShopItem() !== 0;
+            const toggleShopAvi = (event: MouseEvent) => {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                shopRightClickHandledAt = Date.now();
+                Module._vss_bridge_toggleShopAvi();
+            };
+            const onMouseDown = (event: MouseEvent) => {
+                if (event.button === 2 && hasShopItem()) {
+                    shopRightClickActive = true;
+                    toggleShopAvi(event);
+                }
+            };
+            const onMouseUp = (event: MouseEvent) => {
+                if (event.button === 2 && shopRightClickActive) {
+                    shopRightClickActive = false;
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
+            };
+            const onContextMenu = (event: MouseEvent) => {
+                event.preventDefault();
+                if (hasShopItem() && Date.now() - shopRightClickHandledAt > 500) {
+                    toggleShopAvi(event);
+                }
+            };
+            canvas.current.addEventListener("mousedown", onMouseDown, true);
+            canvas.current.addEventListener("mouseup", onMouseUp, true);
+            canvas.current.addEventListener("contextmenu", onContextMenu, true);
             Vangers(Module);
+            return () => {
+                canvas.current?.removeEventListener("mousedown", onMouseDown, true);
+                canvas.current?.removeEventListener("mouseup", onMouseUp, true);
+                canvas.current?.removeEventListener("contextmenu", onContextMenu, true);
+            };
         }
     }, [canvas]);
 
