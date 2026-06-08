@@ -355,6 +355,20 @@ export function InventoryOpenButton(props: {
     />;
 }
 
+// Shown in place of the inventory key when no mods are downloaded yet.
+export function DownloadModsButton(props: {
+    class?: string,
+    style?: JSX.CSSProperties,
+    onButtonUp?: () => void,
+}) {
+    return <Button
+        class={(props.class ?? "") + " animate-pulse"}
+        style={props.style}
+        image={keyOffUrl}
+        onButtonUp={props.onButtonUp}
+    />;
+}
+
 export function Telegram(props: {
     class?: string,
     style?: JSX.CSSProperties,

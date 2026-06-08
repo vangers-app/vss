@@ -5,12 +5,12 @@ import * as traction from "./addons/traction";
 import * as uiOptions from "./addons/ui-options";
 import * as vssDefaultOptions from "./addons/vss-default-options";
 import * as uiTypeSelector from "./addons/ui-type-selector";
-import * as vssFilesMod from "./addons/vss-files-mod";
 import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
-import * as vssMusic from "./addons/vss-music";
-import { isAddonEnabled } from "./inventory/storage";
+import { isAddonEnabled, readInventoryItems } from "./inventory/storage";
 import vss, { FileOpenFlags } from "./addons/vss";
-import { read_file } from "./compat";
+import { getModAddons, getModFolders } from "./mods";
+import { runModBehavior } from "./addons/mod-behaviors";
+import { setFs, resetDiskCache, loadDiskFile } from "./fs-loader";
 
 export const localInstall = new Map<string, string>();
 
@@ -164,8 +164,6 @@ const addonManifest: AddonManifest[] = [
     { id: "ui-options", scope: "mobile", defaultEnabled: true, loader: () => uiOptions.init() },
     { id: "vss-default-options", scope: "global", defaultEnabled: true, loader: () => vssDefaultOptions.init() },
     { id: "ui-type-selector", scope: "global", defaultEnabled: true, loader: () => uiTypeSelector.init() },
-    { id: "vss-files-mod", scope: "global", defaultEnabled: true, loader: () => vssFilesMod.init() },
-    { id: "vss-music", scope: "global", defaultEnabled: false, loader: () => vssMusic.init() },
     { id: "vss-fullscreen-game", scope: "global", defaultEnabled: true, loader: () => vssFullscreenGame.init() },
 ];
 
@@ -193,9 +191,22 @@ class VssBrowser {
         delete global.config;
         global.bridge = this.createBridge();
         global.ui = global.ui ?? createDesktopUiAdapter();
+        resetDiskCache();
 
-        const loadedFiles = new Map<string, string>();
-        const inflight = new Map<string, Promise<{ file: string }>>();
+        // Merge enabled file mods over the Steam install: a mod file wins over the
+        // game file with the same relative path. The lazy loader below then serves it.
+        const folders = getModFolders();
+        const enabledMods = new Set(readInventoryItems().filter((item) => item.enabled).map((item) => item.id));
+        for (const mod of getModAddons()) {
+            if (!enabledMods.has(mod.id)) {
+                continue;
+            }
+            for (const folder of mod.folders ?? [mod.id]) {
+                for (const file of folders[folder] ?? []) {
+                    localInstall.set(file.rel, file.abs);
+                }
+            }
+        }
 
         const dirs = new Set<string>();
         for (const rel of localInstall.keys()) {
@@ -226,31 +237,11 @@ class VssBrowser {
                 return;
             }
             const normalized = file.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\//, "").toLowerCase();
-            const cached = loadedFiles.get(normalized);
-            if (cached !== undefined) {
-                return { file: cached };
-            }
-            const pending = inflight.get(normalized);
-            if (pending !== undefined) {
-                return pending;
-            }
             const abs = localInstall.get(normalized);
             if (abs === undefined) {
                 return;
             }
-            const fsPath = "/" + normalized;
-            const promise = read_file(abs).then((bytes) => {
-                this.Module.FS.writeFile(fsPath, new Uint8Array(bytes));
-                loadedFiles.set(normalized, fsPath);
-                inflight.delete(normalized);
-                return { file: fsPath };
-            }).catch((err) => {
-                inflight.delete(normalized);
-                console.error("== read_file failed:", abs, err);
-                return { file: "" };
-            });
-            inflight.set(normalized, promise);
-            return promise;
+            return loadDiskFile("/" + normalized, abs);
         });
 
         for (const next of addonManifest) {
@@ -260,6 +251,17 @@ class VssBrowser {
             } else {
                 console.log("== vss:", next.id, "disabled");
             }
+        }
+
+        // Run enabled mod behaviors (jumps, music) after the lazy loader is registered,
+        // so a mod's file_open listener takes precedence over the default resolution.
+        for (const mod of getModAddons()) {
+            if (!enabledMods.has(mod.id)) {
+                console.log("== mod:", mod.id, "disabled");
+                continue;
+            }
+            runModBehavior(mod.behavior, folders);
+            console.log("== mod:", mod.id, "started");
         }
 
         return true;
@@ -438,6 +440,7 @@ class VssBrowser {
 }
 
 export function installVssBrowser(Module: VssModule) {
+    setFs(Module.FS);
     global.__vssBrowser = new VssBrowser(Module);
 }
 
@@ -448,7 +451,11 @@ function createDesktopUiAdapter(): UiAdapter {
         joyDistance: () => 0,
         joyReverse: () => false,
         portraitMode: () => false,
-        sendMessage: () => {
+        sendMessage: (payload) => {
+            try {
+                window.dispatchEvent(new CustomEvent("vss-ui-event", { detail: JSON.parse(payload) }));
+            } catch {
+            }
         },
         sendObject: (payload) => {
             window.dispatchEvent(new CustomEvent("vss-ui-event", { detail: payload }));

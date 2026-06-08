@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { shopFrame } from "../../frame-info";
 import { BridgeContext } from "../bridge";
-import { InappOpen, QuestionButton, ZoomButton } from "../controls/keys";
+import { QuestionButton, ZoomButton } from "../controls/keys";
 import { bindMouseControl } from "../controls/mouse";
 import { fromHex } from "../../encoder";
 import { UIType } from "../api";
@@ -91,6 +91,5 @@ export function ShopFrame(props: { setUiType: (uiType: UIType) => void}) {
             onButtonUp={() => setZoomed( !zoomed)}
             zoomIn={!zoomed}
             class="absolute cl-0 cb-0" />
-        <InappOpen class="absolute cl-0 ct-0" onButtonUp={() => props.setUiType("inapp")} />
     </div >;
 }
