@@ -15,7 +15,7 @@ export function Credits(props: {
             <a class="underline" href="https://github.com/caiiiycuk/" target="_blank">{t("dev")}</a>
         </div>
         <div class="my-2 ml-20 self-start text-shadow text-2xl text-yellow-400">
-            <a class="underline" href="https://t.me/vangers_app" target="_blank">{t("telegram")}</a>
+            <a class="underline" href="https://t.me/vangers_mobile" target="_blank">{t("telegram")}</a>
         </div>
         <div class="my-2 ml-20 self-start text-shadow text-2xl text-yellow-400">
             <a class="underline" href="https://github.com/vangers-app" target="_blank">{t("github")}</a>

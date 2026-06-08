@@ -372,15 +372,23 @@ export function DownloadModsButton(props: {
 export function Telegram(props: {
     class?: string,
     style?: JSX.CSSProperties,
+    openUrl?: (url: string) => void | Promise<void>,
 }) {
     const bridge = useContext(BridgeContext);
 
     function open() {
-        bridge.native.openUrl("https://t.me/vangers_app/115");
+        const url = "https://t.me/vangers_mobile";
+        if (bridge?.native) {
+            bridge.native.openUrl(url);
+        } else if (props.openUrl) {
+            Promise.resolve(props.openUrl(url)).catch(console.error);
+        } else {
+            window.open(url, "_blank", "noopener,noreferrer");
+        }
     }
 
     return <Button
-        class={props.class + " cursor-pointer"}
+        class={(props.class ?? "") + " cursor-pointer"}
         style={props.style}
         image={telegramUrl}
         noBackground={false}
