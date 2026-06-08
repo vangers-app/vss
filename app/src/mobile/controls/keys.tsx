@@ -474,21 +474,31 @@ export function Lang(props: {
     style?: JSX.CSSProperties,
 }) {
     const bridge = useContext(BridgeContext);
-    const [langUrl, setLangUrl] = useState<string>(bridge.native.language() === "ru" ? ruUrl : enUrl);
+    return <LanguageButton
+        class={props.class}
+        style={props.style}
+        language={() => bridge.native.language()}
+        setLanguage={(language) => bridge.native.setLanguage(language)}
+    />;
+}
+
+export function LanguageButton(props: {
+    class?: string,
+    style?: JSX.CSSProperties,
+    language: () => "en" | "ru",
+    setLanguage: (language: "en" | "ru") => void,
+}) {
+    const [langUrl, setLangUrl] = useState<string>(props.language() === "ru" ? ruUrl : enUrl);
 
     function toggleLang() {
         setLangUrl(langUrl === ruUrl ? enUrl : ruUrl);
         const newLanguage = langUrl === ruUrl ? "en" : "ru";
-        if (newLanguage === "ru") {
-            alert("Для приминения изменений перезагрузите игру");
-        } else {
-            alert("To apply changes restart the game");
-        }
-        bridge.native.setLanguage(newLanguage);
+        props.setLanguage(newLanguage);
+        window.location.reload();
     }
 
     return <Button
-        class={props.class + " cursor-pointer"}
+        class={(props.class ?? "") + " cursor-pointer"}
         style={props.style}
         image={langUrl}
         noBackground={false}

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { installVssBrowser, localInstall } from "./vss-browser";
 import { InventoryFrame } from "./inventory/inventory-frame";
 import { installCellStyle, renderCellStyle } from "./ui/cell-style";
-import { DownloadModsButton, InventoryOpenButton } from "./mobile/controls/keys";
+import { DownloadModsButton, InventoryOpenButton, LanguageButton } from "./mobile/controls/keys";
 import type { Api, Event, UIType } from "./mobile/api";
 import { find_steam_install, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
@@ -70,7 +70,11 @@ function Game() {
                 onRuntimeInitialized: () => {
                     console.log("Runtime initialized");
                     installVssBrowser(Module);
-                    Module.callMain(["-vss", "/app-addons"]);
+                    const args = ["-vss", "/app-addons"];
+                    if (window.localStorage.getItem("mobile.language") === "ru") {
+                        args.push("-russian");
+                    }
+                    Module.callMain(args);
                 }
             };
             Vangers(Module);
@@ -128,9 +132,23 @@ function DesktopFrame() {
         return null;
     }
     if (!modsPresentState && TAURI_BUILD) {
-        return <DownloadModsButton class="absolute cl-0 ct-0" onButtonUp={() => startModsDownload()} />;
+        return <>
+            <DownloadModsButton class="absolute cl-0 ct-0" onButtonUp={() => startModsDownload()} />
+            <DesktopLanguageButton />
+        </>;
     }
-    return <InventoryOpenButton class="absolute cl-0 ct-0" onButtonUp={() => setOpen(true)} />;
+    return <>
+        <InventoryOpenButton class="absolute cl-0 ct-0" onButtonUp={() => setOpen(true)} />
+        <DesktopLanguageButton />
+    </>;
+}
+
+function DesktopLanguageButton() {
+    return <LanguageButton
+        class="absolute cr-0 ct-0"
+        language={() => window.localStorage.getItem("mobile.language") === "en" ? "en" : "ru"}
+        setLanguage={(language) => window.localStorage.setItem("mobile.language", language)}
+    />;
 }
 
 function MobileFrame() {
