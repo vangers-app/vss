@@ -167,7 +167,6 @@ bool normal_loop()
 				SDL_Delay(XObj->Timer - clockDelta);
 #endif
 			} else {
-				std::cout<<"Strange deltas clockDelta:"<<clockDelta<<" Timer:"<<XObj->Timer<<std::endl;
 				if (clockDelta > 300) {
 					XTCORE_FRAME_NORMAL = 1.0;
 				}

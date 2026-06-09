@@ -3645,10 +3645,16 @@ void camera_quant(int X,int Y,int Turn,double V_abs) {
 		.prop("downLine", vMap->downLine)
 		.prop("viewX", ViewX)
 		.prop("viewY", ViewY)
+		.prop("unitX", X)
+		.prop("unitY", Y)
+		.prop("z", TurnSecX)
 		.send();
 
 	SlopeAngle = result.getInt("slopeAngle", SlopeAngle);
 	TurnAngle = result.getInt("turnAngle", TurnAngle);
+	ViewX = result.getInt("viewX", ViewX);
+	ViewY = result.getInt("viewY", ViewY);
+	TurnSecX = result.getInt("z", TurnSecX);
 
 	calc_view_factors();
 }
