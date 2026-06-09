@@ -399,7 +399,9 @@ void Object::SyncExternalModel(void)
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
 		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
-		float external_z = set_3D_adjust(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,radius*2/3)*0.5f + zmax_real;
+		int external_ground_z = set_3D_adjust(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z - zmax_real,radius*2/3);
+		int external_air_z = R_curr.z - external_ground_z - zmax_real;
+		float external_z = external_ground_z*0.5f + zmax_real + (external_air_z > 0 ? external_air_z*0.5f : 0.0f);
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(model_instance_handle,{
 			.position = {
 				.x = (float)R_curr.x,
