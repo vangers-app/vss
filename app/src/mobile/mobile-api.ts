@@ -1,5 +1,6 @@
 import { toHex } from "../encoder";
 import { isAddonEnabled, readCustomProp, writeCustomProp } from "../inventory/storage";
+import { currentLanguage, setCurrentLanguage } from "../language";
 import type { Api } from "./api";
 
 type UiAddonBridge = {
@@ -176,11 +177,11 @@ class BrowserMobileApi implements Api {
     }
 
     language(): "en" | "ru" {
-        return window.localStorage.getItem("mobile.language") === "en" ? "en" : "ru";
+        return currentLanguage();
     }
 
     setLanguage(lang: "en" | "ru"): void {
-        window.localStorage.setItem("mobile.language", lang);
+        setCurrentLanguage(lang);
     }
 
     toggleShopAvi(): void {

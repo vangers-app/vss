@@ -16,6 +16,7 @@ import { DataNotFound } from "./ui/data-not-found";
 import { DownloadMods, startModsDownload } from "./ui/download-mods";
 import { state as addonState } from "./addons/state";
 import { dismissCreditsOverlay } from "./addons/redraw-quant";
+import { currentLanguage, setCurrentLanguage } from "./language";
 import "./index.css";
 
 function isMobile(): boolean {
@@ -74,7 +75,7 @@ function Game() {
                     console.log("Runtime initialized");
                     installVssBrowser(Module);
                     const args = ["-vss", "/app-addons"];
-                    if (window.localStorage.getItem("mobile.language") === "ru") {
+                    if (currentLanguage() === "ru") {
                         args.push("-russian");
                     }
                     Module.callMain(args);
@@ -200,8 +201,8 @@ function DesktopFrame() {
 function DesktopLanguageButton() {
     return <LanguageButton
         class="absolute cr-0 ct-0"
-        language={() => window.localStorage.getItem("mobile.language") === "en" ? "en" : "ru"}
-        setLanguage={(language) => window.localStorage.setItem("mobile.language", language)}
+        language={() => currentLanguage()}
+        setLanguage={(language) => setCurrentLanguage(language)}
     />;
 }
 

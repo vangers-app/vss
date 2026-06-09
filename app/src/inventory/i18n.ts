@@ -1,4 +1,5 @@
 import { useContext } from "preact/hooks";
+import { currentLanguage } from "../language";
 import { BridgeContext } from "../mobile/bridge";
 
 const tData: { [lang: string]: { [key: string]: string } } = {
@@ -23,12 +24,7 @@ const tData: { [lang: string]: { [key: string]: string } } = {
 // Current UI language outside of the render tree (no hook). Used to resolve
 // localized mod metadata in reconcileMods.
 export function currentLang(): "en" | "ru" {
-    const stored = window.localStorage.getItem("mobile.language");
-    if (stored === "en" || stored === "ru") {
-        return stored;
-    }
-    const navLang = (navigator.language || "").toLowerCase();
-    return navLang.startsWith("ru") ? "ru" : "en";
+    return currentLanguage();
 }
 
 export function t(key: string): string {

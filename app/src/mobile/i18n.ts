@@ -1,4 +1,5 @@
 import { useContext } from "preact/hooks";
+import { currentLanguage } from "../language";
 import { BridgeContext } from "./bridge";
 
 const tData: { [lang: string]: { [key: string]: string } } = {
@@ -47,11 +48,8 @@ const tData: { [lang: string]: { [key: string]: string } } = {
 export function t(key: string): string {
     const bridge = useContext(BridgeContext);
     const nativeLang = bridge?.native.language();
-    const storedLang = window.localStorage.getItem("mobile.language");
     const lang = nativeLang === "en" || nativeLang === "ru"
         ? nativeLang
-        : storedLang === "en" || storedLang === "ru"
-            ? storedLang
-            : "en";
+        : currentLanguage();
     return tData[lang][key] ?? tData["en"][key];
 }
