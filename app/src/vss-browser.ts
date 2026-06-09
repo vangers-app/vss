@@ -6,6 +6,7 @@ import * as uiOptions from "./addons/ui-options";
 import * as vssDefaultOptions from "./addons/vss-default-options";
 import * as uiTypeSelector from "./addons/ui-type-selector";
 import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
+import * as appExit from "./addons/app-exit";
 import { isAddonEnabled, readInventoryItems } from "./inventory/storage";
 import vss, { FileOpenFlags } from "./addons/vss";
 import { getModAddons, getModFolders } from "./mods";
@@ -166,6 +167,7 @@ const addonManifest: AddonManifest[] = [
     { id: "vss-default-options", scope: "global", defaultEnabled: true, loader: () => vssDefaultOptions.init() },
     { id: "ui-type-selector", scope: "global", defaultEnabled: true, loader: () => uiTypeSelector.init() },
     { id: "vss-fullscreen-game", scope: "global", defaultEnabled: true, loader: () => vssFullscreenGame.init() },
+    { id: "app-exit", scope: "global", defaultEnabled: true, loader: () => appExit.init() },
 ];
 
 class VssBrowser {

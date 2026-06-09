@@ -23,6 +23,7 @@ export interface VssQuantMap {
     "check_xy": [VssCheckXYQuant, void]
     "redraw_end": [void, void],
     "network_state": [VssNetworkState, void],
+    "screen_exit": [VssScreenExitQuant, void],
 }
 
 export interface VssRuntimeObjectQuant {
@@ -129,6 +130,11 @@ export type VssCheckXYQuant = VssRedrawQuant;
 
 export interface VssNetworkState {
     on: boolean,
+}
+
+export interface VssScreenExitQuant {
+    screenId?: string,
+    value: number,
 }
 
 export type VssQuantListener<K extends VssQuantName> = (payload: VssQuantPayload<K> & { quant: K },

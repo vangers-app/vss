@@ -2791,6 +2791,11 @@ void iScreenDispatcher::ProcessEvent(iScreenEvent* p)
 						set_scr_redraw(curScr);
 						break;
 					case EV_EXIT:
+						vss::sys()
+							.quant(vss::SCREEN_EXIT_QUANT)
+							.prop("screenId", curScr ? curScr->ID_ptr.c_str() : "")
+							.prop("value", cm->value)
+							.send();
 						if(!actIntLog || (aScrDisp -> curMatrix || !cm -> value)){
 							iScrDisp -> flags |= SD_EXIT;
 							iScrDisp -> ret_val = cm -> value;

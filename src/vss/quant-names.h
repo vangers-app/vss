@@ -24,6 +24,7 @@ constexpr const char* REDRAW_QUANT = "redraw";
 constexpr const char* CHECK_XY_QUANT = "check_xy";
 constexpr const char* REDRAW_END_QUANT = "redraw_end";
 constexpr const char* NETWORK_STATE_QUANT = "network_state";
+constexpr const char* SCREEN_EXIT_QUANT = "screen_exit";
 }  // namespace vss
 
 #endif  // VANGERS_QUANT_NAMES_H
