@@ -105,6 +105,24 @@ fn scripts_root(app: &AppHandle) -> Option<PathBuf> {
     mods_dir(app).map(|p| p.join("scripts"))
 }
 
+fn allowed_local_file(app: &AppHandle, decoded: &str) -> Result<PathBuf, String> {
+    let path =
+        fs::canonicalize(PathBuf::from(decoded)).map_err(|_| "file not found".to_string())?;
+    let is_under = |root: PathBuf| {
+        fs::canonicalize(root)
+            .map(|root| path.starts_with(root))
+            .unwrap_or(false)
+    };
+    // Allow files from either the Steam install or the downloaded mods dir.
+    let allowed = get_vangers_steam_path().map(&is_under).unwrap_or(false)
+        || mods_dir(app).map(&is_under).unwrap_or(false);
+    if allowed {
+        Ok(path)
+    } else {
+        Err("file access denied".to_string())
+    }
+}
+
 fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<LocalFile>) {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
@@ -149,6 +167,13 @@ fn toggle_devtools(app: AppHandle) {
             window.open_devtools();
         }
     }
+}
+
+#[tauri::command]
+fn read_local_file(app: AppHandle, path: String) -> Result<tauri::ipc::Response, String> {
+    let path = allowed_local_file(&app, &path)?;
+    let bytes = fs::read(&path).map_err(|_| "file not found".to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]
@@ -467,6 +492,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             find_steam_install,
             toggle_devtools,
+            read_local_file,
             list_mods,
             download_mods,
             cancel_download,
@@ -490,21 +516,13 @@ pub fn run() {
                 Some(s) => s,
                 None => return build(StatusCode::BAD_REQUEST, Vec::new()),
             };
-            let path = match fs::canonicalize(PathBuf::from(&decoded)) {
+            let path = match allowed_local_file(ctx.app_handle(), &decoded) {
                 Ok(path) => path,
+                Err(err) if err == "file access denied" => {
+                    return build(StatusCode::FORBIDDEN, Vec::new())
+                }
                 Err(_) => return build(StatusCode::NOT_FOUND, Vec::new()),
             };
-            let is_under = |root: PathBuf| {
-                fs::canonicalize(root)
-                    .map(|root| path.starts_with(root))
-                    .unwrap_or(false)
-            };
-            // Allow files from either the Steam install or the downloaded mods dir.
-            let allowed = get_vangers_steam_path().map(&is_under).unwrap_or(false)
-                || mods_dir(ctx.app_handle()).map(&is_under).unwrap_or(false);
-            if !allowed {
-                return build(StatusCode::FORBIDDEN, Vec::new());
-            }
             match fs::read(&path) {
                 Ok(bytes) => build(StatusCode::OK, bytes),
                 Err(_) => build(StatusCode::NOT_FOUND, Vec::new()),

@@ -104,6 +104,15 @@ export async function delete_mods() {
 }
 
 export async function read_file(path: string) {
+    if (TAURI_BUILD) {
+        const bytes = await invoke<ArrayBuffer | number[] | Uint8Array>('read_local_file', { path });
+        if (bytes instanceof ArrayBuffer) {
+            return bytes;
+        }
+        const view = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes);
+        return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+    }
+
     const url = "vfile://localhost/" + encodeURIComponent(path);
     const response = await fetch(url);
     if (!response.ok) {
