@@ -134,6 +134,23 @@ fn find_steam_install() -> Option<Vec<LocalFile>> {
     Some(files)
 }
 
+fn open_main_devtools(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        window.open_devtools();
+    }
+}
+
+#[tauri::command]
+fn toggle_devtools(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if window.is_devtools_open() {
+            window.close_devtools();
+        } else {
+            window.open_devtools();
+        }
+    }
+}
+
 #[tauri::command]
 fn list_mods(app: AppHandle) -> ModsManifest {
     let empty = ModsManifest {
@@ -449,6 +466,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             find_steam_install,
+            toggle_devtools,
             list_mods,
             download_mods,
             cancel_download,
@@ -495,9 +513,7 @@ pub fn run() {
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
-                }
+                open_main_devtools(app.handle());
             }
             Ok(())
         })

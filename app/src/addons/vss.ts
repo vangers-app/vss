@@ -46,15 +46,21 @@ export interface VssOptionQuantResult {
 
 export interface VssCameraQuant {
     turnAngle: number,
-    slopAngle: number,
+    slopeAngle: number,
     upLine: number,
     downLine: number,
     viewX: number,
     viewY: number,
+    unitX?: number,
+    unitY?: number,
+    z?: number,
 }
 export interface VssCameraQuantResult {
     turnAngle?: number;
     slopeAngle?: number;
+    viewX?: number;
+    viewY?: number;
+    z?: number;
 }
 
 export interface VssCameraZoomQuant {

@@ -9,7 +9,7 @@ import { installCellStyle, renderCellStyle } from "./ui/cell-style";
 import { DownloadModsButton, InventoryOpenButton, LanguageButton, Telegram } from "./mobile/controls/keys";
 import { Credits } from "./mobile/credits";
 import type { Api, Event, UIType } from "./mobile/api";
-import { find_steam_install, TAURI_BUILD } from "./compat";
+import { find_steam_install, toggle_devtools, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
 import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
@@ -34,6 +34,20 @@ function App() {
     const [ready, setReady] = useState(false);
     const dataNotFound = useUiStore((state) => state.dataNotFound);
     const downloadActive = useUiStore((state) => state.download.active);
+    useEffect(() => {
+        function onKeyDown(event: KeyboardEvent) {
+            if (!TAURI_BUILD || event.code !== "F12") {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            toggle_devtools().catch((err) => {
+                console.error("Failed to toggle devtools", err);
+            });
+        }
+        window.addEventListener("keydown", onKeyDown, true);
+        return () => window.removeEventListener("keydown", onKeyDown, true);
+    }, []);
     useEffect(() => {
         (async () => {
             (window as any).__VSS_MOBILE__ = isMobile();

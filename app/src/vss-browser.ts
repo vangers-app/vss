@@ -8,6 +8,7 @@ import * as uiTypeSelector from "./addons/ui-type-selector";
 import * as vssFullscreenGame from "./addons/vss-fullscreen-game";
 import * as appExit from "./addons/app-exit";
 import * as desktopControlsOverlay from "./addons/desktop-controls-overlay";
+import * as classicRacingCamera from "./addons/classic-racing-camera";
 import { isAddonEnabled, readInventoryItems } from "./inventory/storage";
 import vss, { FileOpenFlags } from "./addons/vss";
 import { getModAddons, getModFolders } from "./mods";
@@ -170,6 +171,7 @@ const addonManifest: AddonManifest[] = [
     { id: "vss-fullscreen-game", scope: "global", defaultEnabled: true, loader: () => vssFullscreenGame.init() },
     { id: "app-exit", scope: "global", defaultEnabled: true, loader: () => appExit.init() },
     { id: "desktop-controls-overlay", scope: "global", defaultEnabled: true, loader: () => desktopControlsOverlay.init() },
+    { id: "classic-racing-camera", scope: "global", defaultEnabled: true, loader: () => classicRacingCamera.init() },
 ];
 
 class VssBrowser {

@@ -61,6 +61,14 @@ export async function find_steam_install() {
     return invoke<LocalFile[] | null>('find_steam_install');
 }
 
+export async function toggle_devtools() {
+    if (!TAURI_BUILD) {
+        return;
+    }
+
+    return invoke<void>('toggle_devtools');
+}
+
 export async function list_mods(): Promise<ModsManifest> {
     if (!TAURI_BUILD) {
         return { addons: [], folders: {} };
