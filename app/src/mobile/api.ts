@@ -8,13 +8,14 @@ export type UIType = "default" | "main-menu" |
 
 export interface Event {
     type: "ready" | "scaled_renderer_changed" | "ui_type_changed" | "log" | "orientation_changed" | "inapp-result" |
-        "network_state";
+        "network_state" | "desktop_controls_overlay";
     orientation: "portrait" | "landscape";
     enabled: boolean;
     id: RuntimeObjectId;
     message: string;
     uiType: UIType;
     network: boolean;
+    visible: boolean;
 }
 
 export enum RuntimeObjectId {

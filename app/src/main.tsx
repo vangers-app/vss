@@ -17,6 +17,7 @@ import { DownloadMods, startModsDownload } from "./ui/download-mods";
 import { state as addonState } from "./addons/state";
 import { dismissCreditsOverlay } from "./addons/redraw-quant";
 import { currentLanguage, setCurrentLanguage } from "./language";
+import controlsUrl from "./assets/controls.png";
 import "./index.css";
 
 function isMobile(): boolean {
@@ -127,8 +128,48 @@ function Game() {
     return <div class="game-root">
         <canvas id="canvas" ref={canvas} width={800} height={600}></canvas>
         {(window as any).__VSS_MOBILE__ !== true && <DesktopFrame />}
+        {(window as any).__VSS_MOBILE__ !== true && <DesktopControlsOverlay />}
         {(window as any).__VSS_MOBILE__ === true && <MobileFrame />}
     </div>
+}
+
+function DesktopControlsOverlay() {
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        function onUiEvent(event: CustomEvent<Event>) {
+            if (event.detail.type !== "desktop_controls_overlay") {
+                return;
+            }
+            setVisible(event.detail.visible);
+        }
+        window.addEventListener("vss-ui-event", onUiEvent as EventListener);
+        return () => window.removeEventListener("vss-ui-event", onUiEvent as EventListener);
+    }, []);
+
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+        function blockKeyboard(event: KeyboardEvent) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+        window.addEventListener("keydown", blockKeyboard, true);
+        window.addEventListener("keyup", blockKeyboard, true);
+        return () => {
+            window.removeEventListener("keydown", blockKeyboard, true);
+            window.removeEventListener("keyup", blockKeyboard, true);
+        };
+    }, [visible]);
+
+    if (!visible) {
+        return null;
+    }
+
+    return <div class="frame z-50 bg-black flex items-center justify-center">
+        <img src={controlsUrl} class="max-w-full max-h-full object-contain" />
+    </div>;
 }
 
 function DesktopFrame() {
