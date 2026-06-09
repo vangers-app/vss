@@ -352,14 +352,19 @@ uint8_t Object::external_body_color_id() const
 
 void Object::create_model_instance()
 {
-	if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+	if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_model_handle,external_body_color_id());
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,ExternalModelVisible());
+	}
 	if(n_wheels && external_wheel_model_handles && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		wheel_handles = new ModelInstanceHandle[n_wheels];
-		for(int i = 0;i < n_wheels;i++)
+		for(int i = 0;i < n_wheels;i++){
 			wheel_handles[i] = external_wheel_model_handles[i].handle != 0 ?
 				renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_wheel_model_handles[i],external_body_color_id()) :
 				ModelInstanceHandle{0};
+			if(wheel_handles[i].handle != 0)
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],ExternalModelVisible());
+		}
 	}
 }
 
@@ -396,7 +401,8 @@ void Object::destroy_weapon_instances()
 void Object::SyncExternalModel(void)
 {
 	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+		const bool external_model_visible = ExternalModelVisible();
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,external_model_visible);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
 		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
 		int external_ground_z = set_3D_adjust(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z - zmax_real,radius*2/3);
@@ -419,7 +425,7 @@ void Object::SyncExternalModel(void)
 		if(wheel_handles){
 			for(int i = 0;i < n_wheels;i++)
 				if(wheel_handles[i].handle != 0){
-					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],Visibility == VISIBLE);
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],external_model_visible);
 					DBM wheel_rot = A_l2g*(wheels[i].steer ? DBM(rudder,Z_AXIS) : DBM())*DBM(1,-1,1,DIAGONAL);
 					DBV world = R_curr + DBV(rot*Vector(round(wheels[i].model.x_off*scale_real),round(-wheels[i].model.y_off*scale_real),round(wheels[i].model.z_off*scale_real)));
 					Quaternion wheel_rotation = Quaternion::multiply(Quaternion(wheel_rot),Quaternion(0,0,0,1));
@@ -441,7 +447,7 @@ void Object::SyncExternalModel(void)
 		}
 		for(int i = 0;i < MAX_SLOTS;i++)
 			if(data_in_slots[i] && weapon_handles[i].handle != 0){
-				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],external_model_visible);
 				double scl = data_in_slots[i]->scale_size/original_scale_size;
 				DBM slot_rot = location_angle_of_slots[i] ? DBM(location_angle_of_slots[i],Y_AXIS) : DBM();
 				DBM A_c2p = slot_rot*scl;

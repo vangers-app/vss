@@ -102,6 +102,13 @@ static inline int should_emit_passing_wave(int ticks_left)
 	return ((ticks_left / legacy_stride) & 3) != 0;
 }
 
+static inline int passage_out_ticks(int active_time)
+{
+	int active_ticks = (int)round(active_time * GAME_TIME_COEFF);
+	int spiral_ticks = (int)round(ROTOR_PROCESS_LIFE_TIME * GAME_TIME_COEFF);
+	return active_ticks > spiral_ticks ? active_ticks : spiral_ticks;
+}
+
 static inline int wall_collision_ticks(void)
 {
 	int ticks = (int)round((MAX_WALL_TIME - 1) * GAME_TIME_COEFF) + 1;
@@ -918,17 +925,16 @@ void ActionUnit::Quant(void)
 	};
 	vUp = Vector(ymax_real,0,0)*MovMat;
 	vDown = -vUp;
-	if(PrevVisibility != Visibility){
-		if(model_instance_handle.handle != 0)
-			renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
-		if(wheel_handles)
-			for(int i = 0;i < n_wheels;i++)
-				if(wheel_handles[i].handle != 0)
-					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],Visibility == VISIBLE);
-		for(int i = 0;i < MAX_SLOTS;i++)
-			if(weapon_handles[i].handle != 0)
-				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],Visibility == VISIBLE);
-	}
+	const bool external_model_visible = ExternalModelVisible();
+	if(model_instance_handle.handle != 0)
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,external_model_visible);
+	if(wheel_handles)
+		for(int i = 0;i < n_wheels;i++)
+			if(wheel_handles[i].handle != 0)
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(wheel_handles[i],external_model_visible);
+	for(int i = 0;i < MAX_SLOTS;i++)
+		if(weapon_handles[i].handle != 0)
+			renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(weapon_handles[i],external_model_visible);
 };
 
 void ActionUnit::DrawQuant(void)
@@ -3903,6 +3909,11 @@ void InsectUnit::Touch(GeneralObject* p)
 	};
 };
 
+bool VangerUnit::ExternalModelVisible(void) const
+{
+	return Visibility == VISIBLE && ExternalDraw && !(Status & SOBJ_WAIT_CONFIRMATION);
+};
+
 void VangerUnit::DrawQuant(void)
 {
 	WaterParticleObject* p;
@@ -6381,7 +6392,7 @@ void VangerUnit::AddPassage(SensorDataType* p)
 	if(Status & SOBJ_ACTIVE){
 		ExternalMode = EXTERNAL_MODE_PASS_OUT;
 		ExternalObject = p;
-		ExternalTime = p->Owner->ActiveTime * GAME_TIME_COEFF;
+		ExternalTime = passage_out_ticks(p->Owner->ActiveTime);
 		ExternalLock = 1;
 		ExternalDraw = 0;
 		switch_analysis(1);
@@ -6398,7 +6409,7 @@ void VangerUnit::AddPassage(SensorDataType* p)
 			if(Visibility == VISIBLE && pNetPlayer && GetDistTime(NetGlobalTime,pNetPlayer->body.BirthTime) < 256*5 + 256*(ROTOR_PROCESS_LIFE_TIME * GAME_TIME_COEFF)/20){
 				ExternalMode = EXTERNAL_MODE_PASS_OUT;
 				ExternalObject = p;
-				ExternalTime = p->Owner->ActiveTime * GAME_TIME_COEFF;
+				ExternalTime = passage_out_ticks(p->Owner->ActiveTime);
 				ExternalLock = 1;
 				ExternalDraw = 0;
 				switch_analysis(1);
@@ -6415,7 +6426,7 @@ void VangerUnit::AddPassage(SensorDataType* p)
 			if(Visibility == VISIBLE){
 				ExternalMode = EXTERNAL_MODE_PASS_OUT;
 				ExternalObject = p;
-				ExternalTime = p->Owner->ActiveTime * GAME_TIME_COEFF;
+				ExternalTime = passage_out_ticks(p->Owner->ActiveTime);
 				ExternalLock = 1;
 				ExternalDraw = 0;
 				switch_analysis(1);
@@ -10304,7 +10315,7 @@ void GunSlot::OpenGun(GunDevice* p)
 	Owner->lay_to_slot(nSlot,&ModelD.ActiveModel(p->ModelID));
 	if((1 << nSlot) & Owner->slots_existence && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		Owner->weapon_handles[nSlot] = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[p->ModelID],1);
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->Visibility == VISIBLE);
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->ExternalModelVisible());
 	}
 	ItemData->ActIntBuffer.slot = nSlot;
 	
@@ -10376,7 +10387,7 @@ void GunSlot::NetStuffQuant(void)
 				Owner->lay_to_slot(nSlot,&ModelD.ActiveModel(p->ModelID));
 				if((1 << nSlot) & Owner->slots_existence && renderer::visualbackend::VisualBackendContext::has_renderer()){
 					Owner->weapon_handles[nSlot] = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(ModelD.ModelHandles[p->ModelID],1);
-					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->Visibility == VISIBLE);
+					renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(Owner->weapon_handles[nSlot],Owner->ExternalModelVisible());
 				}
 				ItemData->ActIntBuffer.slot = nSlot;
 				FireCount = NetFireCount;

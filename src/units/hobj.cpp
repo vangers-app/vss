@@ -1005,6 +1005,7 @@ void GeneralObject::Send(void)
 
 void BaseObject::DrawQuant(void){ };
 void BaseObject::SyncExternalModel(void){ };
+bool BaseObject::ExternalModelVisible(void) const { return Visibility == VISIBLE; };
 void Object::DestroyCollision(int l,Object* p){ };
 
 GeneralObject* StorageType::Active(void)

@@ -824,6 +824,7 @@ struct VangerUnit : TrackUnit , uvsUnitType , aiFactorType
 
 	void Quant(void);
 	void DrawQuant(void);
+	bool ExternalModelVisible(void) const;
 
 	void Destroy(void);
 	void keyhandler(int key);

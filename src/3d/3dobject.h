@@ -105,6 +105,7 @@ struct BaseObject : GeneralObject {
 #ifdef _ROAD_
 	virtual void DrawQuant(void);
 	virtual void SyncExternalModel(void);
+	virtual bool ExternalModelVisible(void) const;
 	void GetVisible(void);
 #endif
 };
