@@ -7,6 +7,7 @@ import { installVssBrowser, localInstall } from "./vss-browser";
 import { InventoryFrame } from "./inventory/inventory-frame";
 import { installCellStyle, renderCellStyle } from "./ui/cell-style";
 import { DownloadModsButton, InventoryOpenButton, LanguageButton, Telegram } from "./mobile/controls/keys";
+import { Credits } from "./mobile/credits";
 import type { Api, Event, UIType } from "./mobile/api";
 import { find_steam_install, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
@@ -14,6 +15,7 @@ import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
 import { DownloadMods, startModsDownload } from "./ui/download-mods";
 import { state as addonState } from "./addons/state";
+import { dismissCreditsOverlay } from "./addons/redraw-quant";
 import "./index.css";
 
 function isMobile(): boolean {
@@ -163,9 +165,19 @@ function DesktopFrame() {
             setOpen(false);
         }
     }, [uiType]);
+    function closeDesktopCredits() {
+        dismissCreditsOverlay();
+        addonState().uiType = "main-menu";
+        setUiType("main-menu");
+    }
     if (open) {
         return <div class="frame">
             <InventoryFrame closeActiveUi={() => setOpen(false)} />
+        </div>;
+    }
+    if (uiType === "credits") {
+        return <div class="frame">
+            <Credits closeActiveUi={closeDesktopCredits} />
         </div>;
     }
     if (uiType !== "main-menu") {

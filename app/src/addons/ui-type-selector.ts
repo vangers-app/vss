@@ -107,7 +107,8 @@ export function init() {
 
 function updateUiType() {
     const newUiType = calculateUiType();
-    if (newUiType === state().uiType) {
+    const currentUiType = state().uiType;
+    if (currentUiType === "credits" || newUiType === currentUiType) {
         return;
     }
     ui.log("uiType changed to " + newUiType + "; rtoId " + runtimeObjectId + " roadFullScreen " + roadFullscreen +

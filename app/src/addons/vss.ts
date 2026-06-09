@@ -119,6 +119,8 @@ export interface VssFrameQuant {
 export interface VssRedrawQuant {
     type: "iScreenObject" | "iScreenElement",
     id: number,
+    objectId?: string,
+    screenId?: string,
     elementType?: iElementTypes,
 }
 

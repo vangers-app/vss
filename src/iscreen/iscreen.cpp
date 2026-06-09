@@ -1688,6 +1688,7 @@ int iScreenObject::CheckXY(int x,int y)
 				.quant(vss::CHECK_XY_QUANT)
 				.prop("type", "iScreenObject")
 				.prop("id", ID)
+				.prop("objectId", ID_ptr.c_str())
 				.send();
 
 		if (result.isPreventDefault()) {
@@ -1904,6 +1905,7 @@ void iScreenObject::redraw(int mode)
 		.quant(vss::REDRAW_QUANT)
 		.prop("type", "iScreenObject")
 		.prop("id", ID)
+		.prop("screenId", owner ? ((iScreen*)owner)->ID_ptr.c_str() : "")
 		.send();
 
 	if (result.isPreventDefault()) {

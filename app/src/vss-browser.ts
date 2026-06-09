@@ -158,7 +158,8 @@ type UiAdapter = {
 
 const addonManifest: AddonManifest[] = [
     { id: "frame", scope: "mobile", defaultEnabled: true, loader: () => frame.init() },
-    { id: "redraw-quant", scope: "mobile", defaultEnabled: true, loader: () => redrawQuant.init() },
+    { id: "credits-ui", scope: "global", defaultEnabled: true, loader: () => redrawQuant.initCredits() },
+    { id: "redraw-quant", scope: "global", defaultEnabled: true, loader: () => redrawQuant.init() },
     { id: "sys", scope: "mobile", defaultEnabled: true, loader: () => sys.init() },
     { id: "traction", scope: "mobile", defaultEnabled: true, loader: () => traction.init() },
     { id: "ui-options", scope: "mobile", defaultEnabled: true, loader: () => uiOptions.init() },

@@ -22,8 +22,14 @@ export function Credits(props: {
         </div>
         <div class="my-2 ml-20 self-start text-shadow text-2xl text-yellow-400">
             <a class="underline"
-                href="https://play.google.com/store/apps/details?id=com.caiiiycuk.github.vangers" target="_blank">
+                href="https://play.google.com/store/apps/details?id=com.caiiiycuk.github.vangers.gp" target="_blank">
                 {t("gp")}
+            </a>
+        </div>
+        <div class="my-2 ml-20 self-start text-shadow text-2xl text-yellow-400">
+            <a class="underline"
+                href="https://www.rustore.ru/catalog/app/com.caiiiycuk.github.vangers.rustore" target="_blank">
+                {t("rustore")}
             </a>
         </div>
         <div class="flex-grow"></div>

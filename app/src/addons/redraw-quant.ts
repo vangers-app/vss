@@ -1,14 +1,29 @@
 import ui from "./ui";
+import { state } from "./state";
 import vss, { VssCheckXYQuant, VssRedrawQuant } from "./vss";
 
+const global = globalThis as typeof globalThis & {
+    __VSS_MOBILE__?: boolean;
+};
+
 export function init() {
-    vss.addQuantListener("redraw", hideControls);
-    vss.addQuantListener("check_xy", hideControls);
+    vss.addQuantListener("redraw", handleUiVisibility);
+    vss.addQuantListener("check_xy", handleUiVisibility);
 }
 
-let showCredits = false;
+export function initCredits() {
+    vss.addQuantListener("redraw", handleCredits);
+    vss.addQuantListener("check_xy", handleCredits);
+}
 
-function hideControls(payload: VssRedrawQuant & { quant: "redraw" } |
+let creditsScreenActive = false;
+let creditsOverlayDismissed = false;
+
+export function dismissCreditsOverlay() {
+    creditsOverlayDismissed = true;
+}
+
+function handleUiVisibility(payload: VssRedrawQuant & { quant: "redraw" } |
     VssCheckXYQuant & { quant: "check_xy" }): void | "preventDefault" {
     const id = payload.id;
     const hide =
@@ -21,19 +36,7 @@ function hideControls(payload: VssRedrawQuant & { quant: "redraw" } |
         return "preventDefault";
     }
 
-    if (payload.quant === "redraw" && id === 1103 && showCredits) {
-        ui.sendObject({
-            type: "ui_type_changed",
-            uiType: "credits",
-        });
-        showCredits = false;
-    }
-
-    if (payload.quant === "check_xy" && id === 32) {
-        showCredits = true;
-    }
-
-    if (payload.quant === "check_xy" && id === 29) {
+    if (global.__VSS_MOBILE__ === true && payload.quant === "check_xy" && id === 29) {
         if (ui.enabled("goolden_beeb")) {
             return;
         }
@@ -44,4 +47,33 @@ function hideControls(payload: VssRedrawQuant & { quant: "redraw" } |
         });
         return "preventDefault";
     }
+}
+
+function handleCredits(payload: VssRedrawQuant & { quant: "redraw" } |
+    VssCheckXYQuant & { quant: "check_xy" }): void {
+    if (payload.quant === "check_xy") {
+        if (payload.objectId === "Credits Option") {
+            creditsScreenActive = false;
+            creditsOverlayDismissed = false;
+        }
+        return;
+    }
+
+    if (payload.screenId === undefined) {
+        return;
+    }
+
+    const isNativeCreditsScreen = payload.screenId.startsWith("Credits");
+    if (isNativeCreditsScreen) {
+        if (!creditsScreenActive && !creditsOverlayDismissed) {
+            state().uiType = "credits";
+            ui.sendObject({
+                type: "ui_type_changed",
+                uiType: "credits",
+            });
+        }
+        creditsScreenActive = true;
+        return;
+    }
+    creditsScreenActive = false;
 }

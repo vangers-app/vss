@@ -6,12 +6,13 @@ const tData: { [lang: string]: { [key: string]: string } } = {
         yes: "Yes",
         no: "No",
         processing: "Processing...",
-        header: "Android version",
+        header: "Vangers: Soup Supervisor",
         next: "Next",
         dev: "Developer: Guryanov Alexander (@caiiiycuk)",
         telegram: "VAndroid Telegram",
         github: "Source code (github)",
         gp: "Vangers in Google Play",
+        rustore: "Vangers in RuStore",
         select_controls_type: "Select controls type",
         controls_options: "Common Options",
         mirrored_controls: "Mirrored controls",
@@ -25,12 +26,13 @@ const tData: { [lang: string]: { [key: string]: string } } = {
         yes: "Да",
         no: "Нет",
         processing: "Открытие транзакции...",
-        header: "Android версия",
+        header: "Vangers: Soup Supervisor",
         next: "Далее",
         dev: "Разработчик: Гурьянов Александр (@caiiiycuk)",
         telegram: "VAndroid Телеграм",
         github: "Исходный код (github)",
         gp: "Вангеры в Google Play",
+        rustore: "Вангеры в RuStore",
         select_controls_type: "Выберите вариант управления",
         controls_options: "Общие настройки",
         mirrored_controls: "Отразить управление",
@@ -44,5 +46,12 @@ const tData: { [lang: string]: { [key: string]: string } } = {
 
 export function t(key: string): string {
     const bridge = useContext(BridgeContext);
-    return tData[bridge.native.language()][key] ?? tData["en"][key];
+    const nativeLang = bridge?.native.language();
+    const storedLang = window.localStorage.getItem("mobile.language");
+    const lang = nativeLang === "en" || nativeLang === "ru"
+        ? nativeLang
+        : storedLang === "en" || storedLang === "ru"
+            ? storedLang
+            : "en";
+    return tData[lang][key] ?? tData["en"][key];
 }
