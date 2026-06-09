@@ -260,6 +260,7 @@ void iLoadControls(void);
 
 void aciSaveData(void);
 void aciLoadData(void);
+extern int iOptionsDataLoading;
 
 void uvsQuant(void);
 
@@ -2123,8 +2124,10 @@ void iLoadData(void)
 		// localStorage value, so this pulls it back into the C++ option state:
 		// the options screen, options.dat persistence and gameplay all follow
 		// localStorage instead of whatever options.dat happened to contain.
+		iOptionsDataLoading = 1;
 		for(int id : {iFPS_60, iAUTO_ACCELERATION, iCAMERA_TURN, iCAMERA_SLOPE})
 			iSetOptionValue(id, iGetOptionValue(id));
+		iOptionsDataLoading = 0;
 	}
 
 	aciAutoRun = iGetOptionValue(iAUTO_ACCELERATION);

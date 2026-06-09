@@ -36,6 +36,7 @@ export interface VssScaledRendererQuant {
 export interface VssOptionQuant {
     id: iScreenOptionId,
     value: number,
+    optionsDataLoading?: boolean,
 }
 
 export interface VssOptionQuantResult {

@@ -25,6 +25,8 @@
 
 using VisualBackendContext = renderer::visualbackend::VisualBackendContext;
 
+int iOptionsDataLoading = 0;
+
 /* ----------------------------- STRUCT SECTION ----------------------------- */
 
 // MP Game Parameters...
@@ -1103,6 +1105,7 @@ int iGetOptionValue(int id)
 		.quant(vss::OPTION_QUANT)
 		.prop("id", id)
 		.prop("value", value)
+		.prop("optionsDataLoading", iOptionsDataLoading != 0)
 		.send();
 
 	value = result.getInt("value", value);
