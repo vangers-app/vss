@@ -7,6 +7,10 @@ use futures_util::StreamExt;
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use tauri_plugin_fs::{FsExt, OpenOptions};
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use tauri::{path::BaseDirectory};
 
 // The release archive must contain `mods.json` (new declarative schema, see the
 // `mods` orphan branch of vss-geerah-super-set) alongside the mod data folders.
@@ -69,6 +73,9 @@ struct DownloadProgress {
 }
 
 fn get_vangers_steam_path() -> Option<PathBuf> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    let paths: Vec<PathBuf> = Vec::new();
+
     #[cfg(target_os = "windows")]
     let paths = vec![
         PathBuf::from("C:/Program Files (x86)/Steam/steamapps/common/Vangers"),
@@ -96,6 +103,10 @@ fn get_vangers_steam_path() -> Option<PathBuf> {
     paths.into_iter().find(|p| p.exists())
 }
 
+fn get_data_path(app: &AppHandle) -> Option<PathBuf> {
+    get_local_data_path(&app).or_else(|| get_vangers_steam_path().map(|p| p.join("data")))
+}
+
 fn mods_dir(app: &AppHandle) -> Option<PathBuf> {
     app.path().app_data_dir().ok().map(|p| p.join("mods"))
 }
@@ -114,7 +125,7 @@ fn allowed_local_file(app: &AppHandle, decoded: &str) -> Result<PathBuf, String>
             .unwrap_or(false)
     };
     // Allow files from either the Steam install or the downloaded mods dir.
-    let allowed = get_vangers_steam_path().map(&is_under).unwrap_or(false)
+    let allowed = get_data_path(app).map(&is_under).unwrap_or(false)
         || mods_dir(app).map(&is_under).unwrap_or(false);
     if allowed {
         Ok(path)
@@ -143,12 +154,37 @@ fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<LocalFile>) {
     }
 }
 
+fn get_local_data_path(app: &AppHandle) -> Option<PathBuf> {
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        let local_dir = data_dir.join("data");
+        #[cfg(target_os = "android")]
+        if !local_dir.exists() {
+            if let Some(resource) = app
+                .path()
+                .resolve("resources/game-data.zip", BaseDirectory::Resource)
+                .ok()
+            {
+                let mut opts = OpenOptions::new();
+                opts.read(true);
+                match app.fs().open(&resource, opts) {
+                    Ok(file) => extract_zip_file(&file, &local_dir).ok()?,
+                    Err(error) => eprintln!("DATA-ERROR {}", error),
+                }
+            }
+        }
+        if local_dir.exists() {
+            return Some(local_dir);
+        }
+    }
+
+    None
+}
+
 #[tauri::command]
-fn find_steam_install() -> Option<Vec<LocalFile>> {
-    let root = get_vangers_steam_path()?;
-    let data = root.join("data");
+fn find_install(app: AppHandle) -> Option<Vec<LocalFile>> {
+    let data_path = get_data_path(&app)?;
     let mut files = Vec::new();
-    walk_dir(&data, &data, &mut files);
+    walk_dir(&data_path, &data_path, &mut files);
     Some(files)
 }
 
@@ -335,6 +371,10 @@ fn find_file_dir(root: &Path, filename: &str, max_depth: usize) -> Option<PathBu
 
 fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path).map_err(|e| e.to_string())?;
+    extract_zip_file(&file, dest)
+}
+
+fn extract_zip_file(file: &fs::File, dest: &Path) -> Result<(), String> {
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
     for i in 0..archive.len() {
         if CANCEL_DOWNLOAD.load(Ordering::SeqCst) {
@@ -490,7 +530,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            find_steam_install,
+            find_install,
             toggle_devtools,
             read_local_file,
             list_mods,

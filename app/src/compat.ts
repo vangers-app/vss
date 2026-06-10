@@ -53,12 +53,12 @@ export type DownloadProgress = {
     total: number | null;
 };
 
-export async function find_steam_install() {
+export async function find_install() {
     if (!TAURI_BUILD) {
         return null;
     }
 
-    return invoke<LocalFile[] | null>('find_steam_install');
+    return invoke<LocalFile[] | null>('find_install');
 }
 
 export async function toggle_devtools() {

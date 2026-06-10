@@ -167,7 +167,7 @@ else()
 			"-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=1"
 			"-fwasm-exceptions"
 			# "-sSAFE_HEAP=2"
-			# "-sASSERTIONS=1"
+			# "-sASSERTIONS=0"
 			# "-O0"
 			# "--profiling-funcs"
 			"--js-library" "${PROJECT_SOURCE_DIR}/lib/libopfs.js"

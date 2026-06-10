@@ -18,3 +18,31 @@ Grab the latest build for your platform from the
 [GitHub Releases page](https://github.com/vangers-app/vss/releases).
 
 You also need the original game resources (maps, sounds, textures, etc.), which you can take from the game purchased on [Steam](http://store.steampowered.com/app/264080) or [GOG](http://www.gog.com/game/vangers).
+
+## Desktop APP (Linux, Windows, MacOS)
+
+Follow action build script `.github\workflows\tauri-release.yml`
+
+## Mobile APP 
+
+You must provide game data files, to do this use handy script:
+
+```
+./scripts/pack-game-data.sh <folder with data> <version>
+```
+
+Example:
+```
+./scripts/pack-game-data.sh Vangers-Steam/game_data v1
+```
+
+The output will be in etc folder.
+
+### Android
+
+Copy actual data to `src-tauri/resources/game-data.zip`:
+
+Example:
+```
+mkdir -p app/src-tauri/resources/ && cp etc/game-data-v1.zip app/src-tauri/resources/game-data.zip
+```

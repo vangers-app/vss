@@ -57,3 +57,5 @@ vangers.wasm
 
 res_gen
 emscripten
+game-data-*.zip
+.tmp

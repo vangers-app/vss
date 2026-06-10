@@ -9,7 +9,7 @@ import { installCellStyle, renderCellStyle } from "./ui/cell-style";
 import { DownloadModsButton, InventoryOpenButton, LanguageButton, Telegram } from "./mobile/controls/keys";
 import { Credits } from "./mobile/credits";
 import type { Api, Event, UIType } from "./mobile/api";
-import { find_steam_install, toggle_devtools, TAURI_BUILD } from "./compat";
+import { find_install, toggle_devtools, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
 import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
@@ -51,7 +51,7 @@ function App() {
     useEffect(() => {
         (async () => {
             (window as any).__VSS_MOBILE__ = isMobile();
-            const files = await find_steam_install();
+            const files = await find_install();
             if (files !== null) {
                 for (const { rel, abs } of files) {
                     localInstall.set(rel, abs);

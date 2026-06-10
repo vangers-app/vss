@@ -104,6 +104,7 @@ void reconfigure_runtime_fps_scaled_state(double old_coeff,double new_coeff);
 XStream fmemory("memstats.dmp", XS_OUT);
 #endif
 
+#include <renderer/visualbackend/dummy/DummyVisualBackend.h>
 #include <renderer/visualbackend/rust/RustVisualBackend.h>
 #include <renderer/visualbackend/VisualBackendContext.h>
 
@@ -627,21 +628,21 @@ int xtInitApplication(void) {
 	if ( SteamAPI_RestartAppIfNecessary( k_uAppIdInvalid ) ) {
 		// if Steam is not running or the game wasn't started through Steam, SteamAPI_RestartAppIfNecessary starts the
 		// local Steam client and also launches this game again.
-		
+
 		// Once you get a public Steam AppID assigned for this game, you need to replace k_uAppIdInvalid with it and
 		// removed steam_appid.txt from the game depot.
-		
+
 		SDL_Quit();
 	}
-	
-	
+
+
 	// Init Steam CEG
 	if ( !Steamworks_InitCEGLibrary() )	{
 		std::cout<<"Steamworks_InitCEGLibrary() failed"<<std::endl;
 		std::cout<<"Fatal Error, Steam must be running to play this game (InitDrmLibrary() failed)."<<std::endl;
 		SDL_Quit();
 	}
-	
+
 	// Initialize SteamAPI, if this fails we bail out since we depend on Steam for lots of stuff.
 	// You don't necessarily have to though if you write your code to check whether all the Steam
 	// interfaces are NULL before using them and provide alternate paths when they are unavailable.
@@ -654,10 +655,10 @@ int xtInitApplication(void) {
 		std::cout<<"Fatal Error, Steam must be running to play this game (SteamAPI_Init() failed)."<<std::endl;
 		SDL_Quit();
 	}
-	
+
 	// set our debug handler
 	//SteamClient()->SetWarningMessageHook( &SteamAPIDebugTextHook );
-	
+
 	// Tell Steam where it's overlay should show notification dialogs, this can be top right, top left,
 	// bottom right, bottom left. The default position is the bottom left if you don't call this.
 	// Generally you should use the default and not call this as users will be most comfortable with
@@ -721,7 +722,7 @@ _MEM_STATISTIC_("AFTER IQUANTFIRST INIT -> ");
 	}
 	GameQuantRTO* p = (GameQuantRTO*)xtGetRuntimeObject(RTO_GAME_QUANT_ID);
 	p -> SetTimer(RTO_GAME_QUANT_TIMER);
-	
+
 	XGR_Obj.set_fullscreen(iGetOptionValue(iFULLSCREEN));
 	iSetResolution(iGetOptionValue(iSCREEN_RESOLUTION));
 _MEM_STATISTIC_("AFTER MAIN MENU INIT -> ");
@@ -734,8 +735,8 @@ int MainMenuRTO::Quant(void)
 	char* pal;
 //znfo next line was commented in zmod
 //	ShowImageRTO* p;
-	
-	
+
+
 	MainMenuSoundQuant();
 	if(flags & RTO_QUANT_FLAG){
 		code = iQuantSecond();
@@ -758,7 +759,7 @@ int MainMenuRTO::Quant(void)
 		SetFlag(RTO_QUANT_FLAG);
 		return RTO_PALETTE_TRANSFORM_ID;
 	}
-	
+
 #else
 	return RTO_LOADING1_ID;
 #endif
@@ -768,7 +769,7 @@ void MainMenuRTO::Finit(void)
 {
 	XGR_Obj.set_is_scaled_renderer(false);
 #ifdef ISCREEN
-	
+
 	if(flags & RTO_FINIT_FLAG){
 		//actintLowResFlag = !iGetOptionValue(iSCREEN_RESOLUTION);
 		actintLowResFlag = 0;
@@ -778,7 +779,7 @@ void MainMenuRTO::Finit(void)
 		BackgroundSound = !iGetOptionValue(iBACK_SOUND);
 		iFinitQuant();
 		ClearFlag(RTO_ALL_FLAGS);
-		
+
 	}
 	else
 		SetFlag(RTO_FINIT_FLAG);
@@ -1013,7 +1014,7 @@ _MEM_STATISTIC_("AFTER curGMap  -> ");
 	uvsAddStationaryObjs();
 
 	uvsRestoreVanger();
-	
+
 #ifndef NEW_TNT
 	RestoreBarell();
 #endif
@@ -1633,7 +1634,7 @@ void KeyCenter(SDL_Event *key)
 						.prop("paused", true)
 						.send();
 			}
-				
+
 //				  GameQuantReturnValue = RTO_LOADING3_ID;
 			break;
 #ifndef ACTINT
@@ -1710,7 +1711,7 @@ void KeyCenter(SDL_Event *key)
 			vMap->__use_external_renderer = !vMap->__use_external_renderer;
 			break;
 		}
-	
+
 	if (iKeyPressed(iKEY_ZOOM_IN)) {
 		if(!Pause){
 			if((camera_zmin -= 8) < curGMap -> xsize*MIN_ZOOM >> 8)
@@ -1967,7 +1968,7 @@ void iGameMap::draw(int self)
 {
 	static XBuffer status;
 	static int blink,clcnt;
-	
+
 	if(!MuteLog && ((ConTimer.counter&7) == 0)) {
 		SoundQuant();
 	}
@@ -1996,7 +1997,7 @@ void iGameMap::draw(int self)
 			/*} catch (...) {
 				std::cout<<"ERROR:Some GameD.Quant is error."<<std::endl;
 			}*/
-			
+
 		}
 
 		// TODO: this must be refactored into a new class managing Vangers game data and VisualBackend data
@@ -2081,8 +2082,8 @@ void iGameMap::draw(int self)
 				vMap -> scaling(TurnSecX,ViewX,ViewY,xc,yc,xside,yside);
 			}
 		}
-		
-		
+
+
 		//Отрисовка 3д моделей
 		if(curGMap) {
 			GameD.DrawQuant();
@@ -2134,7 +2135,7 @@ void iGameMap::draw(int self)
 						xc-xside+80,
 						yc-yside+20+(zCHAT_ROWLIMIT*zCHAT_ROWHEIGHT)-(zCount*zCHAT_ROWHEIGHT),
 						(unsigned char*)(zChat.GetBuf()),
-						zColor, 
+						zColor,
 						zCOLOR_TRANSPARENT
 					);
 				}
@@ -2211,7 +2212,7 @@ void iGameMap::draw(int self)
 		aScrDisp -> text_redraw();
 #endif
 	};
-	
+
 }
 
 void preCALC(void)
@@ -2825,10 +2826,10 @@ void sqFont::drawchar(int x,int y,int ch,int fore,int back)
 	int i,j,m;
 	for(j = 0;j < sy;j++)
 		for(i = 0,m = 1 << sx;i < sx;i++,m >>= 1){
-            if(p[j] & m) 
+            if(p[j] & m)
 				XGR_SetPixel(x + i,y + j,fore);
 			else
-                if(back != -1) 
+                if(back != -1)
 					XGR_SetPixel(x + i,y + j,back);
 			}
 }
