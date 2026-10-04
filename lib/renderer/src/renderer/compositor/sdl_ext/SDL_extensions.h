@@ -1,7 +1,7 @@
 #ifndef LIB_RENDERER_SRC_RENDERER_CORE_SDL_EXT_SDL_EXTENSIONS
 #define LIB_RENDERER_SRC_RENDERER_CORE_SDL_EXT_SDL_EXTENSIONS
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "../../common.h"
 #include "../AbstractCompositor.h"

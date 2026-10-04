@@ -2,20 +2,19 @@
 /* ---------------------------- INCLUDE SECTION ----------------------------- */
 
 #include "../global.h"
-#include "../runtime.h"
 #include "../network.h"
-#include "../xjoystick.h"
+#include "../runtime.h"
 
 #include "ivmap.h"
 #include "iworld.h"
 
+#include "controls.h"
 #include "hfont.h"
 #include "iscreen.h"
-#include "controls.h"
 
-#include "../actint/item_api.h"
 #include "../actint/a_consts.h"
 #include "../actint/actint.h"
+#include "../actint/item_api.h"
 
 #include "i_mem.h"
 #include "ikeys.h"
@@ -148,131 +147,49 @@ extern int EffectInUsePriory,EffectInUse;
 
 extern XBuffer* iResBuf;
 
-extern char* iSTR_MP_Kills;
-extern char* iSTR_MP_Deaths;
-extern char* iSTR_MP_DeathTimeMin;
-extern char* iSTR_MP_DeathTimeMax;
-extern char* iSTR_MP_Kills_rate;
-extern char* iSTR_MP_Deaths_rate;
-extern char* iSTR_MP_Ware01_Delivery;
-extern char* iSTR_MP_Ware02_Delivery;
-extern char* iSTR_MP_Min_delivery_time;
-extern char* iSTR_MP_Max_delivery_time;
-extern char* iSTR_MP_StolenWares;
-extern char* iSTR_MP_Wares_lost;
-extern char* iSTR_MP_Total_time;
-extern char* iSTR_MP_Min_checkpoint_time;
-extern char* iSTR_MP_Max_checkpoint_time;
-extern char* iSTR_MP_1st_part_delivery;
-extern char* iSTR_MP_2nd_part_delivery;
-extern char* iSTR_MP_Mechos_frame;
-extern char* iSTR_MP_Mechos_assembled_in;
-extern char* iSTR_NONE;
-extern char* iSTR_Checkpoints_Number;
+extern const char* iSTR_MP_Kills;
+extern const char* iSTR_MP_Deaths;
+extern const char* iSTR_MP_DeathTimeMin;
+extern const char* iSTR_MP_DeathTimeMax;
+extern const char* iSTR_MP_Kills_rate;
+extern const char* iSTR_MP_Deaths_rate;
+extern const char* iSTR_MP_Ware01_Delivery;
+extern const char* iSTR_MP_Ware02_Delivery;
+extern const char* iSTR_MP_Min_delivery_time;
+extern const char* iSTR_MP_Max_delivery_time;
+extern const char* iSTR_MP_StolenWares;
+extern const char* iSTR_MP_Wares_lost;
+extern const char* iSTR_MP_Total_time;
+extern const char* iSTR_MP_Min_checkpoint_time;
+extern const char* iSTR_MP_Max_checkpoint_time;
+extern const char* iSTR_MP_1st_part_delivery;
+extern const char* iSTR_MP_2nd_part_delivery;
+extern const char* iSTR_MP_Mechos_frame;
+extern const char* iSTR_MP_Mechos_assembled_in;
+extern const char* iSTR_NONE;
+extern const char* iSTR_Checkpoints_Number;
 
-
-// English version...
-const char* iJoystickButtons1[32] =
-{
-       "JoyBT1",
-       "JoyBT2",
-       "JoyBT3",
-       "JoyBT4",
-       "JoyBT5",
-       "JoyBT6",
-       "JoyBT7",
-       "JoyBT8",
-       "JoyBT9",
-       "JoyBT10",
-       "JoyBT11",
-       "JoyBT12",
-       "JoyBT13",
-       "JoyBT14",
-       "JoyBT15",
-       "JoyBT16",
-       "JoyBT17",
-       "JoyBT18",
-       "JoyBT19",
-       "JoyBT20",
-       "JoyBT21",
-       "JoyBT22",
-       "JoyBT23",
-       "JoyBT24",
-       "JoyBT25",
-       "JoyBT26",
-       "JoyBT27",
-       "JoyBT28",
-       "JoyBT29",
-       "JoyBT30",
-       "JoyBT31",
-       "JoyBT32",
-};
-
-// Local version...
-const char* iJoystickButtons2[32] =
-{
-       "JoyBT1",
-       "JoyBT2",
-       "JoyBT3",
-       "JoyBT4",
-       "JoyBT5",
-       "JoyBT6",
-       "JoyBT7",
-       "JoyBT8",
-       "JoyBT9",
-       "JoyBT10",
-       "JoyBT11",
-       "JoyBT12",
-       "JoyBT13",
-       "JoyBT14",
-       "JoyBT15",
-       "JoyBT16",
-       "JoyBT17",
-       "JoyBT18",
-       "JoyBT19",
-       "JoyBT20",
-       "JoyBT21",
-       "JoyBT22",
-       "JoyBT23",
-       "JoyBT24",
-       "JoyBT25",
-       "JoyBT26",
-       "JoyBT27",
-       "JoyBT28",
-       "JoyBT29",
-       "JoyBT30",
-       "JoyBT31",
-       "JoyBT32",
-};
-
-// English version...
-const char* iJoystickStickSwitch1[9] =
-{
-       "JoyDownLeft",
-       "JoyDown",
-       "JoyDownRight",
-       "JoyLeft",
-       "JoyCenter",
-       "JoyRight",
-       "JoyUpLeft",
-       "JoyUp",
-       "JoyUpRight"
-};
-
-// English version...
-const char* iJoystickStickSwitch2[9] =
-{
-       "JoyDownLeft",
-       "JoyDown",
-       "JoyDownRight",
-       "JoyLeft",
-       "JoyCenter",
-       "JoyRight",
-       "JoyUpLeft",
-       "JoyUp",
-       "JoyUpRight"
-};
-
+extern const char *iSTR_MP_Kills;
+extern const char *iSTR_MP_Deaths;
+extern const char *iSTR_MP_DeathTimeMin;
+extern const char *iSTR_MP_DeathTimeMax;
+extern const char *iSTR_MP_Kills_rate;
+extern const char *iSTR_MP_Deaths_rate;
+extern const char *iSTR_MP_Ware01_Delivery;
+extern const char *iSTR_MP_Ware02_Delivery;
+extern const char *iSTR_MP_Min_delivery_time;
+extern const char *iSTR_MP_Max_delivery_time;
+extern const char *iSTR_MP_StolenWares;
+extern const char *iSTR_MP_Wares_lost;
+extern const char *iSTR_MP_Total_time;
+extern const char *iSTR_MP_Min_checkpoint_time;
+extern const char *iSTR_MP_Max_checkpoint_time;
+extern const char *iSTR_MP_1st_part_delivery;
+extern const char *iSTR_MP_2nd_part_delivery;
+extern const char *iSTR_MP_Mechos_frame;
+extern const char *iSTR_MP_Mechos_assembled_in;
+extern const char *iSTR_NONE;
+extern const char *iSTR_Checkpoints_Number;
 
 /* --------------------------- PROTOTYPE SECTION ---------------------------- */
 
@@ -373,7 +290,7 @@ iScreen* create_screen(void)
 
 	iScreen* p = iCreateScreen("ExtScreen01");
 
-/* ----------------- ‘®§¤ ­ЁҐ Ё Ё­ЁжЁ «Ё§ жЁп iScreenEvent ------------------ */
+/* ----------------- вЂВ®В§В¤ В­РЃТђ РЃ РЃВ­РЃР¶РЃ В«РЃВ§ Р¶РЃРї iScreenEvent ------------------ */
 	ev = iCreateScreenEvent();
 	ev -> time = 7;
 
@@ -385,7 +302,7 @@ iScreen* create_screen(void)
 	ev -> add_command(ec);
 
 	ec = iCreateEventCommand();
-	ec -> EvType = EV_RISE_SCREEN;		// ’ЁЇл Є®¬ ­¤ - enum EventTypes ў ISCREEN.H
+	ec -> EvType = EV_RISE_SCREEN;		// вЂ™РЃР‡Р» Р„В®В¬ В­В¤ - enum EventTypes Сћ ISCREEN.H
 	ec -> time = 3;
 	ec -> start_time = 4;
 
@@ -394,8 +311,8 @@ iScreen* create_screen(void)
 	ec = iCreateEventCommand();
 	ec -> EvType = EV_SCREEN_JUMP;
 	ec -> init_objID("Main Screen");
-	ec -> objType = I_SCREEN;		// ’ЁЇ ®ЎкҐЄв , б Є®в®ал¬ а Ў®в Ґв Є®¬ ­¤ :
-						// enum EvObjTypes ў ISCREEN.H
+	ec -> objType = I_SCREEN;		// вЂ™РЃР‡ В®РЋРєТђР„РІ , Р± Р„В®РІВ®Р°Р»В¬ Р° РЋВ®РІ ТђРІ Р„В®В¬ В­В¤ :
+						// enum EvObjTypes Сћ ISCREEN.H
 	ec -> start_time = 3;
 
 	ev -> add_command(ec);
@@ -407,15 +324,15 @@ iScreen* create_screen(void)
 	p -> add_event((iListElement*)ev);
 /* -------------------------------------------------------------------------- */
 
-/* ----------------- ‘®§¤ ­ЁҐ Ё Ё­ЁжЁ «Ё§ жЁп iScreenObject ----------------- */
+/* ----------------- вЂВ®В§В¤ В­РЃТђ РЃ РЃВ­РЃР¶РЃ В«РЃВ§ Р¶РЃРї iScreenObject ----------------- */
 	obj = iCreateScreenObject("Obj00");
-	obj -> align_x = ALIGN_R;		// ‘¬. enum AlignTypes ў ISCREEN.H
+	obj -> align_x = ALIGN_R;		// вЂВ¬. enum AlignTypes Сћ ISCREEN.H
 	obj -> align_x_offs = 30;
 	obj -> align_y = ALIGN_CENTER;
 
 	// ---------- iBitmapElement (begin) ----------
-	iBitmapElement* bt = (iBitmapElement*)iCreateScreenElement(I_BITMAP_ELEM);	// ’ЁЇл н«Ґ¬Ґ­в®ў - enum iElementTypes ў ISCREEN.H
-	bt -> init_name("bitmap/coin.bmp");    // €¬п BMP,§ ¤ ­ЁҐ Ё¬Ґ­Ё н«Ґ¬Ґ­в  - init_id(char* p)
+	iBitmapElement* bt = (iBitmapElement*)iCreateScreenElement(I_BITMAP_ELEM);	// вЂ™РЃР‡Р» РЅВ«ТђВ¬ТђВ­РІВ®Сћ - enum iElementTypes Сћ ISCREEN.H
+	bt -> init_name("bitmap/coin.bmp");    // в‚¬В¬Рї BMP,В§ В¤ В­РЃТђ РЃВ¬ТђВ­РЃ РЅВ«ТђВ¬ТђВ­РІ  - init_id(char* p)
 
 	bt -> align_x = ALIGN_CENTER;
 	bt -> align_y = ALIGN_CENTER;
@@ -458,14 +375,14 @@ iScreen* create_screen(void)
 
 	p -> add_object(obj);
 
-/* ----------------- ‘®§¤ ­ЁҐ Ё Ё­ЁжЁ «Ё§ жЁп iTriggerObject ----------------- */
+/* ----------------- вЂВ®В§В¤ В­РЃТђ РЃ РЃВ­РЃР¶РЃ В«РЃВ§ Р¶РЃРї iTriggerObject ----------------- */
 	iTriggerObject* trg = iCreateTriggerObject("Test trigger");
 	trg -> align_x = ALIGN_L;
 	trg -> align_x_offs = 30;
 
-	trg -> PosY = 250;		// ‡ ¤ ­ЁҐ Є®®а¤Ё­ вл ®ЎкҐЄв  ­ Їап¬го,
-					// Ґб«Ё гбв ­®ўЁвм ҐйҐ Ё align_y, в® Є®®а¤Ё­ в 
-					// Ё§¬Ґ­Ёвбп Ї®б«Ґ ўл§®ў  init() ў б®®вўҐвбвўЁЁ б align_y
+	trg -> PosY = 250;		// вЂЎ В¤ В­РЃТђ Р„В®В®Р°В¤РЃВ­ РІР» В®РЋРєТђР„РІ  В­ Р‡Р°РїВ¬РіРѕ,
+					// ТђР±В«РЃ РіР±РІ В­В®СћРЃРІРј ТђР№Тђ РЃ align_y, РІВ® Р„В®В®Р°В¤РЃВ­ РІ 
+					// РЃВ§В¬ТђВ­РЃРІР±Рї Р‡В®Р±В«Тђ СћР»В§В®Сћ  init() Сћ Р±В®В®РІСћТђРІР±РІСћРЃРЃ Р± align_y
 	trg -> num_state = 3;
 	trg -> alloc_state();
 
@@ -524,7 +441,7 @@ iScreen* create_screen(void)
 	p -> add_object(trg);
 /* -------------------------------------------------------------------------- */
 
-/* ----- ‘®§¤ ­ЁҐ б¬ бив ЎЁа®ў ­­®© ®Ў« бвЁ (®ЎкҐЄв  б iTerrainElement) ----- */
+/* ----- вЂВ®В§В¤ В­РЃТђ Р±В¬ Р±РёРІ РЋРЃР°В®Сћ В­В­В®В© В®РЋВ« Р±РІРЃ (В®РЋРєТђР„РІ  Р± iTerrainElement) ----- */
 
 	obj = iCreateScreenObject("TERRAIN_OBJECT");
 	obj -> PosY = 150;
@@ -546,7 +463,7 @@ iScreen* create_screen(void)
 	p -> add_terr_object(obj);		// !!!
 /* -------------------------------------------------------------------------- */
 
-/* ------------------- ‘®§¤ ­ЁҐ Ё Ё­ЁжЁ «Ё§ жЁп бЄа®««Ґа  ------------------- */
+/* ------------------- вЂВ®В§В¤ В­РЃТђ РЃ РЃВ­РЃР¶РЃ В«РЃВ§ Р¶РЃРї Р±Р„Р°В®В«В«ТђР°  ------------------- */
 
 	obj = iCreateScreenObject("Scroller object");
 
@@ -554,8 +471,8 @@ iScreen* create_screen(void)
 	obj -> align_x = ALIGN_L;
 	obj -> align_x_offs = 30;
 	// ---------- iScrollerElement (begin) ----------
-	iScrollerElement* scl = (iScrollerElement*)iCreateScreenElement(I_SCROLLER_ELEM,"Test scroller");       // ‡¤Ґбм Ё¬  н«Ґ¬Ґ­в  § ¤ Ґвбп, в.Є. ­  ­ҐЈ®
-														// Ўг¤гв ббл«ЄЁ Ё§ б®ЎлвЁ©
+	iScrollerElement* scl = (iScrollerElement*)iCreateScreenElement(I_SCROLLER_ELEM,"Test scroller");       // вЂЎВ¤ТђР±Рј РЃВ¬  РЅВ«ТђВ¬ТђВ­РІ  В§ В¤ ТђРІР±Рї, РІ.Р„. В­  В­ТђР€В®
+														// РЋРіВ¤РіРІ Р±Р±Р»В«Р„РЃ РЃВ§ Р±В®РЋР»РІРЃВ©
 	scl -> init_name("bitmap/scroller.bmp");
 	scl -> bmp_null_level = 110;
 
@@ -588,7 +505,7 @@ iScreen* create_screen(void)
 
 /* -------------------------------------------------------------------------- */
 
-/* ------------------ ‘®§¤ ­ЁҐ Ё Ё­ЁжЁ «Ё§ жЁп AVI ®ЎкҐЄв  ------------------ */
+/* ------------------ вЂВ®В§В¤ В­РЃТђ РЃ РЃВ­РЃР¶РЃ В«РЃВ§ Р¶РЃРї AVI В®РЋРєТђР„РІ  ------------------ */
 
 	obj = iCreateScreenObject("AVI object");
 	obj -> align_x = obj -> align_y = ALIGN_CENTER;
@@ -745,28 +662,17 @@ void iPrepareOptions(void)
 	iScrOpt[iMPGAME3_ID] = new iScreenOption(iSTRING,0,"Select Game","GameStr3");
 	iScrOpt[iMPGAME4_ID] = new iScreenOption(iSTRING,0,"Select Game","GameStr4");
 
-	iScrOpt[iMPGAME0_ID] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iMPGAME1_ID] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iMPGAME2_ID] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iMPGAME3_ID] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iMPGAME4_ID] -> flags |= iOPTION_NO_SAVE;
-
-	iScrOpt[iCUR_MPGAME_ID] = new iScreenOption(iSTRING,0,"Server Config screen","GameNameStr");
-	iScrOpt[iCUR_MPGAME_ID] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iCUR_MPGAME_ID2] = new iScreenOption(iSTRING,0,"Server Info screen","GameNameStr");
-	iScrOpt[iCUR_MPGAME_ID2] -> flags |= iOPTION_NO_SAVE;
+	iScrOpt[iCUR_MPGAME_ID] = new iScreenOption(iSTRING, 0, "Server Config screen", "GameNameStr");
+	iScrOpt[iCUR_MPGAME_ID2] = new iScreenOption(iSTRING, 0, "Server Info screen", "GameNameStr");
 
 	iScrOpt[iCUR_MPGAME_ID] -> add_link(iScrOpt[iCUR_MPGAME_ID2]);
 	iScrOpt[iCUR_MPGAME_ID2] -> add_link(iScrOpt[iCUR_MPGAME_ID]);
 
-	iScrOpt[iHOST_NAME] = new iScreenOption(iSTRING,0,"INet Host screen","HostName");
-	iScrOpt[iIP_ADDRESS] = new iScreenOption(iSTRING,0,"INet Host screen","IP_AddrID");
-	iScrOpt[iIP_ADDRESS] -> flags |= iOPTION_NO_SAVE;
+	iScrOpt[iHOST_NAME] = new iScreenOption(iSTRING, 0, "INet Host screen", "HostName");
+	iScrOpt[iIP_ADDRESS] = new iScreenOption(iSTRING, 0, "INet Host screen", "IP_AddrID");
 
-	iScrOpt[iKEEP_IN_USE] = new iScreenOption(iSTRING,0,"Graphics screen","InUseStr");
-	iScrOpt[iKEEP_IN_USE] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iKEEP_CLEAN_UP] = new iScreenOption(iSTRING,0,"Graphics screen","CleanUpStr");
-	iScrOpt[iKEEP_CLEAN_UP] -> flags |= iOPTION_NO_SAVE;
+	iScrOpt[iKEEP_IN_USE] = new iScreenOption(iSTRING, 0, "Graphics screen", "InUseStr");
+	iScrOpt[iKEEP_CLEAN_UP] = new iScreenOption(iSTRING, 0, "Graphics screen", "CleanUpStr");
 
 	iScrOpt[iKEEP_MODE] = new iScreenOption(iTRIGGER,0,"Graphics screen","KeepTrig");
 	iScrOpt[iDESTR_MODE] = new iScreenOption(iTRIGGER,0,"Graphics screen","DestrTrig");
@@ -777,13 +683,12 @@ void iPrepareOptions(void)
 
 	iScrOpt[iSERVER_PORT] = new iScreenOption(iSTRING,0,"Port screen","PortStrID");
 
-	iScrOpt[iPROXY_SERVER_STR] = new iScreenOption(iSTRING,0,"INet Host screen","ProxyServerStrID");
-	iScrOpt[iPROXY_SERVER_STR] -> flags |= iOPTION_NO_SAVE;
-	iScrOpt[iPROXY_PORT_STR] = new iScreenOption(iSTRING,0,"INet Host screen","ProxyPortStrID");
-	iScrOpt[iPROXY_PORT_STR] -> flags |= iOPTION_NO_SAVE;
-	
-	//Stalkerg hack for save fake menu options.
-	iScrOpt[iCAMERA_TURN] = new iScreenOption(iTRIGGER,0,NULL,"CameraTurn");
+	iScrOpt[iPROXY_SERVER_STR] =
+		new iScreenOption(iSTRING, 0, "INet Host screen", "ProxyServerStrID");
+	iScrOpt[iPROXY_PORT_STR] = new iScreenOption(iSTRING, 0, "INet Host screen", "ProxyPortStrID");
+
+	// Camera settings are shared with the in-game ACI and have no main-menu object.
+	iScrOpt[iCAMERA_TURN] = new iScreenOption(iTRIGGER, 0, NULL, "CameraTurn");
 	iScrOpt[iCAMERA_TURN]->objPtr = new iTriggerObject();
 	iScrOpt[iCAMERA_SLOPE] = new iScreenOption(iTRIGGER,0,NULL,"CameraSlope");
 	iScrOpt[iCAMERA_SLOPE]->objPtr = new iTriggerObject();
@@ -805,9 +710,7 @@ void iPrepareOptions(void)
 	iPrepareControls();
 }
 
-iScreenOption::iScreenOption(int tp,int vtp,const char* scr,const char* obj)
-{
-	flags = 0;
+iScreenOption::iScreenOption(int tp, int vtp, const char *scr, const char *obj) {
 	ObjectType = tp;
 	ValueType = vtp;
 	objPtr = iGetObject(scr,obj);
@@ -858,108 +761,10 @@ int iScreenOption::GetValueINT(void)
 	return ret;
 }
 
-void iScreenOption::save(XStream* fh)
-{
-	int ret = 0;
-	char* ptr;
-
-	if(flags & iOPTION_NO_SAVE) return;
-
-	if(objPtr){
-		switch(ObjectType){
-			case iTRIGGER:
-				if(ValueType == iOPTION_VALUE_CUR)
-					ret = ((iTriggerObject*)objPtr) -> state;
-				else
-					ret = ((iTriggerObject*)objPtr) -> num_state;
-				*fh < ret;
-				break;
-			case iSCROLLER:
-				if(ValueType == iOPTION_VALUE_CUR)
-					ret = ((iScrollerElement*)objPtr) -> Value;
-				else
-					ret = ((iScrollerElement*)objPtr) -> maxValue;
-				*fh < ret;
-				break;
-			case iSTRING:
-				if(ValueType == iOPTION_VALUE_CUR){
-					ptr = ((iStringElement*)objPtr) -> string;
-					ret = strlen(ptr);
-					*fh < ret;
-					fh -> write(ptr,ret);
-				}
-				break;
-			case iS_STRING:
-				if(ValueType == iOPTION_VALUE_CUR){
-					ptr = ((iS_StringElement*)objPtr) -> string;
-					ret = strlen(ptr);
-					*fh < ret;
-					fh -> write(ptr,ret);
-				}
-				break;
-		}
-	}
-}
-
-void iScreenOption::load(XStream* fh)
-{
-	int ret = 0;
-	char* ptr;
-	iScreenObject* obj;
-
-	if(flags & iOPTION_NO_SAVE) return;
-
-	if(objPtr){
-		switch(ObjectType){
-			case iTRIGGER:
-				*fh > ret;
-				if(ValueType == iOPTION_VALUE_CUR)
-					((iTriggerObject*)objPtr) -> state = ret;
-				else
-					((iTriggerObject*)objPtr) -> num_state = ret;
-				((iTriggerObject*)objPtr) -> trigger_init();
-				break;
-			case iSCROLLER:
-				*fh > ret;
-				if(ValueType == iOPTION_VALUE_CUR)
-					((iScrollerElement*)objPtr) -> Value = ret;
-				else
-					((iScrollerElement*)objPtr) -> maxValue = ret;
-				((iScrollerElement*)objPtr) -> scroller_init();
-				break;
-			case iSTRING:
-				if(ValueType == iOPTION_VALUE_CUR){
-					*fh > ret;
-					ptr = ((iStringElement*)objPtr) -> string;
-					fh -> read(ptr,ret);
-					ptr[ret] = ptr[ret + 1] = 0;
-					((iStringElement*)objPtr) -> init_size();
-					((iStringElement*)objPtr) -> init_align();
-					obj = (iScreenObject*)((iStringElement*)objPtr) -> owner;
-					obj -> flags |= OBJ_REINIT;
-				}
-				break;
-			case iS_STRING:
-				if(ValueType == iOPTION_VALUE_CUR){
-					*fh > ret;
-					ptr = ((iS_StringElement*)objPtr) -> string;
-					fh -> read(ptr,ret);
-					ptr[ret] = ptr[ret + 1] = 0;
-					((iS_StringElement*)objPtr) -> init_size();
-					((iS_StringElement*)objPtr) -> init_align();
-					obj = (iScreenObject*)((iS_StringElement*)objPtr) -> owner;
-					obj -> flags |= OBJ_REINIT;
-				}
-				break;
-		}
-	}
-}
-
-void iScreenOption::SetValueINT(int val)
-{
-	iScreenOptionPtr* p = (iScreenOptionPtr*)pLinks -> fPtr;
-	if(objPtr){
-		switch(ObjectType){
+void iScreenOption::SetValueINT(int val) {
+	iScreenOptionPtr *p = (iScreenOptionPtr *)pLinks->fPtr;
+	if (objPtr) {
+		switch (ObjectType) {
 			case iTRIGGER:
 				if(ValueType == iOPTION_VALUE_CUR){
 					((iTriggerObject*)objPtr) -> state = val;
@@ -1198,13 +1003,6 @@ void iInitControlObjects(void)
 			index = i * iKEY_OBJECT_SIZE + j;
 			if(iControlsStr[index]) {
 				key = iGetControlCode(i, j);
-				//NEED Full Rewrite
-				/*if(!(key & iJOYSTICK_MASK)){
-					str = iGetKeyNameText(key,lang());
-				}
-				else {
-					str = iGetJoyBtnNameText(key,lang());
-				}*/
 				str = iGetKeyNameText(key, lang(), true);
 				
 				if (str) {
@@ -2027,7 +1825,7 @@ void iSortPlayers(int mode)
 
 	iNumPlayers = 0;
 	for(i = 0; i < num; i ++){
-		// Играющие отображаются всегда, прошедшие - только в результатах игры
+		// РРіСЂР°СЋС‰РёРµ РѕС‚РѕР±СЂР°Р¶Р°СЋС‚СЃСЏ РІСЃРµРіРґР°, РїСЂРѕС€РµРґС€РёРµ - С‚РѕР»СЊРєРѕ РІ СЂРµР·СѓР»СЊС‚Р°С‚Р°С… РёРіСЂС‹
 		if(p -> name && (p -> status == GAMING_STATUS || (p -> status == FINISHED_STATUS && !mode))){
 			iPlayers[iNumPlayers] = p;
 			iPlayerRatings[iNumPlayers] = p -> body.rating;
@@ -2413,60 +2211,10 @@ void iPreparePlayerResults(int id)
 }
 
 const char* STR_NONE1 = "NONE";
-const char STR_NONE2[] = {(char)0x8D, (char)0x85, (char)0x92, (char)0x00}; //cp866 - НЕТ
+const char STR_NONE2[] = {(char)0x8D, (char)0x85, (char)0x92, (char)0x00}; //cp866 - РќР•Рў
 
-const char* STR_JOYSTICK_KEY_NAME[] = {
-	"jbutton_1",
-	"jbutton_2",
-	"jbutton_3",
-	"jbutton_4",
-	"jbutton_5",
-	"jbutton_6",
-	"jbutton_7",
-	"jbutton_8",
-	"jbutton_9",
-	"jbutton_10",
-	"jbutton_11",
-	"jbutton_12",
-	"jbutton_13",
-	"jbutton_14",
-	"jbutton_15",
-	"jbutton_16",
-	"jbutton_17",
-	"jbutton_18",
-	"jbutton_19",
-	"jbutton_20",
-	"jbutton_21"
-};
-
-const char* get_joystick_hat_name(int key) {
-	switch(key) {
-		case SDL_HAT_CENTERED:
-			return "jhat_centered";
-		case SDL_HAT_UP:
-			return "jhat_up";
-		case SDL_HAT_RIGHT:
-			return "jhat_right";
-		case SDL_HAT_DOWN:
-			return "jhat_down";
-		case SDL_HAT_LEFT:
-			return "jhat_left";
-		case SDL_HAT_RIGHTUP:
-			return "jhat_rightup";
-		case SDL_HAT_RIGHTDOWN:
-			return "jhat_rightdown";
-		case SDL_HAT_LEFTUP:
-			return "jhat_leftup";
-		case SDL_HAT_LEFTDOWN:
-			return "jhat_leftdown";
-			
-	}
-	return "jhat_unknow";
-}
-
-const char* iGetKeyNameText(int vkey, Language lang, bool scan)
-{
-	//std::cout<<"iGetKeyNameText:"<<vkey<<" lang:"<<lang<<std::endl;
+const char *iGetKeyNameText(int vkey, Language lang, bool scan) {
+	// std::cout<<"iGetKeyNameText:"<<vkey<<" lang:"<<lang<<std::endl;
 	/*char* ret = NULL;
 	if(vkey >= 0 && vkey < 256){
 		ret = (lang) ? iKeyNamesText2[vkey] : iKeyNamesText1[vkey];
@@ -2481,55 +2229,21 @@ const char* iGetKeyNameText(int vkey, Language lang, bool scan)
 			return STR_NONE1;
 		}
 	}
-	if (vkey & SDLK_JOYSTICK_BUTTON_MASK) {
-		if ((vkey ^ SDLK_JOYSTICK_BUTTON_MASK) < 20)
-			return STR_JOYSTICK_KEY_NAME[vkey ^ SDLK_JOYSTICK_BUTTON_MASK];
-		else
-			return "jbutton_unknow";
-	} else if (vkey & SDLK_GAMECONTROLLER_BUTTON_MASK) {
-		return SDL_GameControllerGetStringForButton( (SDL_GameControllerButton)(vkey ^ SDLK_GAMECONTROLLER_BUTTON_MASK));
-	} else if (vkey & SDLK_JOYSTICK_HAT_MASK) {
-		return get_joystick_hat_name( (vkey ^ SDLK_JOYSTICK_HAT_MASK) % 10 );
+	if (vkey & SDLK_GAMEPAD_BUTTON_MASK) {
+		return SDL_GetGamepadStringForButton((SDL_GamepadButton)(vkey ^ SDLK_GAMEPAD_BUTTON_MASK));
 	} else if (vkey & SDLK_SCANCODE_MASK) {
-		return SDL_GetKeyName(vkey);
+		return SDL_GetKeyName((SDL_Keycode)vkey);
 	} else if (scan) {
 		return SDL_GetScancodeName((SDL_Scancode)vkey);
 	} else {
-		return SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)vkey));
+		return SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)vkey, SDL_KMOD_NONE, false));
 	}
 }
 
-const char* iGetJoyBtnNameText(int vkey, Language lang)
-{
-	const char* ret;
-	if(vkey & VK_BUTTON){
-		if(vkey >= VK_BUTTON_1 && vkey <= VK_BUTTON_32) {
-			ret = (lang == RUSSIAN)
-				? iJoystickButtons2[vkey - VK_BUTTON_1]
-				: iJoystickButtons1[vkey - VK_BUTTON_1];
-			return ret;
-		}
-		else
-			return NULL; //WARNING NEED VIEW!!!
-	}
-	if(vkey & VK_STICK_SWITCH){
-		if(vkey >= VK_STICK_SWITCH_1 && vkey <= VK_STICK_SWITCH_9) {
-			ret = (lang == RUSSIAN)
-				? iJoystickStickSwitch2[vkey - VK_STICK_SWITCH_1]
-				: iJoystickStickSwitch1[vkey - VK_STICK_SWITCH_1];
-			return ret;
-		}
-		else
-			return NULL; //WARNING NEED VIEW!!! 
-	}
-	return NULL; //WARNING NEED VIEW!!!
-}
-
-void iPrepareHallOfFame(void)
-{
-	int i,num;
-	RatingData* p;
-	XBuffer XPlace,XNum;
+void iPrepareHallOfFame(void) {
+	int i, num;
+	RatingData *p;
+	XBuffer XPlace, XNum;
 	TopList top_list(iCurHall);
 
 	XNum.digits = 3;

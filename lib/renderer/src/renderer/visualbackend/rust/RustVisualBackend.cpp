@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <algorithm>
 
 #include "RustVisualBackend.h"
@@ -37,7 +37,7 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 		//TODO: consider "render-full"
 		.render_config = "res/ffi/render-compat.ron",
 #endif
-		.gl_functor = SDL_GL_GetProcAddress,
+		.gl_functor = (rv_gl_functor)SDL_GL_GetProcAddress,
 	};
 
 	std::cout << "rv_init(context=" << _context << ", {" << std::endl

@@ -1,6 +1,6 @@
 #include "xglobal.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 extern "C" const char* sys_fileOpenQuant(const char* file, unsigned flags);
 

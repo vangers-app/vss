@@ -1,6 +1,7 @@
 
 #ifndef __ZIP_RESOURCE_H__
 #define __ZIP_RESOURCE_H__
+#include "xglobal.h"
 
 class XZIP_FileHeader 
 {

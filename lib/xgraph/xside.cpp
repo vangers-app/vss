@@ -116,20 +116,20 @@ void XGR_RenderSides(renderer::compositor::AbstractCompositor* renderer, int ren
 	if (HDLeftSideTexture.is_valid()) {
 		renderer->texture_query(HDLeftSideTexture, &width, nullptr, nullptr, nullptr);
 		renderer->texture_render(HDLeftSideTexture, {}, {
-			.x = 0,
-			.y = 0,
-			.width = width,
-			.height = xgrScreenSizeY,
+			0,
+			0,
+			width,
+			xgrScreenSizeY,
 			});
 	}
 
 	if (HDRightSideTexture.is_valid()) {
 		renderer->texture_query(HDRightSideTexture, &width, nullptr, nullptr, nullptr);
 		renderer->texture_render(HDRightSideTexture, {}, {
-			.x = xgrScreenSizeX - (int32_t)width, 
-			.y = 0,
-			.width = width,
-			.height = xgrScreenSizeY,
+			xgrScreenSizeX - (int32_t)width,
+			0,
+			width,
+			xgrScreenSizeY,
 			});
 	}
 }

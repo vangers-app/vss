@@ -1,7 +1,7 @@
 #ifndef __ACI_SCR_H__
 #define __ACI_SCR_H__
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 // aciScreenResource::type values...
 #define ACS_NONE	0
@@ -28,9 +28,7 @@ struct aciScreenResource : XListElement
 	virtual void load(void){ };
 	virtual void free(void){ };
 
-	virtual void change_coords(int dx,int dy) { 
-		std::cout<<"aciScreenResource::change_coords(dx="<<dx<<", dy="<<dy<<")"<<std::endl;
-	};
+	virtual void change_coords(int dx,int dy) { };
 
 	virtual void redraw(int x,int y,int frame,int mode) {};
 
@@ -442,6 +440,5 @@ void acsFreeResource(aciScreenResource* p);
 aciScreenObject* acsAllocObject(int type);
 void acsFreeObject(aciScreenObject* p);
 int sdlEventToCode(SDL_Event *event);
-unsigned char UTF8toCP866(unsigned short utf);
 
 #endif

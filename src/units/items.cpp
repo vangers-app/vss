@@ -10,34 +10,34 @@
 #include "../3d/parser.h"
 #include <renderer/visualbackend/VisualBackendContext.h>
 
+#include "../backg.h"
 #include "../common.h"
 #include "../sqexp.h"
-#include "../backg.h"
 
 #include "../actint/item_api.h"
-#include "uvsapi.h"
 #include "../network.h"
+#include "uvsapi.h"
 
+#include "../terra/render.h"
 #include "../terra/vmap.h"
 #include "../terra/world.h"
-#include "../terra/render.h"
 
 #include "../uvs/univang.h"
 
-#include "../particle/particle.h"
 #include "../particle/df.h"
-#include "../particle/partmap.h"
 #include "../particle/light.h"
+#include "../particle/particle.h"
+#include "../particle/partmap.h"
 
 #include "../dast/poly3d.h"
 
-#include "track.h"
-#include "hobj.h"
-#include "moveland.h"
-#include "items.h"
-#include "sensor.h"
 #include "effect.h"
+#include "hobj.h"
+#include "items.h"
 #include "mechos.h"
+#include "moveland.h"
+#include "sensor.h"
+#include "track.h"
 
 #include "../sound/hsound.h"
 #include "magnum.h"
@@ -45,9 +45,9 @@
 #include <cstdio>
 
 extern int RAM16;
-extern iGameMap* curGMap;
-extern uchar* FireColorTable;
-extern int frame; // kdsplus.cpp
+extern iGameMap *curGMap;
+extern uchar *FireColorTable;
+extern int frame;
 
 const char DEBRIS_LIFE_TIME = 100;
 
@@ -75,9 +75,19 @@ static int CheckLiveVangerPointer(VangerUnit* p)
 	return 0;
 };
 
-static void NetworkLogStuffObject(const char* tag,StuffObject* p,const char* extra)
-{
-	if(!p)
+static int should_play_spheroid_activation_sound(VangerUnit *owner) {
+	if (!ActD.Active || !owner)
+		return 0;
+	if (!NetworkON)
+		return 1;
+	if (owner == ActD.Active)
+		return 1;
+	return owner->Visibility == VISIBLE && owner->ExternalDraw &&
+		   !(owner->Status & SOBJ_WAIT_CONFIRMATION);
+}
+
+static void NetworkLogStuffObject(const char *tag, StuffObject *p, const char *extra) {
+	if (!p)
 		return;
 	network_log_item_event(tag,
 		p->NetID,
@@ -806,8 +816,8 @@ void StuffObject::Quant(void)
 	if(NetworkON && (Status & SOBJ_WAIT_CONFIRMATION)) NetOwnerQuant();
 	lv = Visibility;
 	GetVisible();	
-	if(lv != Visibility && model_instance_handle.handle != 0)
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+	if(lv != Visibility)
+		set_external_model_visible(Visibility == VISIBLE);
 
 	if(Status & SOBJ_WAIT_CONFIRMATION) return;
 
@@ -965,6 +975,8 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 	destroy_model_instance();
 	Object::operator = (ModelD.ActiveModel(ModelID));
 	external_model_handle = ModelD.ModelHandles[ModelID];
+	external_frame_model_handles = ModelD.FrameModelHandles[ModelID];
+	external_model_index = ModelID;
 	create_model_instance();
 	Owner = NULL;
 	ItemD.ConnectTypeList(this);
@@ -974,8 +986,8 @@ void StuffObject::CreateStuff(const Vector& _v,StuffObject* p,int cMode)
 	cycleTor(R_curr.x,R_curr.y);
 	set_active(0);	
 	GetVisible();
-	if(model_instance_handle.handle != 0)
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,Visibility == VISIBLE);
+	set_external_model_visible(Visibility == VISIBLE);
+
 	switch_analysis(0);
 	CreateMode = cMode;
 	CycleTime = 0;
@@ -1155,14 +1167,14 @@ void GunDevice::DeviceIn(void)
 	if(pData->BulletID == BULLET_TYPE_ID::HYPNOTISE){
 		switch(ActIntBuffer.type){
 			case ACI_AMPUTATOR:
-				EffD.CreateDeform(Owner->R_curr,DEFORM_ALL,PASSING_WAVE_PROCESS);
-				if(ActD.Active)
-					SOUND_AMPUTATOR_SHOT(getDistX(ActD.Active->R_curr.x,Owner->R_curr.x));
-				break;
-			case ACI_DEGRADATOR:
-				EffD.CreateDeform(Owner->R_curr,DEFORM_ALL,PASSING_WAVE_PROCESS);
-				if(ActD.Active)
-					SOUND_DEGRADATOR_SHOT(getDistX(ActD.Active->R_curr.x,Owner->R_curr.x));
+			EffD.CreateDeform(Owner->R_curr, DEFORM_ALL, PASSING_WAVE_PROCESS);
+			if (should_play_spheroid_activation_sound(Owner))
+				SOUND_AMPUTATOR_SHOT(getDistX(ActD.Active->R_curr.x, Owner->R_curr.x));
+			break;
+		case ACI_DEGRADATOR:
+			EffD.CreateDeform(Owner->R_curr, DEFORM_ALL, PASSING_WAVE_PROCESS);
+			if (should_play_spheroid_activation_sound(Owner))
+				SOUND_DEGRADATOR_SHOT(getDistX(ActD.Active->R_curr.x, Owner->R_curr.x));
 				break;
 			case ACI_MECHOSCOPE:
 				if(NetworkON){

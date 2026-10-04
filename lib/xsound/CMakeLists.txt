@@ -15,8 +15,12 @@ else()
 	list(APPEND xsound_SRCS "${PROJECT_SOURCE_DIR}/overrides/ffmpeg/avi.cpp")
 endif()
 
+ADD_LIBRARY(xsound STATIC ${xsound_SRCS})
+TARGET_LINK_LIBRARIES(xsound PRIVATE
+	${FFMPEG_LIBRARIES}
+	${OGG_LIBRARY}
+	${VORBIS_LIBRARY}
+	${VORBISFILE_LIBRARY}
+)
 
-ADD_LIBRARY(xsound OBJECT ${xsound_SRCS})
-if(CLUNK_EXTERNAL_TARGET)
-	add_dependencies(xsound ${CLUNK_EXTERNAL_TARGET})
-endif()
+TARGET_LINK_LIBRARIES(xsound PUBLIC Clunk::Clunk SDL3::SDL3)

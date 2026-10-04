@@ -1,10 +1,10 @@
-#include "xerrhand.h"
 #include "port.h"
+#include "xerrhand.h"
 #include <stdlib.h>
 
-#include <SDL.h>
-#include <iostream>
+#include <SDL3/SDL.h>
 #include <ctime>
+#include <iostream>
 
 XErrorHandler ErrH;
 
@@ -13,8 +13,14 @@ XErrorHandler::XErrorHandler(void)
 #ifndef __HAIKU__
 	log_name = "logfile.txt";
 #else
-	log_name = SDL_GetPrefPath("KranX Productions", "Vangers");
-	log_name += "/logfile.txt";
+	char *prefPath = SDL_GetPrefPath("KranX Productions", "Vangers");
+	if (prefPath) {
+		log_name = prefPath;
+		SDL_free(prefPath);
+		log_name += "logfile.txt";
+	} else {
+		log_name = "logfile.txt";
+	}
 #endif
 }
 
@@ -63,14 +69,14 @@ void XErrorHandler::Abort(const char* message, int code, int val, const char* su
   if (subj)
     stream<<"Subj:"<<subj<<std::endl<<std::endl;
 
-  char * basePath = SDL_GetBasePath();
-  stream<<"Please send:" << std::endl <<
-    " - this message," << std::endl <<
-	" - logfile from " << (basePath ? basePath : "N/A") << log_name.c_str() << "," << std::endl <<
-    " - your savegame" << std::endl <<
-    "to https://t.me/vangers or https://github.com/KranX/Vangers";
-  SDL_free(basePath);
-
+	const char *basePath = SDL_GetBasePath();
+	stream << "Please send:" << std::endl
+		<< " - this message," << std::endl
+		<< " - logfile from " << (basePath ? basePath : "N/A") << log_name.c_str() << ","
+		<< std::endl
+		<< " - your savegame" << std::endl
+		<< "to https://t.me/vangers or https://github.com/KranX/Vangers";
+	SDL_free((void *)basePath);
   std::string str =  stream.str();
   std::cout<<str;
 

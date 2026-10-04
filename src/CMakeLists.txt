@@ -17,6 +17,24 @@ ELSE()
 	)
 ENDIF()
 
+ADD_LIBRARY(vangers_settings STATIC
+	settings/gamepad_mapping.cpp
+	settings/input_binding.cpp
+	settings/legacy_settings_import.cpp
+	settings/settings.cpp
+	settings/settings_io.cpp
+	settings/text_encoding.cpp
+)
+
+TARGET_INCLUDE_DIRECTORIES(vangers_settings PUBLIC
+	"${PROJECT_SOURCE_DIR}/src"
+)
+
+TARGET_LINK_LIBRARIES(vangers_settings PRIVATE
+	SDL3::SDL3
+	toml11::toml11
+)
+
 SET(vangers_SRCS
 	3d/3d_math.cpp
 	3d/3dgraph.cpp
@@ -44,6 +62,7 @@ SET(vangers_SRCS
 	iscreen/iscript.cpp
 	iscreen/ivmap.cpp
 	iscreen/script.cpp
+	iscreen/settings_adapter.cpp
 	iscreen/smooth.cpp
 	network.cpp
 	palette.cpp
@@ -78,7 +97,7 @@ SET(vangers_SRCS
 	uvs/diagen.cpp
 	uvs/screen.cpp
 	uvs/univang.cpp
-	xjoystick.cpp
+	xgamepad.cpp
 	xsocket.cpp
 	zmod_client.cpp
 	${WINDOWS_RES}
@@ -112,11 +131,7 @@ if (ANDROID)
 		$<TARGET_OBJECTS:glad>
 	)
 else()
-	ADD_EXECUTABLE(vangers ${vangers_SRCS} ${vss_SRCS}
-		$<TARGET_OBJECTS:xtool>
-		$<TARGET_OBJECTS:xgraph>
-		$<TARGET_OBJECTS:xsound>
-	)
+	ADD_EXECUTABLE(vangers ${vangers_SRCS} ${vss_SRCS})
 
 	IF(WIN32)
 		SET(WIN_LIB
@@ -127,24 +142,81 @@ else()
 		)
 	ENDIF(WIN32)
 
-	TARGET_LINK_LIBRARIES(vangers
-		${SDL2_LIBRARY}
-		${OGG_LIBRARY}
-		${VORBIS_LIBRARY}
-		${VORBISFILE_LIBRARY}
-		${CLUNK_LIBRARY}
-		${SDL2_NET_LIBRARY}
-		${FFMPEG_LIBRARIES}
-		${ZLIB_LIBRARIES}
-		${OPENGL_LIBRARIES}
-		${WIN_LIB}
-		${STEAM_LIBS}
-		renderer
+	IF(MSVC)
+		# rusty-vangers' Rust std pulls in the Win32 socket API (WSASocketW,
+		# getaddrinfo, ...), the NT file API used by std::fs, and the user
+		# profile directory lookup. MinGW gets these via lib/renderer.
+		SET(WIN_LIB ${WIN_LIB}
+			ws2_32
+			advapi32
+			ntdll
+			userenv
+			bcrypt
+		)
+	ENDIF(MSVC)
+
+	endif(ANDROID)
+
+IF(BINARY_SCRIPT)
+	TARGET_COMPILE_DEFINITIONS(vangers PRIVATE _BINARY_SCRIPT_)
+ENDIF()
+
+function(CONFIGURE_VANGERS_TARGET target_name)
+	TARGET_LINK_LIBRARIES(${target_name} PRIVATE
+	vangers_settings
+	SDL3::SDL3
+	SDL3_net::SDL3_net
+	Clunk::Clunk
+	${OGG_LIBRARY}
+	${VORBIS_LIBRARY}
+	${VORBISFILE_LIBRARY}
+	${FFMPEG_LIBRARIES}
+	${ZLIB_LIBRARIES}
+	${OPENGL_LIBRARIES}
+	${WIN_LIB}
+	${STEAM_LIBS}
+	renderer
+)
+
+	if (NOT ANDROID)
+		TARGET_LINK_LIBRARIES(${target_name} PRIVATE
 		xtool
 		xgraph
 		xsound
+		glad
 	)
+	endif()
+endfunction()
+
+CONFIGURE_VANGERS_TARGET(vangers)
+
+if (NOT ANDROID)
+	ADD_EXECUTABLE(vangers_iscreen_compiler EXCLUDE_FROM_ALL
+		${vangers_SRCS}
+		iscreen/script_compiler.cpp
+	)
+	TARGET_COMPILE_DEFINITIONS(vangers_iscreen_compiler PRIVATE ISCREEN_SCRIPT_COMPILER)
+	CONFIGURE_VANGERS_TARGET(vangers_iscreen_compiler)
+
+	ADD_CUSTOM_TARGET(compile_iscreen_scripts
+		COMMAND ${CMAKE_COMMAND} -E chdir "${PROJECT_SOURCE_DIR}/data"
+			"$<TARGET_FILE:vangers_iscreen_compiler>" --compile-iscreen
+			iscreen/oftr.scr resource/iscreen/oftr.scb
+		COMMAND ${CMAKE_COMMAND} -E chdir "${PROJECT_SOURCE_DIR}/data"
+			"$<TARGET_FILE:vangers_iscreen_compiler>" --compile-iscreen
+			iscreen/oftr2.scr resource/iscreen/oftr2.scb
+		DEPENDS vangers_iscreen_compiler
+		COMMENT "Compiling English and Russian interface scripts"
+		USES_TERMINAL
+		VERBATIM
+	)
+endif()
 	IF(EMSCRIPTEN)
+		# SDL3::SDL3 above is a header-only interface target (there is no SDL3
+		# config package under Emscripten), so -sUSE_SDL=3 has to reach the link
+		# line explicitly or every SDL_* call ends up undefined. There is
+		# deliberately no -sUSE_SDL_NET=3: emscripten ships no sdl3-net port.
+		target_link_options(vangers PRIVATE "-sUSE_SDL=3")
 		target_link_options(vangers PRIVATE
 			"SHELL:--preload-file ${PROJECT_SOURCE_DIR}/vange-rs/res@/res/"
 			"-sMIN_WEBGL_VERSION=2"
@@ -179,4 +251,3 @@ else()
 			COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_SOURCE_DIR}/app/public"
 			COMMAND ${CMAKE_COMMAND} -E rename "$<TARGET_FILE_DIR:vangers>/vangers.data" "${PROJECT_SOURCE_DIR}/app/public/vangers.data")
 	ENDIF(EMSCRIPTEN)
-endif(ANDROID)

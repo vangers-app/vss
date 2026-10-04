@@ -1,6 +1,6 @@
 #include "html5.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #ifdef EMSCRIPTEN
 #include <emscripten.h>

@@ -1,40 +1,38 @@
 /* ---------------------------- INCLUDE SECTION ----------------------------- */
 
 #include "../global.h"
+#include "../settings/settings.h"
 #include "../sound/hsound.h"
 
 
 #include "../network.h"
-#include "../xjoystick.h"
+#include "../xgamepad.h"
 
+#include "i_str.h"
 #include "ivmap.h"
 #include "iworld.h"
-#include "i_str.h"
 
 #include "hfont.h"
-#include "iscreen.h"
-#include "iscript.h"
 #include "i_mem.h"
 #include "ikeys.h"
+#include "iscreen.h"
+#include "iscript.h"
+#include "settings_adapter.h"
 
 #include "controls.h"
 
 #include "ext_evnt.h"
 
-#include "../actint/item_api.h"
 #include "../actint/a_consts.h"
 #include "../actint/actint.h"
+#include "../actint/item_api.h"
 
 #include "../actint/mlconsts.h"
 #include "../actint/mlstruct.h"
 
-#include "../actint/acsconst.h"
 #include "../actint/aci_evnt.h"
 #include "../actint/aci_scr.h"
-
-#ifndef _WIN32
-#include <arpa/inet.h> // ntohl() FIXME: remove
-#endif
+#include "../actint/acsconst.h"
 
 #include "../sound/hmusic.h"
 #include "../sound/hsound.h"
@@ -59,8 +57,6 @@ extern iStringElement** iControlsStr;
 extern int MusicON;
 extern int SoundVolumePanning;
 extern int KeepON;
-
-extern int RecorderMode;
 
 extern int iCurMultiGame;
 extern int SoundVolumeCD;
@@ -100,7 +96,7 @@ extern int IsMainMenu;
 extern bool autoconnect;
 extern char *autoconnectHost;
 extern unsigned short  autoconnectPort;
-extern int  autoconnectJoinGame;
+extern bool autoconnectJoinGame;
 extern int  autoconnectGameID;
 
 /* --------------------------- PROTOTYPE SECTION ---------------------------- */
@@ -110,7 +106,7 @@ int iGetEscaveTime(void);
 void aciVMapPrepare(void);
 
 void iPrepareHallOfFame(void);
-void iBlockJoystickOption(int mode);
+void iBlockGamepadOption(int mode);
 void iInitProxyOptions(void);
 //#define iMOVE_MOUSE_OBJECTS
 
@@ -177,6 +173,12 @@ void ipal_iter(int r);
 
 void iKeyTrap(int k);
 
+static int gamepad_menu_navigation_code(SDL_GamepadButton button);
+static bool gamepad_shop_active();
+static bool gamepad_shop_menu_active();
+static int gamepad_shop_back_code();
+static int gamepad_shop_category_code(SDL_GamepadButton button);
+
 void iInitMultiGames(void);
 
 void aci_setMatrixBorder(void);
@@ -196,7 +198,7 @@ void aciSwapMatrices(void);
 void aciCancelMatrix(void);
 void aciShowScMatrix(void);
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 void aciChangeMouseItem(void);
 void iMapShot(void);
 #endif
@@ -276,15 +278,13 @@ void aMS_RightPress(int, int, int);
 void aMS_RightUnpress(int, int, int);
 void aMS_Movement(int, int, int);
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 void aciResizeItem(double delta);
 #endif
 
 void iSecondInit(void);
 
 /* --------------------------- DEFINITION SECTION --------------------------- */
-
-#define _SAVE_SCREEN_
 
 const int  iFRAME_CYCLE = 10;
 
@@ -340,7 +340,7 @@ int iEndGameFlag = 0;
 int iCurHall = 0;
 int iEscaveTimer = 0;
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 int iTimerLog = 1;
 int iBoundsLog = 0;
 
@@ -594,7 +594,7 @@ void iQuantFirst(void)
 #ifndef _ACI_SKIP_MAINMENU_
         iSetOptionValueCHR(iPLAYER_NAME2, (lang() == RUSSIAN ? "‚ ­ЈҐа" : "Vanger"));
         iSetOptionValueCHR(iPLAYER_PASSWORD, iSTR_DefaultPassword);
-        iSetOptionValueCHR(iHOST_NAME, "cloud.kdlab.com");
+        iSetOptionValueCHR(iHOST_NAME, "v5.vangers.net");
         iSetOptionValueCHR(iSERVER_NAME, iSTR_NONE);
         iSetOptionValueCHR(iPROXY_SERVER, "192.1.1.1");
         iSetOptionValueCHR(iPROXY_PORT, "1080");
@@ -734,7 +734,7 @@ void iQuantPrepare(void)
 int iQuantSecond(void)
 {
 	SDL_Event *k;
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 	int cr;
 	int count = 0;
 	XBuffer* XBufBMP,*XBufPAL;
@@ -787,37 +787,87 @@ int iQuantSecond(void)
 					k = KeyBuf -> get();
 					if(iChatON)
 						iChatKeyQuant(k);
-					if((k->type == SDL_KEYDOWN && k->key.keysym.scancode == SDL_SCANCODE_ESCAPE) && actIntLog){
+					if ((k->type == SDL_EVENT_KEY_DOWN && k->key.scancode == SDL_SCANCODE_ESCAPE) &&
+						actIntLog) {
+						if (!iPause)
+							ipal_iter(iScreenOffs);
 						iPause ^= 1;
-						acsScreenID = 2;
+						// ACS_PAUSE_SCREEN2 is the 800-wide variant (actint/acs_main.inc:
+						// PAUSE_RES_X 800, resources in resource/actint/iscreen/pause/). This handler
+						// runs on a base, where I_RES_X is 800; SCREEN1 is the 640x480 variant and
+						// centres its panel on 640, landing it 80px left. SCREEN1 stays right for the
+						// world, which is 640x480 (road.cpp, and the pause exits in ascr_fnc.cpp).
+						acsScreenID = ACS_PAUSE_SCREEN2;
 						if (iPause) {
 							XGR_Obj.fill(0, XGR_Obj.get_2d_render_buffer());
 							XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
 						}
 					}
 
-//					if(k->type == SDL_KEYDOWN && k->key.keysym.scancode == SDL_SCANCODE_F11) {
-					if(iKeyPressed(iKEY_SCREENSHOT)) {
+					//					if(k->type == SDL_EVENT_KEY_DOWN && k->key.scancode ==
+					// SDL_SCANCODE_F11) {
+					if (iKeyPressed(iKEY_SCREENSHOT)) {
 						shotFlush();
 					}
 
-					if (k->type == SDL_KEYDOWN || k->type == SDL_KEYUP) {
-						iKeyTrap(k->key.keysym.scancode);
-					} else if (k->type == SDL_JOYBUTTONDOWN || k->type == SDL_JOYBUTTONUP) {
-						iKeyTrap(k->jbutton.button | SDLK_JOYSTICK_BUTTON_MASK);
-					} else if (k->type == SDL_CONTROLLERBUTTONDOWN || k->type == SDL_CONTROLLERBUTTONUP) {
-						iKeyTrap(k->cbutton.button | SDLK_GAMECONTROLLER_BUTTON_MASK);
-					} else if (k->type == SDL_JOYHATMOTION) {
-						iKeyTrap((k->jhat.value + 10*k->jhat.hat) | SDLK_JOYSTICK_HAT_MASK);
+					if (k->type == SDL_EVENT_KEY_DOWN || k->type == SDL_EVENT_KEY_UP) {
+						if (k->type == SDL_EVENT_KEY_DOWN && XGamepadGeneratedKeyEvent(*k) &&
+							k->key.scancode == SDL_SCANCODE_RETURN && gamepad_shop_active() &&
+							!(aScrDisp->flags & AS_INV_MOVE_ITEM) && !gamepad_shop_menu_active() &&
+							!iScrDisp->ActiveEv) {
+							iScreenObject *preview =
+								(iScreenObject *)iScrDisp->curScr->get_object("Avi00");
+							if (!iScrDisp->curScr->HandlePrimaryAction(preview))
+						iKeyTrap(k->key.scancode);
+						} else {
+							iKeyTrap(k->key.scancode);
+						}
+					} else if (k->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+							   k->type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
+						const auto button = static_cast<SDL_GamepadButton>(k->gbutton.button);
+						int code = button | SDLK_GAMEPAD_BUTTON_MASK;
+						if (k->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+							XGamepadIsControllingCursor() &&
+							!SDL_TextInputActive(XGR_Obj.get_window())) {
+							if (XGamepadButtonMatchesAction("menu_cancel", button)) {
+								if (gamepad_shop_active() &&
+									!(aScrDisp->flags & AS_INV_MOVE_ITEM)) {
+									code = gamepad_shop_back_code();
+								} else if (!actIntLog) {
+									code = SDL_SCANCODE_ESCAPE;
+								}
+							} else if (gamepad_shop_active() &&
+									   !(aScrDisp->flags & AS_INV_MOVE_ITEM) &&
+									   button == SDL_GAMEPAD_BUTTON_DPAD_LEFT) {
+								code = gamepad_shop_back_code();
+							} else if (gamepad_shop_active() &&
+									   !(aScrDisp->flags & AS_INV_MOVE_ITEM) &&
+									   button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT) {
+								// The shop is the rightmost Escave screen. Item browsing uses
+								// the vertical list, so Right has no second spatial destination.
+								code = button | SDLK_GAMEPAD_BUTTON_MASK;
+							} else if (gamepad_shop_active() &&
+									   !(aScrDisp->flags & AS_INV_MOVE_ITEM) &&
+									   (button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER ||
+										   button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
+								code = gamepad_shop_category_code(button);
+								XGamepadUseFocusNavigation();
+							} else if (gamepad_shop_active() &&
+									   !(aScrDisp->flags & AS_INV_MOVE_ITEM) &&
+									   !gamepad_shop_menu_active() &&
+									   (button == SDL_GAMEPAD_BUTTON_DPAD_UP ||
+										   button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
+								code = SDL_SCANCODE_RETURN;
+							} else {
+								code = gamepad_menu_navigation_code(button);
+							}
+						}
+						iKeyTrap(code);
+					}
 					}
 				}
-			} /*else {
-				k = JoystickWhatsPressedNow();
-				if(k)
-					KeyBuf -> put(k,CUR_KEY_PRESSED);
-			}*/
-			if(iScrDisp -> flags & MS_LEFT_PRESS){
-				iScrDisp -> flags &= ~MS_LEFT_PRESS;
+			if (iScrDisp->flags & MS_LEFT_PRESS) {
+				iScrDisp->flags &= ~MS_LEFT_PRESS;
 				iKeyTrap(iMOUSE_LEFT_PRESS_CODE);
 				if(iChatON) iChatMouseQuant(iMouseX,iMouseY,1);
 			}
@@ -1801,13 +1851,13 @@ void aciShowLocation(void)
 	//XGR_Flush(0,0,XGR_MAXX,XGR_MAXY);
 	//i_evince_pal(iscrPal,8);
 
-	timer = CLOCK();
-	for(i = 0; i < ACI_DOOR_DELAY; i ++){
-		while(CLOCK() < timer + I_TIME_DELTA){
+	Uint64 door_timer = CLOCK();
+	for (i = 0; i < ACI_DOOR_DELAY; i++) {
+		while (CLOCK() < door_timer + I_TIME_DELTA) {
 			xtClearMessageQueue();
 		}
 		SlowCDTRACK();
-		timer = CLOCK();
+		door_timer = CLOCK();
 	}
 
 	SOUND_GATE();
@@ -2098,37 +2148,23 @@ void iUnlockExit(void)
 void iSaveData(void)
 {
 #ifndef _ACI_SKIP_MAINMENU_
-	if(!RecorderMode){
-		XStream fh("options.dat",XS_OUT);
-		iScrDisp -> save_data(&fh);
-//		fh < aciAutoRun;
-		fh < iGetOptionValue(iAUTO_ACCELERATION);
-		fh.close();
-	}
+	vangers::settings::capture_settings_from_interface();
+	vangers::settings::save_settings();
 #endif
 }
 
-void iLoadData(void)
-{
-	XStream fh(0);
+void iLoadData(void) {
+	vangers::settings::apply_settings_to_interface();
 
-	if(!RecorderMode){
-		if(fh.open("options.dat",XS_IN)){
-			iScrDisp -> load_data(&fh);
-			fh > aciAutoRun;
-			fh.close();
-		}
-
-		// These options live in localStorage (see the vss-default-options
-		// addon). iGetOptionValue() routes through vss and returns the
-		// localStorage value, so this pulls it back into the C++ option state:
-		// the options screen, options.dat persistence and gameplay all follow
-		// localStorage instead of whatever options.dat happened to contain.
-		iOptionsDataLoading = 1;
-		for(int id : {iFPS_60, iAUTO_ACCELERATION, iCAMERA_TURN, iCAMERA_SLOPE})
-			iSetOptionValue(id, iGetOptionValue(id));
-		iOptionsDataLoading = 0;
-	}
+	// These options live in localStorage (see the vss-default-options
+	// addon). iGetOptionValue() routes through vss and returns the
+	// localStorage value, so this pulls it back into the C++ option state:
+	// the options screen, settings.toml persistence and gameplay all follow
+	// localStorage instead of whatever options.dat happened to contain.
+	iOptionsDataLoading = 1;
+	for (int id : {iFPS_60, iAUTO_ACCELERATION, iCAMERA_TURN, iCAMERA_SLOPE})
+		iSetOptionValue(id, iGetOptionValue(id));
+	iOptionsDataLoading = 0;
 
 	aciAutoRun = iGetOptionValue(iAUTO_ACCELERATION);
 
@@ -2179,10 +2215,78 @@ void iKeyTrap(int k)
 	}
 }
 
-void i_mem_putspr(int x,int y,int sx,int sy,unsigned char* ptr)
-{
-	int i,j,_x,_y,_x1,_y1,_sx,_sy,dx = 0,dy = 0;
-	unsigned char* scrBuf,*memBuf;
+static int gamepad_menu_navigation_code(SDL_GamepadButton button) {
+	switch (button) {
+	case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		return SDL_SCANCODE_UP;
+	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		return SDL_SCANCODE_DOWN;
+	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		return SDL_SCANCODE_LEFT;
+	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		return SDL_SCANCODE_RIGHT;
+	default:
+		return button | SDLK_GAMEPAD_BUTTON_MASK;
+	}
+}
+
+static bool gamepad_shop_active() {
+	return actIntLog && aScrDisp && (aScrDisp->flags & AS_ISCREEN_INV_MODE);
+}
+
+static bool gamepad_shop_menu_active() {
+	if (!gamepad_shop_active())
+		return false;
+	fncMenu *menu = aScrDisp->get_imenu(SHOP_ITEMS_MENU_ID);
+	return menu && (menu->flags & FM_ACTIVE);
+}
+
+static int gamepad_shop_back_code() {
+	return gamepad_shop_menu_active() ? SDL_SCANCODE_RETURN : SDL_SCANCODE_TAB;
+}
+
+static int gamepad_shop_category_code(SDL_GamepadButton button) {
+	int category;
+	switch (iEvLineID) {
+	case WEAPONS_MODE:
+	case WEAPONS_LIST_MODE:
+	case CHANGE_2_WEAPONS_MODE:
+		category = 0;
+		break;
+	case MECHOS_MODE:
+	case MECHOS_LIST_MODE:
+	case CHANGE_2_MECHOS_MODE:
+		category = 1;
+		break;
+	case ITEMS_MODE:
+	case ITEMS_LIST_MODE:
+	case CHANGE_2_ITEMS_MODE:
+		category = 2;
+		break;
+	default:
+		return button | SDLK_GAMEPAD_BUTTON_MASK;
+	}
+
+	if (button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
+		category = (category + 2) % 3;
+	else if (button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
+		category = (category + 1) % 3;
+	else
+		return button | SDLK_GAMEPAD_BUTTON_MASK;
+
+	switch (category) {
+	case 0:
+		return SDL_SCANCODE_F1;
+	case 1:
+		return SDL_SCANCODE_F2;
+	default:
+		return SDL_SCANCODE_F3;
+	}
+}
+
+void i_mem_putspr(int x, int y, int sx, int sy, unsigned char *ptr) {
+	int i, j, _x, _y, _x1, _y1, _sx, _sy, dx = 0, dy = 0;
+	unsigned char *scrBuf, *memBuf;
 
 	_x = (x > 0) ? x : 0;
 	_y = (y > 0) ? y : 0;
@@ -2240,12 +2344,15 @@ void iHandleExtEvent(int code,int data)
 			iInitProxyOptions();
 			break;
 		case iEXT_INIT_JOYSTICK_OBJ:
-			iBlockJoystickOption(JoystickAvailable);
+		iBlockGamepadOption(XGamepadIsAvailable());
 			break;
-		case iEXT_INIT_JOYSTICK:
-			JoystickMode = iGetOptionValue(iJOYSTICK_TYPE);
-			JoystickStickSwitchButton = iGetControlCode(iKEY_JOYSTICK_SWITCH);
+	case iEXT_INIT_JOYSTICK: {
+		auto &manager = vangers::settings::settings_manager();
+		if (!manager.is_loaded())
+			manager.load();
+		manager.get_mutable().input.controller.enabled = iGetOptionValue(iJOYSTICK_TYPE) != 0;
 			break;
+	}
 		case iEXT_UPDATE_SOUND_MODE:
 			if(!iGetOptionValue(iSOUND_ON)) {
 				EffectInUsePriory = 1;
@@ -2634,7 +2741,7 @@ ServerFindChain* iGetCurServer(void)
 	return p;
 }
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 int iMapShotCount = 0;
 void iMapShot(void)
 {
@@ -3039,12 +3146,11 @@ void iWriteScreenSummary(void)
 }
 #endif
 
-void iBlockJoystickOption(int mode)
-{
-	iScreenObject* obj = (iScreenObject*)iGetObject("Controls screen2","Joystick Option");
-	if(obj){
-		if(mode)
-			obj -> flags &= ~OBJ_LOCKED;
+void iBlockGamepadOption(int mode) {
+	iScreenObject *obj = (iScreenObject *)iGetObject("Controls screen2", "Joystick Option");
+	if (obj) {
+		if (mode)
+			obj->flags &= ~OBJ_LOCKED;
 		else
 			obj -> flags |= OBJ_LOCKED;
 	}
@@ -3134,13 +3240,7 @@ void aciShowLocationPicture(void)
 	i_evince_pal(iscrPal,8);
 }
 
-void iGetIP(void)
-{
-	//Should be BigEndian in anycase
-	int IP = XSocketLocalHostExternADDR.host;
-	XBuffer XBuf;
-
-	XBuf <= (IP & 0xff) < "." <= ((IP >> 8) & 0xff) < "." <= ((IP >> 16) & 0xff) < "." <= ((IP >> 24) & 0xff);
-	iSetOptionValueCHR(iIP_ADDRESS,XBuf.address());
+void iGetIP(void) {
+	iSetOptionValueCHR(iIP_ADDRESS, XSocketLocalHostExternalAddress.c_str());
 }
 

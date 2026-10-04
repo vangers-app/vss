@@ -25,8 +25,7 @@ struct ScriptFileBuffer
 	ScriptFileBuffer* prev;
 	ScriptFileBuffer* next;
 
-	void save(XStream* fh);
-	void load(XStream* fh);
+	void load(XStream *fh);
 
 	ScriptFileBuffer(void);
 	~ScriptFileBuffer(void);

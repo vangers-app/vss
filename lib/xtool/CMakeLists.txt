@@ -1,6 +1,5 @@
 SET(xtool_SRCS
 	xtcore.cpp
-	xrecorder/xrec.cpp
 	port.cpp
 	xerrhead.cpp
 	xbuffer/xbcnvin.cpp
@@ -31,6 +30,13 @@ ENDIF(DXSTREAM_DEBUG)
 
 INCLUDE_DIRECTORIES(BEFORE . "${PROJECT_SOURCE_DIR}/lib/renderer/src")
 
-ADD_LIBRARY(xtool OBJECT ${xtool_SRCS})
+if (ANDROID)
+	ADD_LIBRARY(xtool OBJECT ${xtool_SRCS})
+else()
+	ADD_LIBRARY(xtool STATIC ${xtool_SRCS})
+	TARGET_LINK_LIBRARIES(xtool PRIVATE ${WIN_DBG})
+endif()
+
+TARGET_LINK_LIBRARIES(xtool PUBLIC SDL3::SDL3)
 
 TARGET_COMPILE_DEFINITIONS (xtool PUBLIC "-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"" "-DGIT_BRANCH=\"${GIT_BRANCH}\"" "-DGITHUB_COMMIT_HASH=\"$ENV{GITHUB_SHA}\"" "-DGITHUB_BRANCH=\"$ENV{GITHUB_REF_NAME}\"")

@@ -14,8 +14,8 @@
     $Date: 2008-01-03 18:35:39 $
 */
 /*---------------------------- Includes ------------------------------------*/
-#include <ctype.h>
 #include "iniparser.h"
+#include <ctype.h>
 
 extern const char* sys_fileOpenQuant(const char* file, unsigned flags);
 

@@ -1,19 +1,20 @@
 /* ---------------------------- INCLUDE SECTION ----------------------------- */
 
-#include "../global.h"
 #include "../common.h"
+#include "../global.h"
+#include "../settings/text_encoding.h"
 
 #include "ikeys.h"
 
 #include "hfont.h"
-#include "iscreen.h"
 #include "i_mem.h"
+#include "iscreen.h"
 
-#include "../actint/item_api.h"
 #include "../actint/a_consts.h"
-#include "../actint/actint.h"
-#include "../actint/mlstruct.h"
 #include "../actint/aci_scr.h"
+#include "../actint/actint.h"
+#include "../actint/item_api.h"
+#include "../actint/mlstruct.h"
 
 #include "../sound/hsound.h"
 #include "avi.h"
@@ -25,7 +26,7 @@
 
 /* ----------------------------- EXTERN SECTION ----------------------------- */
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 extern int iBoundsLog;
 #endif
 
@@ -36,8 +37,7 @@ extern int actIntLog;
 extern actIntDispatcher* aScrDisp;
 extern unsigned char* aciCurColorScheme;
 
-
-extern char* AVInotFound;
+extern const char *AVInotFound;
 
 extern int iFrameFlag;
 
@@ -98,8 +98,8 @@ void i_pal_quant(unsigned char* pal_buf,int lev,int n_lev);
 
 void aci_SendEvent(int cd,int dt = 0);
 
-#ifdef _DEBUG
-void map_rectangle(int x,int y,int sx,int sy,int col);
+#ifdef _LEGACY_VS_DEBUG
+void map_rectangle(int x, int y, int sx, int sy, int col);
 #endif
 
 /* --------------------------- DEFINITION SECTION --------------------------- */
@@ -629,6 +629,7 @@ iBitmapElement::iBitmapElement(void)
 iScrollerElement::iScrollerElement(void)
 {
 	Value = maxValue = dir = 0;
+	keyboard_delta = 0;
 	space = I_DEFAULT_SPACE;
 	bmp_null_level = I_LEVEL;
 
@@ -919,9 +920,25 @@ void iScrollerElement::change_val(int x,int y)
 	scale = (Value > prevValue) ? -256 : 256;
 }
 
-void iScrollerElement::scroller_init(void)
-{
+void iScrollerElement::change_value_by(int delta) {
 	prevValue = Value;
+	Value += delta;
+	if (Value < 0)
+		Value = 0;
+	if (Value > maxValue)
+		Value = maxValue;
+
+	if (Value > prevValue)
+		scale = -256;
+	else if (Value < prevValue)
+		scale = 256;
+	else
+		scale = 0;
+}
+
+void iScrollerElement::scroller_init(void) {
+	prevValue = Value;
+	keyboard_delta = 0;
 }
 
 iTerrainElement::iTerrainElement(void)
@@ -1981,9 +1998,9 @@ void iScreenObject::redraw(int mode)
 			p -> redraw(PosX,PosY,curHeightScale,SmoothLevel,hide_mode);
 		p = (iScreenElement*)p -> prev;
 	}
-#ifdef _DEBUG
-	if(iBoundsLog)
-		map_rectangle(PosX + 1,PosY + 1,SizeX - 2,SizeY - 2,111);
+#ifdef _LEGACY_VS_DEBUG
+	if (iBoundsLog)
+		map_rectangle(PosX + 1, PosY + 1, SizeX - 2, SizeY - 2, 111);
 #endif
 	if(!(flags & OBJ_AVI_PRESENT) || flags & OBJ_AVI_STOPPED){
 		if(FlushX == -1){
@@ -2216,12 +2233,71 @@ void iScreen::HandleEvent(iScreenEvent* ev)
 	}
 }
 
-void iScreen::CheckScanCode(int sc)
-{
-	int x = 0,y = 0,mouse_sc = 0;
-	iScreenObject* obj;
-	iListElement* cd;
-	iScreenEvent* p;
+bool iScreen::HandlePrimaryAction(iScreenObject *target) {
+	if (!target || iScrDisp->ActiveEv)
+		return false;
+
+	iScreenEvent *event = (iScreenEvent *)target->EventList->last;
+	while (event && !iScrDisp->ActiveEv) {
+		if (bool(target->flags & OBJ_LOCKED) == bool(event->flags & EV_IF_LOCKED) &&
+			(!(event->flags & EV_IF_SELECTED) || target->flags & OBJ_SELECTED) &&
+			(!(event->flags & EV_IF_NOT_SELECTED) || !(target->flags & OBJ_SELECTED))) {
+			iListElement *code = event->codes->last;
+			while (code && !iScrDisp->ActiveEv) {
+				if (((iScanCode *)code)->code == iMOUSE_LEFT_PRESS_CODE)
+					HandleEvent(event);
+				code = code->prev;
+			}
+		}
+		event = (iScreenEvent *)event->prev;
+	}
+
+	return iScrDisp->ActiveEv != NULL;
+}
+
+static bool has_primary_mouse_action(iScreenObject *obj) {
+	iScreenEvent *event = (iScreenEvent *)obj->EventList->last;
+	while (event) {
+		iListElement *code = event->codes->last;
+		while (code) {
+			if (((iScanCode *)code)->code == iMOUSE_LEFT_PRESS_CODE)
+				return true;
+			code = code->prev;
+		}
+		event = (iScreenEvent *)event->prev;
+	}
+	return false;
+}
+
+static bool is_focus_target(iScreenObject *obj) {
+	return obj && ((obj->flags & OBJ_SELECTABLE) || has_primary_mouse_action(obj));
+}
+
+static bool is_focused_object(iScreenObject *obj) {
+	return is_focus_target(obj) && (obj->flags & OBJ_SELECTED);
+}
+
+static void move_cursor_to_focus(iScreenObject *obj) {
+	int x = obj->PosX + obj->SizeX / 2 - iScreenOffs;
+	int y = obj->PosY + obj->SizeY / 2;
+	if (x < 0)
+		x = 0;
+	else if (x >= XGR_MAXX)
+		x = XGR_MAXX - 1;
+	if (y < 0)
+		y = 0;
+	else if (y >= XGR_MAXY)
+		y = XGR_MAXY - 1;
+
+	XGR_MouseSetPos(x, y);
+	XGR_MouseMove(0, XGR_MouseObj.PosX, XGR_MouseObj.PosY);
+}
+
+void iScreen::CheckScanCode(int sc) {
+	int x = 0, y = 0, mouse_sc = 0;
+	iScreenObject *obj;
+	iListElement *cd;
+	iScreenEvent *p;
 
 	if(sc < 0){
 		mouse_sc = 1;
@@ -2229,12 +2305,16 @@ void iScreen::CheckScanCode(int sc)
 		y = iMouseY;
 	}
 
-	obj = (iScreenObject*)objList -> last;
-	while(obj){
-		if(!iScrDisp -> ActiveEv){
-			if(!mouse_sc || obj -> CheckXY(x,y)){
-				p = (iScreenEvent*)obj -> EventList -> last;
-				while(p){
+	const bool focused_confirmation = !actIntLog && !mouse_sc &&
+									  (sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_SPACE) &&
+									  is_focused_object(curObj);
+
+	obj = (iScreenObject *)objList->last;
+	while (obj) {
+		if (!iScrDisp->ActiveEv) {
+			if ((!focused_confirmation || obj == curObj) && (!mouse_sc || obj->CheckXY(x, y))) {
+				p = (iScreenEvent *)obj->EventList->last;
+				while (p) {
 					if (bool(obj->flags & OBJ_LOCKED) == bool(p->flags & EV_IF_LOCKED)) {
 						cd = p -> codes -> last;
 						while(cd){
@@ -2260,6 +2340,147 @@ void iScreen::CheckScanCode(int sc)
 				cd = cd -> prev;
 			}
 			p = (iScreenEvent*)p -> prev;
+		}
+	}
+
+	iScrollerElement *selected_scroller = NULL;
+	if (is_focused_object(curObj)) {
+		iScreenElement *element = (iScreenElement *)curObj->ElementList->last;
+		while (element && !selected_scroller) {
+			if (element->type == I_SCROLLER_ELEM)
+				selected_scroller = (iScrollerElement *)element;
+			element = (iScreenElement *)element->prev;
+		}
+	}
+
+	// A focused object without an explicit keyboard action uses its existing
+	// primary mouse action for keyboard and gamepad confirmation.
+	if (!iScrDisp->ActiveEv && !mouse_sc && is_focused_object(curObj) &&
+		(sc == SDL_SCANCODE_RETURN || sc == SDL_SCANCODE_SPACE)) {
+		if (selected_scroller)
+			selected_scroller->keyboard_delta = 1;
+		HandlePrimaryAction(curObj);
+		if (!iScrDisp->ActiveEv && selected_scroller)
+			selected_scroller->keyboard_delta = 0;
+	}
+
+	// Left/right changes a focused option in place. Scrollers retain their
+	// existing event, including the setting-specific update callback.
+	if (!iScrDisp->ActiveEv && !mouse_sc && is_focused_object(curObj) &&
+		(sc == SDL_SCANCODE_LEFT || sc == SDL_SCANCODE_RIGHT) &&
+		(selected_scroller || curObj->flags & OBJ_TRIGGER)) {
+		if (selected_scroller)
+			selected_scroller->keyboard_delta = sc == SDL_SCANCODE_LEFT ? -1 : 1;
+		HandlePrimaryAction(curObj);
+		if (!iScrDisp->ActiveEv && selected_scroller)
+			selected_scroller->keyboard_delta = 0;
+	}
+
+	// Explicit script navigation has priority. If it did not handle an arrow or Tab,
+	// navigate the focusable objects as rows and columns. Vertical navigation
+	// advances to the nearest row first, while horizontal navigation stays in
+	// the current row first. Wrap at the edge so every options screen can be
+	// traversed cyclically.
+	if (!iScrDisp->ActiveEv && !mouse_sc && is_focused_object(curObj) &&
+		(sc == SDL_SCANCODE_UP || sc == SDL_SCANCODE_DOWN || sc == SDL_SCANCODE_LEFT ||
+			sc == SDL_SCANCODE_RIGHT || sc == SDL_SCANCODE_TAB)) {
+		const int navigation_sc = sc == SDL_SCANCODE_TAB ? SDL_SCANCODE_DOWN : sc;
+		const int current_x = curObj->PosX + curObj->SizeX / 2;
+		const int current_y = curObj->PosY + curObj->SizeY / 2;
+		iScreenObject *next_obj = NULL;
+		iScreenObject *wrap_obj = NULL;
+		int best_primary = -1;
+		int best_secondary = -1;
+		int best_wrap_primary = -1;
+		int best_wrap_secondary = -1;
+		const bool vertical =
+			navigation_sc == SDL_SCANCODE_UP || navigation_sc == SDL_SCANCODE_DOWN;
+
+		obj = (iScreenObject *)objList->last;
+		while (obj) {
+			if (obj != curObj && is_focus_target(obj) && !(obj->flags & OBJ_LOCKED) &&
+				!(obj->flags & OBJ_HIDE)) {
+				const int object_x = obj->PosX + obj->SizeX / 2;
+				const int object_y = obj->PosY + obj->SizeY / 2;
+				const int dx = object_x - current_x;
+				const int dy = object_y - current_y;
+				int primary = 0;
+				int secondary = 0;
+				int wrap_primary = 0;
+
+				switch (navigation_sc) {
+				case SDL_SCANCODE_UP:
+					primary = -dy;
+					secondary = abs(dx);
+					wrap_primary = -object_y;
+					break;
+				case SDL_SCANCODE_DOWN:
+					primary = dy;
+					secondary = abs(dx);
+					wrap_primary = object_y;
+					break;
+				case SDL_SCANCODE_LEFT:
+					primary = -dx;
+					secondary = abs(dy);
+					wrap_primary = -object_x;
+					break;
+				case SDL_SCANCODE_RIGHT:
+					primary = dx;
+					secondary = abs(dy);
+					wrap_primary = object_x;
+					break;
+				}
+
+				if (primary > 0) {
+					bool better;
+					if (vertical) {
+						better = best_primary < 0 || primary < best_primary ||
+								 (primary == best_primary && secondary < best_secondary);
+					} else {
+						better = best_secondary < 0 || secondary < best_secondary ||
+								 (secondary == best_secondary && primary < best_primary);
+					}
+					if (better) {
+						best_primary = primary;
+						best_secondary = secondary;
+						next_obj = obj;
+					}
+				}
+
+				bool better_wrap;
+				if (vertical) {
+					better_wrap =
+						!wrap_obj || wrap_primary < best_wrap_primary ||
+						(wrap_primary == best_wrap_primary && secondary < best_wrap_secondary);
+				} else {
+					better_wrap =
+						!wrap_obj || secondary < best_wrap_secondary ||
+						(secondary == best_wrap_secondary && wrap_primary < best_wrap_primary);
+				}
+				if (better_wrap) {
+					best_wrap_primary = wrap_primary;
+					best_wrap_secondary = secondary;
+					wrap_obj = obj;
+				}
+			}
+			obj = (iScreenObject *)obj->prev;
+		}
+
+		if (!next_obj)
+			next_obj = wrap_obj;
+
+		if (next_obj) {
+			curObj->flags &= ~OBJ_SELECTED;
+			curObj->curHeightScale = curObj->flags & OBJ_SELECTABLE ? I_UNSELECT_SCALE : 256;
+			iScrDisp->set_obj_redraw(curObj);
+
+			curObj = next_obj;
+			curObj->flags |= OBJ_SELECTED;
+			curObj->curHeightScale = 256;
+			iScrDisp->set_obj_redraw(curObj);
+			if (!(curObj->flags & OBJ_SELECTABLE))
+				move_cursor_to_focus(curObj);
+			SOUND_SELECT();
 		}
 	}
 }
@@ -2611,14 +2832,23 @@ void iScreenDispatcher::ProcessEvent(iScreenEvent* p)
 						}
 						break;
 					case EV_CHANGE_SCROLLER:
-						scl = (iScrollerElement*)cm -> obj;
-						if(scl -> check_xy(iMouseX + iScreenOffs,iMouseY)){
-							scl -> change_val(iMouseX + iScreenOffs,iMouseY);
-							scl -> scale_delta = (scl -> Value > scl -> prevValue) ? 512 / cm -> time : -512 / cm -> time;
-						}
-						else {
-							scl -> prevValue = scl -> Value;
-							scl -> scale_delta = 0;
+					scl = (iScrollerElement *)cm->obj;
+					if (scl->keyboard_delta) {
+						scl->change_value_by(scl->keyboard_delta);
+						scl->keyboard_delta = 0;
+						if (scl->Value > scl->prevValue)
+							scl->scale_delta = 512 / cm->time;
+						else if (scl->Value < scl->prevValue)
+							scl->scale_delta = -512 / cm->time;
+						else
+							scl->scale_delta = 0;
+					} else if (scl->check_xy(iMouseX + iScreenOffs, iMouseY)) {
+						scl->change_val(iMouseX + iScreenOffs, iMouseY);
+						scl->scale_delta =
+							(scl->Value > scl->prevValue) ? 512 / cm->time : -512 / cm->time;
+					} else {
+						scl->prevValue = scl->Value;
+						scl->scale_delta = 0;
 						}
 						break;
 					case EV_CHANGE_TRIGGER:
@@ -3422,14 +3652,14 @@ void iScreenDispatcher::init_input_string(iScreenElement* p)
 	flags |= SD_INPUT_STRING;
 }
 
-void iScreenDispatcher::input_string_quant(void)
-{
-	SDL_StartTextInput();
-	int sz,init_flag = 0,redraw_flag = 0;
-	iListElementPtr* tmp;
-	iScreenObject* obj;
-	unsigned char* ptr = NULL;
-	const char* key_name = NULL;
+void iScreenDispatcher::input_string_quant(void) {
+	if (!SDL_StartTextInput(XGR_Obj.get_window()))
+		ErrH.Abort(SDL_GetError(), XERR_USER, 0);
+	int sz, init_flag = 0, redraw_flag = 0;
+	iListElementPtr *tmp;
+	iScreenObject *obj;
+	unsigned char *ptr = NULL;
+	const char *key_name = NULL;
 	unsigned char code;
 	HFont* hfnt = NULL;
 
@@ -3448,17 +3678,18 @@ void iScreenDispatcher::input_string_quant(void)
 
 	while(KeyBuf -> size) {
 		SDL_Event *event = KeyBuf->get();
-		if (event->type != SDL_KEYDOWN && event->type != SDL_TEXTINPUT)
+		if (event->type != SDL_EVENT_KEY_DOWN && event->type != SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+			event->type != SDL_EVENT_TEXT_INPUT)
 			continue;
 		
-		if(!(ActiveEl -> flags & EL_KEY_NAME)){
-			if (event->type == SDL_KEYDOWN) {
-				if (event->key.keysym.sym > 0 && event->key.keysym.sym < 127) {
-					code = event->key.keysym.sym;
+		if (!(ActiveEl->flags & EL_KEY_NAME)) {
+			if (event->type == SDL_EVENT_KEY_DOWN) {
+				if (event->key.key > 0 && event->key.key < 127) {
+					code = event->key.key;
 				} else {
 					continue;
 				}
-				switch(event->key.keysym.sym) {
+				switch (event->key.key) {
 					case SDLK_RETURN:
 						sz = strlen((char*)ptr);
 						ptr[sz - 1] = 0;
@@ -3466,7 +3697,7 @@ void iScreenDispatcher::input_string_quant(void)
 						flags |= SD_FINISH_INPUT;
 						init_flag = 1;
 						redraw_flag = 1;
-						SDL_StopTextInput();
+					SDL_StopTextInput(XGR_Obj.get_window());
 						break;
 					case SDLK_ESCAPE:
 						strcpy((char*)ptr,BackupStr);
@@ -3474,7 +3705,7 @@ void iScreenDispatcher::input_string_quant(void)
 						flags |= SD_FINISH_INPUT;
 						init_flag = 1;
 						redraw_flag = 1;
-						SDL_StopTextInput();
+					SDL_StopTextInput(XGR_Obj.get_window());
 						break;
 					case SDLK_LEFT:
 					case SDLK_BACKSPACE:
@@ -3487,22 +3718,11 @@ void iScreenDispatcher::input_string_quant(void)
 						}
 						break;
 				}
-			}
-			else if (event->type == SDL_TEXTINPUT) {
-				if(!(ActiveEl -> flags & EL_NUMBER)){
-					if ((unsigned char)event->text.text[0] < 128) {
-						code = event->text.text[0];
-					} else {
-						unsigned short utf = ((unsigned short *)event->text.text)[0];
-						utf = ntohs(utf);
-						code = 0xdb;
-						if ((utf & (1<<(7))) && !(utf & (1<<(10)))) {
-							code = UTF8toCP866(utf);
-						} else {
-							code = ' ';
-						}
-					}
-					if((hfnt -> data[code] -> Flags & NULL_HCHAR) && code != ' ') {
+			} else if (event->type == SDL_EVENT_TEXT_INPUT) {
+				if (!(ActiveEl->flags & EL_NUMBER)) {
+					const std::string encoded = vangers::settings::utf8_to_cp866(event->text.text);
+					code = encoded.empty() ? ' ' : static_cast<unsigned char>(encoded.front());
+					if ((hfnt->data[code]->Flags & NULL_HCHAR) && code != ' ') {
 						break;
 					}
 					sz = strlen((char*)ptr);
@@ -3543,15 +3763,9 @@ void iScreenDispatcher::input_string_quant(void)
 						init_flag = 1;
 						redraw_flag = 1;
 						iScreenLastInput = k;
-						SDL_StopTextInput();
+					SDL_StopTextInput(XGR_Obj.get_window());
 						break;
 					default:
-						//NEED rewrite
-						/*if(!(k & iJOYSTICK_MASK))
-							key_name = iGetKeyNameText(k,lang());
-						else
-							key_name = iGetJoyBtnNameText(k,lang());
-						*/
 						key_name = iGetKeyNameText(k, lang());
 						if(flags & SD_INPUT_STRING && key_name){
 							if(!(ActiveEl -> flags & EL_JOYSTICK_KEY) || (k & iJOYSTICK_MASK)){
@@ -3561,6 +3775,7 @@ void iScreenDispatcher::input_string_quant(void)
 								init_flag = 1;
 								redraw_flag = 1;
 								iScreenLastInput = k;
+							SDL_StopTextInput(XGR_Obj.get_window());
 							}
 						}
 						break;
@@ -4256,38 +4471,9 @@ int iScreenDispatcher::copy_text_prev(iScreen* scr,int mode)
 	return 0;
 }
 
-void iScreenDispatcher::save_data(XStream* fh)
-{
-	std::cout<<"iScreenDispatcher::save_data"<<std::endl;
-	int i,num_opt = iMAX_OPTION_ID;
-	*fh < num_opt;
-	for(i = 0; i < iMAX_OPTION_ID; i ++){
-		if(iScrOpt[i])
-			iScrOpt[i] -> save(fh);
-	}
-}
-
-void iScreenDispatcher::load_data(XStream* fh)
-{
-	int i,num_opt;
-	*fh > num_opt;
-	if(num_opt != iMAX_OPTION_ID) {
-		// Keep destroy terrain mode enabled
-		std::cout<<"iScreenDispatcher::load_data data is broken keep default"<<std::endl;
-		((iTriggerObject*)iScrOpt[iDESTR_MODE]->objPtr)->state = 1;
-		((iTriggerObject*)iScrOpt[iDESTR_MODE]->objPtr)->trigger_init();
-		return;
-	}
-	for(i = 0; i < iMAX_OPTION_ID; i ++){
-		if(iScrOpt[i])
-			iScrOpt[i] -> load(fh);
-	}
-}
-
-void iScreenDispatcher::end_event(void)
-{
-	if(ActiveEv){
-		ActiveEv -> flags &= ~EV_ACTIVE;
+void iScreenDispatcher::end_event(void) {
+	if (ActiveEv) {
+		ActiveEv->flags &= ~EV_ACTIVE;
 		ActiveEv = NULL;
 	}
 }

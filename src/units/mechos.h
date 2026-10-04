@@ -792,7 +792,8 @@ struct VangerUnit : TrackUnit , uvsUnitType , aiFactorType
 	SensorDataType* ExternalObject;
 	SensorDataType* ExternalLastSensor;
 	SensorDataType* ExternalSensor;
-	int RandomUpdate;
+	int UpdateStationActive;
+	int UpdateStationTouched;
 
 	PlayerData* pNetPlayer;	
 	
@@ -841,6 +842,7 @@ struct VangerUnit : TrackUnit , uvsUnitType , aiFactorType
 	void AddEscave(SensorDataType* p);
 	void AddSpot(SensorDataType* p);
 
+	void RestoreGluekArmor(void);
 	void ItemQuant(void);	
 	void Go2World(void); //znfo !!!
 	void Go2Universe(void); //znfo !!!
@@ -927,9 +929,15 @@ struct ModelDispatcher
 	char** NameData;
 	ModelHandle* ModelHandles;
 	ModelHandle** WheelModelHandles;
+	// Animated models (.a3d) upload every frame as a separate mesh. ModelHandles[i]
+	// stays the frame 0 handle so single-mesh callers keep working unchanged.
+	ModelHandle** FrameModelHandles;
 
 	void Init(Parser& in);
 	void Free(void);
+
+	// Point an object at model index, replacing whatever it was bound to before.
+	void BindExternalModel(Object& o, int index);
 
 	Object& ActiveModel(char id);
 	int FindModel(const char* name);

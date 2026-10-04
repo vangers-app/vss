@@ -2,10 +2,16 @@ name: Tauri Release
 
 on:
   push:
-    branches: [wip-js-runtime-alpha, vss]
+    branches:
+      - wip-js-runtime-alpha
+      - wip-js-runtime-alpha-fixes
+      - vss
     tags: ['v*']
   pull_request:
-    branches: [wip-js-runtime-alpha, vss]
+    branches:
+      - wip-js-runtime-alpha
+      - wip-js-runtime-alpha-fixes
+      - vss
   workflow_dispatch:
 
 permissions:

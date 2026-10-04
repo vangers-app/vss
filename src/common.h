@@ -1,5 +1,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
+#include <stdlib.h>
 
 
 #define MIN(a,b)	(((a) < (b))?(a):(b))
@@ -138,7 +139,7 @@ struct sqFont {
 	void drawchar(int x,int y,int ch,int fore = SQ_SYSCOLOR,int back = SQ_SYSCOLOR + 5);
 	};
 #endif
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 extern int __GlobalSize__;
 extern  XStream fmemory;
 #define _MEM_STATISTIC_(a) fmemory < a <= __GlobalSize__ < "\tclock\t" <= CLOCK() < "\n";

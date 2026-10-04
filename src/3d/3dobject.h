@@ -179,6 +179,28 @@ struct CONTROLS {
 		};
 };
 
+// UPDATE_OBJECT stores the transferable controls in a 16-bit field. The first
+// free bits after the legacy controls and mole state describe how steering and
+// traction must be predicted between network updates. Direction bits remain in
+// the packet for compatibility and prompt change detection, but a new client
+// must not replay them as fully pressed digital controls when the corresponding
+// analog flag is present.
+constexpr int NETWORK_CONTROL_MOLE_FLAG = 1 << CONTROLS::NUMBER_OF_TRANSFERABLE_CONTROLS;
+constexpr int NETWORK_CONTROL_ANALOG_STEERING_FLAG =
+	1 << (CONTROLS::NUMBER_OF_TRANSFERABLE_CONTROLS + 1);
+constexpr int NETWORK_CONTROL_ANALOG_THROTTLE_FLAG =
+	1 << (CONTROLS::NUMBER_OF_TRANSFERABLE_CONTROLS + 2);
+
+constexpr bool network_control_uses_analog_value(int control_flags, int control) {
+	if (control == CONTROLS::STEER_LEFT || control == CONTROLS::STEER_RIGHT)
+		return (control_flags & NETWORK_CONTROL_ANALOG_STEERING_FLAG) != 0;
+	if (control == CONTROLS::TRACTION_INCREASE || control == CONTROLS::TRACTION_DECREASE)
+		return (control_flags & NETWORK_CONTROL_ANALOG_THROTTLE_FLAG) != 0;
+	return false;
+}
+
+static_assert(NETWORK_CONTROL_ANALOG_THROTTLE_FLAG < (1 << 15));
+
 // Slots
 #define LEFT_SLOT	0
 #define RIGHT_SLOT	1
@@ -216,6 +238,14 @@ struct Object : BaseObject {
 	ModelInstanceHandle model_instance_handle;
 	ModelInstanceHandle* wheel_handles;
 	ModelInstanceHandle weapon_handles[MAX_SLOTS];
+	// Animated (.a3d) objects get one instance per frame; exactly one is visible.
+	ModelHandle* external_frame_model_handles;
+	ModelInstanceHandle* frame_handles;
+	int frame_count;
+	// ModelDispatcher index behind the handles above. Kept outside the memcpy range that
+	// convert_to_beeb() uses, so the original model can be rebound on the way back.
+	int external_model_index;
+	int beeb_return_model_index;
 
 	// Part of 3D data
 	int n_models;
@@ -297,10 +327,12 @@ struct Object : BaseObject {
 	int mole_on;
 	int k_track;
 	int draw_mode;
-	unsigned int device_switch_latency;
+	Uint64 device_switch_latency;
 	int prev_controls;
 	int current_controls;
-	unsigned int last_send_time;
+	int network_analog_rudder_target;
+	int network_analog_traction_target;
+	Uint64 last_send_time;
 
 	int helicopter;
 	int helicopter_time;
@@ -371,6 +403,10 @@ struct Object : BaseObject {
 	uint8_t external_body_color_id() const;
 	void create_model_instance();
 	void destroy_model_instance();
+	void destroy_frame_instances();
+#ifdef _ROAD_
+	void set_external_model_visible(bool visible);
+#endif
 	void destroy_wheel_instances();
 	void destroy_weapon_instances();
 
@@ -414,7 +450,7 @@ struct Object : BaseObject {
 	void continuous_impulse(const DBV& direct,int distance,int lever_arm = 0);
 	void jump();
 	void direct_keyboard_control();
-	void direct_joystick_control();
+	void direct_gamepad_control();
 	void import_controls();
 	void analysis();
 	void switch_analysis(int off);

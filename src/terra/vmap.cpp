@@ -109,7 +109,7 @@ uint PART_MAX;
 vrtMap* vMap;
 int KeepON = 0;
 
-extern constexpr int MAX_MAP_IN_MEMORY_POWER = 12; // 4096
+extern const int MAX_MAP_IN_MEMORY_POWER = 12; // 4096
 #ifdef _SURMAP_
 constexpr int MAX_LINE = MAX(2 << (MAX_MAP_IN_MEMORY_POWER - 1), 2 << 14);
 #else
@@ -1048,16 +1048,35 @@ void vrtMap::dump_terrain() {
 	unsigned char *line_buffer = new unsigned char[H2_SIZE];
 	unsigned int i = 0, i2 = 0;
 
-	SDL_Palette *gray_pal = SDL_AllocPalette(256);
+	SDL_Palette *gray_pal = SDL_CreatePalette(256);
+	if (!gray_pal) {
+		delete[] line_buffer;
+		std::cerr << "Could not create terrain dump palette: " << SDL_GetError() << std::endl;
+		return;
+	}
 	for (i2 = 0; i2 < 256; i2++) {
 		SDL_Color color = {(Uint8)i2, (Uint8)i2, (Uint8)i2, 255};
-		SDL_SetPaletteColors(gray_pal, &color, i2, 1);
+		if (!SDL_SetPaletteColors(gray_pal, &color, i2, 1)) {
+			SDL_DestroyPalette(gray_pal);
+			delete[] line_buffer;
+			std::cerr << "Could not initialize terrain dump palette: " << SDL_GetError()
+					  << std::endl;
+			return;
+		}
 	}
 
-	SDL_Surface *surface = SDL_CreateRGBSurface(0, H_SIZE, V_SIZE, 8, 0, 0, 0, 0);
-	SDL_SetSurfacePalette(surface, gray_pal);
-	SDL_Surface *surface2 = SDL_CreateRGBSurface(0, H_SIZE, V_SIZE, 8, 0, 0, 0, 0);
-	SDL_SetSurfacePalette(surface2, gray_pal);
+	SDL_Surface *surface = SDL_CreateSurface(H_SIZE, V_SIZE, SDL_PIXELFORMAT_INDEX8);
+	SDL_Surface *surface2 = SDL_CreateSurface(H_SIZE, V_SIZE, SDL_PIXELFORMAT_INDEX8);
+	if (!surface || !surface2 || !SDL_SetSurfacePalette(surface, gray_pal) ||
+		!SDL_SetSurfacePalette(surface2, gray_pal)) {
+		SDL_DestroySurface(surface);
+		SDL_DestroySurface(surface2);
+		SDL_DestroyPalette(gray_pal);
+		delete[] line_buffer;
+		std::cerr << "Could not create terrain dump surfaces: " << SDL_GetError() << std::endl;
+		return;
+	}
+	SDL_DestroyPalette(gray_pal);
 	unsigned char *sur_pos = (unsigned char *)surface->pixels;
 	unsigned char *sur_pos2 = (unsigned char *)surface2->pixels;
 
@@ -1094,17 +1113,17 @@ void vrtMap::dump_terrain() {
 					sur_pos2[i2] = 0;
 				}
 			}
-			sur_pos += H_SIZE;
-			sur_pos2 += H_SIZE;
+		sur_pos += surface->pitch;
+		sur_pos2 += surface2->pitch;
 			i = YCYCL(i + 1);
 	} while(i != V_SIZE-1);
 
 	test_file.close();
 	SDL_SaveBMP(surface, "test_map_h1.bmp");
 	SDL_SaveBMP(surface2, "test_map_h2.bmp");
-	SDL_FreeSurface(surface);
-	SDL_FreeSurface(surface2);
-	//delete[] line_buffer;
+SDL_DestroySurface(surface);
+SDL_DestroySurface(surface2);
+delete[] line_buffer;
 }
 
 void vrtMap::netModify(uchar* p) {
@@ -1909,8 +1928,9 @@ void vrtMap::scaling(int XSrcSize,int cx,int cy,int xc,int yc,int xside,int ysid
 		return;
 	}
 
-#if defined(_ROAD_) && defined(_DEBUG)
-	if(!TotalDrawFlag) return;
+#if defined(_ROAD_) && defined(_LEGACY_VS_DEBUG)
+	if (!TotalDrawFlag)
+		return;
 #endif
 
 	int i,j,fx,fy;
@@ -1936,11 +1956,11 @@ void vrtMap::scaling(int XSrcSize,int cx,int cy,int xc,int yc,int xside,int ysid
 				vp += XADD;
 				}
 		else
-#if defined(_ROAD_) && defined(_DEBUG)
-		   if(debug_view){
-			static unsigned char old_pal[256*3];
-			static unsigned char new_pal[256*3];
-			if(debug_view == 1){
+#if defined(_ROAD_) && defined(_LEGACY_VS_DEBUG)
+		if (debug_view) {
+		static unsigned char old_pal[256 * 3];
+		static unsigned char new_pal[256 * 3];
+		if (debug_view == 1) {
 				XGR_GetPal(old_pal);
 				int i,j = 64*3;
 				for(i = 0;i < 64;i++)

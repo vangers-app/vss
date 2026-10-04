@@ -219,15 +219,16 @@ void RestoreSOUND(void)
 {
     delete[] TrackCDTime;
 #ifndef _NO_CDAUDIO_
-#ifndef _DEMO_
-	if(!MusicON) return;
-
-//	xsStopCD();
+#	ifndef _DEMO_
+	if (MusicON) {
+		//	xsStopCD();
 	xsStopMusic();
 	xsDeInitMusic();
+	}
 
 #endif
 #endif
+	SoundFinit();
 }
 
 void SetMotorFile( int type ){

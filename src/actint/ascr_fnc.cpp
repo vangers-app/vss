@@ -5,8 +5,8 @@
 #include <zlib.h>
 #include "../vss/sys.h"
 
-#if defined(__APPLE__) || __GNUC__ < 9
-#include <sys/stat.h>
+#if defined(__APPLE__) || (defined(__GNUC__) && __GNUC__ < 9)
+#	include <sys/stat.h>
 #else
 #include <filesystem>
 #endif
@@ -18,22 +18,22 @@
 #include "../terra/world.h"
 
 #include "../iscreen/hfont.h"
+#include "../iscreen/iml.h"
 #include "../iscreen/iscreen.h"
 #include "../iscreen/iscript.h"
-#include "../iscreen/iml.h"
 
-#include "item_api.h"
-#include "../units/uvsapi.h"
 #include "../units/magnum.h"
+#include "../units/uvsapi.h"
+#include "item_api.h"
 
-#include "../uvs/univang.h"
 #include "../uvs/diagen.h"
+#include "../uvs/univang.h"
 
 #include "a_consts.h"
 
+#include "aci_str.h"
 #include "actint.h"
 #include "credits.h"
-#include "aci_str.h"
 
 #include "mlconsts.h"
 #include "mlstruct.h"
@@ -46,11 +46,11 @@
 #include "../sound/hsound.h"
 
 #include "aci_evnt.h"
-#include "acsconst.h"
 #include "aci_scr.h"
+#include "acsconst.h"
 #include "chtree.h"
 
-#if defined(__APPLE__) || __GNUC__ < 9
+#if defined(__APPLE__) || (defined(__GNUC__) && __GNUC__ < 9)
 #else
 namespace fs = std::filesystem;
 #endif
@@ -101,6 +101,7 @@ extern unsigned char* iscrPal;
 
 extern int iScreenActive;
 extern int iSlotNumber;
+extern int iPause;
 
 extern int ShowImageKeyFlag;
 extern int ShowImageMouseFlag;
@@ -111,6 +112,7 @@ extern int GameQuantReturnValue;
 
 extern int aci_SecondMatrixID;
 extern int curMatrixID;
+extern int ChangeEnergy, ChangeArmor;
 
 extern actIntDispatcher* aScrDisp;
 
@@ -462,7 +464,7 @@ int aciLoadLog = 0;
 int aciShopMenuLog = 0;
 int aciWorldIndex = -1;
 
-int acsScreenID = 1;
+int acsScreenID = ACS_PAUSE_SCREEN1;
 
 int acsCurrentSlotID = ACS_SAVE_SLOT0;
 int acsCurrentSlotNum = 0;
@@ -1880,8 +1882,49 @@ void aci_LocationQuantPrepare(void)
 	iKeyClear();
 }
 
-void aci_LocationQuantFinit(void)
-{
+static void aciFinishPauseScreen(void) {
+	if (!acsAllocFlag || !acsScrD)
+		return;
+
+	acsAllocFlag = 0;
+	if (!(aScrDisp->flags & AS_ISCREEN) && acsScrD->curScr) {
+		acsScrD->curScr->ChangeCoords(-(XGR_MAXX - 640) / 2, -(XGR_MAXY - 480) / 2);
+	}
+	acsScrD->free_mem();
+	if (aScrDisp->flags & AS_FULLSCR && !(aScrDisp->flags & AS_ISCREEN)) {
+		XGR_MouseHide();
+	} else
+		aScrDisp->flags &= ~AS_FULL_REDRAW;
+
+	iScrDisp->flags &= ~MS_LEFT_PRESS;
+	iScrDisp->flags &= ~MS_RIGHT_PRESS;
+	iScrDisp->flags &= ~MS_MOVED;
+	iHandleExtEvent(iEXT_UPDATE_TUTORIAL_MODE);
+	iHandleExtEvent(iEXT_UPDATE_SOUND_MODE);
+	iHandleExtEvent(iEXT_UPDATE_SOUND_VOLUME);
+
+	if (NetworkON)
+		aciKeyboardLocked = 0;
+
+	acsScreenID = ACS_PAUSE_SCREEN1;
+	iSaveData();
+	if (KeyBuf)
+		KeyBuf->clear();
+}
+
+static void aciResetLocationPauseState(void) {
+	aciFinishPauseScreen();
+
+	iPause = 0;
+	if (NetworkON)
+		aciKeyboardLocked = 0;
+	acsScreenID = ACS_PAUSE_SCREEN1;
+	if (KeyBuf)
+		KeyBuf->clear();
+}
+
+void aci_LocationQuantFinit(void) {
+	aciResetLocationPauseState();
 	iScrQuantFinit();
 	aScrDisp -> i_finit();
 	aciKillLinks();
@@ -2970,6 +3013,8 @@ void aciBuyItem(void)
 				cr = aciGetCurCredits();
 				cr -= u -> price;
 				aciUpdateCurCredits(cr);
+				ChangeEnergy = -1;
+				ChangeArmor = -1;
 
 				u1 = aciGetMechos(m -> type);
 				if(u1)
@@ -4392,10 +4437,9 @@ int aciGetCurCycle(void)
 #endif
 }
 
-#ifdef _DEBUG
-void aciChangeMouseItem(void)
-{
-	invItem* temp_item;
+#ifdef _LEGACY_VS_DEBUG
+void aciChangeMouseItem(void) {
+	invItem *temp_item;
 
 	if(aScrDisp -> flags & AS_ISCREEN){
 		temp_item = aScrDisp -> get_iitem(aScrDisp -> curItem -> ID + 1);
@@ -5016,7 +5060,7 @@ void aciDeactivateItemFunction(int itemID,int fncID)
 
 int acsQuant(void)
 {
-	int ret,k,firstQuant = 0;
+	int ret = 0, k, firstQuant = 0;
 	if(!acsAllocFlag){
 		acsAllocFlag = 1;
 		if(NetworkON) aciKeyboardLocked = 1;
@@ -5039,68 +5083,53 @@ int acsQuant(void)
 	}
 	while(KeyBuf->size){
 		SDL_Event *e = KeyBuf->get();
-		if (e->type == SDL_KEYDOWN) {
+		if (e->type == SDL_EVENT_KEY_DOWN) {
 			k = sdlEventToCode(e);
 		}
-		if (e->type == SDL_KEYDOWN || e->type == SDL_TEXTINPUT) {
+		if (e->type == SDL_EVENT_KEY_DOWN || e->type == SDL_EVENT_TEXT_INPUT) {
 			acsScrD->KeyTrap(0, e);
-			if (e->key.keysym.scancode == SDL_SCANCODE_ESCAPE && !acsScrD -> QuantCode) {
-				acsScrD -> QuantCode = 1;
+if (e->key.scancode == SDL_SCANCODE_ESCAPE && !acsScrD->QuantCode) {
+			acsScrD->QuantCode = 1;
 			}
 		}
 
 	}
-	if(aScrDisp -> flags & aMS_MOVED){
-		acsScrD -> KeyTrap(iMOUSE_MOVE_CODE, nullptr);
-		aScrDisp -> flags ^= aMS_MOVED;
-		if(aciMouseFlagL){
-			acsScrD -> KeyTrap(iMOUSE_LEFT_MOVE, nullptr);
+	// Mouse state that arrives as flags rather than as queued events has to be
+	// fed to the screen by hand. Without this the screen never sees the pointer.
+	if (aScrDisp->flags & aMS_MOVED) {
+		acsScrD->KeyTrap(iMOUSE_MOVE_CODE, nullptr);
+		aScrDisp->flags ^= aMS_MOVED;
+		if (aciMouseFlagL) {
+			acsScrD->KeyTrap(iMOUSE_LEFT_MOVE, nullptr);
 		}
-		if(aciMouseFlagR){
-			acsScrD -> KeyTrap(iMOUSE_RIGHT_MOVE, nullptr);
+		if (aciMouseFlagR) {
+			acsScrD->KeyTrap(iMOUSE_RIGHT_MOVE, nullptr);
 		}
 	}
-	if(aScrDisp -> flags & aMS_LEFT_PRESS){
-		acsScrD -> KeyTrap(iMOUSE_LEFT_PRESS_CODE, nullptr);
-		aScrDisp -> flags ^= aMS_LEFT_PRESS;
+	if (aScrDisp->flags & aMS_LEFT_PRESS) {
+		acsScrD->KeyTrap(iMOUSE_LEFT_PRESS_CODE, nullptr);
+		aScrDisp->flags ^= aMS_LEFT_PRESS;
 	}
-	if(aScrDisp -> flags & aMS_RIGHT_PRESS){
-		acsScrD -> KeyTrap(iMOUSE_RIGHT_PRESS_CODE, nullptr);
-		aScrDisp -> flags ^= aMS_RIGHT_PRESS;
+	if (aScrDisp->flags & aMS_RIGHT_PRESS) {
+		acsScrD->KeyTrap(iMOUSE_RIGHT_PRESS_CODE, nullptr);
+		aScrDisp->flags ^= aMS_RIGHT_PRESS;
 	}
-	if(NetworkON){
-		acsScrD -> flags |= ACS_FORCED_REDRAW;
-		ret = acsScrD -> Quant(actIntLog);
+
+	// This is the screen's actual tick. Without it the pause script never runs,
+	// so the menu is never drawn, and ret below stays uninitialised.
+	if (NetworkON) {
+		acsScrD->flags |= ACS_FORCED_REDRAW;
+		ret = acsScrD->Quant(actIntLog);
+	} else {
+		ret = acsScrD->Quant();
 	}
-	else
-		ret = acsScrD -> Quant();
 
-	if(firstQuant){
-		acsPrepareSlotNameInput(acsCurrentSlotID,acsCurrentSlotNum);
-		acsScrD -> PrepareInput(acsCurrentSlotID);
+	if (firstQuant) {
+		acsPrepareSlotNameInput(acsCurrentSlotID, acsCurrentSlotNum);
+		acsScrD->PrepareInput(acsCurrentSlotID);
 	}
-	if(ret){
-		acsAllocFlag = 0;
-		if (!(aScrDisp -> flags & AS_ISCREEN)) { acsScrD -> curScr -> ChangeCoords(-(XGR_MAXX - 640)/2, -(XGR_MAXY - 480)/2); }
-		acsScrD -> free_mem();
-		if(aScrDisp -> flags & AS_FULLSCR && !(aScrDisp -> flags & AS_ISCREEN)){
-			XGR_MouseHide();
-		}
-		else
-			aScrDisp -> flags &= ~AS_FULL_REDRAW;
-
-		iScrDisp -> flags &= ~MS_LEFT_PRESS;
-		iScrDisp -> flags &= ~MS_RIGHT_PRESS;
-		iScrDisp -> flags &= ~MS_MOVED;
-		iHandleExtEvent(iEXT_UPDATE_TUTORIAL_MODE);
-		iHandleExtEvent(iEXT_UPDATE_SOUND_MODE);
-		iHandleExtEvent(iEXT_UPDATE_SOUND_VOLUME);
-
-		if(NetworkON) aciKeyboardLocked = 0;
-
-		acsScreenID = 1;
-		iSaveData();
-		KeyBuf -> clear();
+	if (ret) {
+		aciFinishPauseScreen();
 		return 1;
 	}
 	return 0;
@@ -5276,8 +5305,8 @@ void acsPrepareSlotNameInput(int id,int slot_num)
 	acsCurrentSlotNum = slot_num;
 }
 
-#if defined(__APPLE__) || __GNUC__ < 9
-void createDirIfNotExist(const char* dirName) {
+#if defined(__APPLE__) || (defined(__GNUC__) && __GNUC__ < 9)
+void createDirIfNotExist(const char *dirName) {
 	struct stat info;
 	if (stat(dirName, &info) != 0) {
 		std::cout<<"Directory "<<dirName<<" not found. Created it..."<< std::endl;
@@ -5839,11 +5868,10 @@ void aciShowFrags(void)
 	}
 }
 
-#ifdef _DEBUG
-void scale_bmp(int sx,int sy,int sx0,int sy0,void* dest,void* src)
-{
-	int x,y;
-	unsigned char* dest_buf,*src_buf;
+#ifdef _LEGACY_VS_DEBUG
+void scale_bmp(int sx, int sy, int sx0, int sy0, void *dest, void *src) {
+	int x, y;
+	unsigned char *dest_buf, *src_buf;
 
 	double ix,iy,dx,dy;
 
@@ -7306,18 +7334,22 @@ void aciDisableParametersMenu(void)
 
 int sdlEventToCode(SDL_Event *event) {
 	switch (event->type) {
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-			return event->key.keysym.scancode;
-		case SDL_MOUSEBUTTONDOWN:
-		case SDL_MOUSEBUTTONUP:
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_KEY_UP:
+		return event->key.scancode;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 			switch (event->button.button) {
 				case SDL_BUTTON_LEFT:
 					return iMOUSE_LEFT_PRESS_CODE;
 				case SDL_BUTTON_RIGHT:
 					return iMOUSE_RIGHT_PRESS_CODE;
 			}
-		case SDL_MOUSEMOTION:
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		return event->gbutton.button | SDLK_GAMEPAD_BUTTON_MASK;
+	case SDL_EVENT_MOUSE_MOTION:
 			if (event->motion.state & SDL_BUTTON_LMASK)
 				return iMOUSE_LEFT_MOVE;
 			else if (event->motion.state & SDL_BUTTON_RMASK)

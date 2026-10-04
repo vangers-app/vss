@@ -1,3 +1,6 @@
+#ifndef __MULTIPLAYER_H__
+#define __MULTIPLAYER_H__
+
 /*
 		Client - Server interface header
 */
@@ -298,3 +301,4 @@ struct PlayerBody {
 	PlayerBody(){ clear(); }
 	};
 
+#endif

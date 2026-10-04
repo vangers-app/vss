@@ -247,6 +247,11 @@ Object::Object()
 	external_wheel_model_handles = nullptr;
 	model_instance_handle = {0};
 	wheel_handles = nullptr;
+	external_frame_model_handles = nullptr;
+	frame_handles = nullptr;
+	frame_count = 0;
+	external_model_index = -1;
+	beeb_return_model_index = -1;
 	for(int i = 0;i < MAX_SLOTS;i++)
 		weapon_handles[i] = {0};
 	i_model = n_models = 0;
@@ -352,7 +357,17 @@ uint8_t Object::external_body_color_id() const
 
 void Object::create_model_instance()
 {
-	if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+	if(external_frame_model_handles && n_models > 1 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		frame_handles = new ModelInstanceHandle[n_models];
+		frame_count = n_models;
+		for(int i = 0;i < n_models;i++){
+			frame_handles[i] = external_frame_model_handles[i].handle != 0 ?
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_frame_model_handles[i],external_body_color_id()) :
+				ModelInstanceHandle{0};
+			renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(frame_handles[i],i == 0 && ExternalModelVisible());
+		}
+	}
+	else if(external_model_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		model_instance_handle = renderer::visualbackend::VisualBackendContext::backend()->model_instance_create(external_model_handle,external_body_color_id());
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,ExternalModelVisible());
 	}
@@ -368,8 +383,34 @@ void Object::create_model_instance()
 	}
 }
 
+void Object::destroy_frame_instances()
+{
+	if(frame_handles){
+		for(int i = 0;i < frame_count;i++)
+			if(frame_handles[i].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(frame_handles[i]);
+		delete[] frame_handles;
+		frame_handles = nullptr;
+		frame_count = 0;
+	}
+}
+
+// Objects leave GameD.ViewTail as soon as they stop being VISIBLE, so SyncExternalModel
+// stops being called for them. Every place that toggles Visibility has to push it to the
+// GPU explicitly, including every frame of an animated object.
+void Object::set_external_model_visible(bool visible)
+{
+	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,visible);
+	if(frame_handles && renderer::visualbackend::VisualBackendContext::has_renderer())
+		for(int i = 0;i < frame_count;i++)
+			if(frame_handles[i].handle != 0)
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(frame_handles[i],visible);
+}
+
 void Object::destroy_model_instance()
 {
+	destroy_frame_instances();
 	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_destroy(model_instance_handle);
 		model_instance_handle = {0};
@@ -400,7 +441,35 @@ void Object::destroy_weapon_instances()
 #ifdef _ROAD_
 void Object::SyncExternalModel(void)
 {
-	if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
+	if(frame_handles && renderer::visualbackend::VisualBackendContext::has_renderer()){
+		// Animated .a3d object: drive every frame instance, show only the current one.
+		const bool external_model_visible = ExternalModelVisible();
+		const int frame = (int)(i_model % n_models);
+		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);
+		Quaternion rotation = Quaternion::multiply(Quaternion(rot),Quaternion(0,0,0,1));
+		int external_ground_z = set_3D_adjust(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z - zmax_real,radius*2/3);
+		int external_air_z = R_curr.z - external_ground_z - zmax_real;
+		float external_z = external_ground_z*0.5f + zmax_real + (external_air_z > 0 ? external_air_z*0.5f : 0.0f);
+		for(int i = 0;i < frame_count;i++)
+			if(frame_handles[i].handle != 0){
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(frame_handles[i],external_model_visible && i == frame);
+				renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_transform(frame_handles[i],{
+					.position = {
+						.x = (float)R_curr.x,
+						.y = (float)R_curr.y,
+						.z = external_z,
+					},
+					.rotation = {
+						.x = (float)rotation.x,
+						.y = (float)rotation.y,
+						.z = (float)rotation.z,
+						.w = (float)rotation.w,
+					},
+					.scale = (float)scale_real,
+				});
+			}
+	}
+	else if(model_instance_handle.handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer()){
 		const bool external_model_visible = ExternalModelVisible();
 		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,external_model_visible);
 		DBM rot = A_l2g*DBM(1,-1,1,DIAGONAL);

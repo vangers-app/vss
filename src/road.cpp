@@ -22,15 +22,26 @@
 #endif
 
 #include "_xsound.h"
+#ifndef EMSCRIPTEN
+// ffmpeg is optional and there is no Emscripten build of it, so the startup
+// AVI player compiles out there. runtime.h declares ShowAviRTO with a void*
+// buffer, so the class itself still exists; only the decoder calls go away.
+#include "avi.h"
+#endif
 
 #define DEFINE_GAME_RTO_TIMERS
 #include "runtime.h"
 
-#include "sqexp.h"
 #include "backg.h"
+#include "sqexp.h"
 
-#include "xjoystick.h"
+#include "iscreen/settings_adapter.h"
+#ifdef ISCREEN_SCRIPT_COMPILER
+#	include "iscreen/script_compiler.h"
+#endif
 #include "network.h"
+#include "settings/settings.h"
+#include "xgamepad.h"
 
 #include "3d/3d_math.h"
 #include "3d/3dgraph.h"
@@ -42,37 +53,38 @@
 
 void reconfigure_runtime_fps_scaled_state(double old_coeff,double new_coeff);
 
-#include "terra/world.h"
-#include "terra/vmap.h"
 #include "terra/render.h"
+#include "terra/vmap.h"
+#include "terra/world.h"
 
-#include "particle/particle.h"
-#include "particle/light.h"
-#include "particle/partmap.h"
 #include "particle/df.h"
+#include "particle/light.h"
+#include "particle/particle.h"
+#include "particle/partmap.h"
 
-#include "uvs/univang.h"
-#include "uvs/screen.h"
 #include "uvs/diagen.h"
+#include "uvs/screen.h"
+#include "uvs/univang.h"
 
 #include "dast/poly3d.h"
 
-#include "units/track.h"
-#include "units/hobj.h"
-#include "units/moveland.h"
-#include "units/effect.h"
-#include "units/items.h"
-#include "units/sensor.h"
-#include "units/mechos.h"
 #include "terra/cpuid.h"
+#include "units/effect.h"
+#include "units/hobj.h"
+#include "units/items.h"
+#include "units/mechos.h"
+#include "units/moveland.h"
+#include "units/sensor.h"
+#include "units/track.h"
 
 #ifdef ACTINT
-#include "iscreen/ikeys.h"
-#include "iscreen/hfont.h"
-#include "iscreen/iscreen.h"
-#include "iscreen/controls.h"
-#include "iscreen/i_chat.h"
-#include "actint/actint.h"
+#	include "iscreen/ikeys.h"
+#	include "iscreen/hfont.h"
+#	include "iscreen/iscreen.h"
+#	include "iscreen/controls.h"
+#	include "iscreen/i_chat.h"
+#	include "actint/actint.h"
+#	include "actint/acsconst.h"
 #endif
 
 #include "palette.h"
@@ -100,7 +112,7 @@ void reconfigure_runtime_fps_scaled_state(double old_coeff,double new_coeff);
 #define MAX_ZOOM	384
 #define MIN_ZOOM	128
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 XStream fmemory("memstats.dmp", XS_OUT);
 #endif
 
@@ -134,7 +146,8 @@ extern int SoundVolumePanning;
 
 #ifdef ACTINT
 extern int aciLoadLog;
-extern actIntDispatcher* aScrDisp;
+extern int acsScreenID;
+extern actIntDispatcher *aScrDisp;
 #endif
 
 extern int NumHumanModel;
@@ -214,7 +227,8 @@ char* host_name = 0;
 int host_port = DEFAULT_SERVER_PORT;
 
 int network_log = 0;
-int fps_frame,fps_start,uvsQuantFrame,gameDQuantFrame,actQuantFrame,MLQuantFrame;
+int fps_frame, uvsQuantFrame, gameDQuantFrame, actQuantFrame, MLQuantFrame;
+Uint64 fps_start;
 char fps_string[20];
 
 int stop_all_except_me = 0;
@@ -237,7 +251,7 @@ void memstatDumpLeak(void);
 #endif
 
 int page;
-clock_t _Timer_;
+Uint64 _Timer_;
 int frame;
 int Quit = 1;
 int Dead;
@@ -262,7 +276,7 @@ int MuteLog = 0;
 int Verbose;
 int DepthShow;
 
-int SkipIntro = 0;
+extern int SkipIntro;
 
 int PalIterLock = 0;
 
@@ -290,7 +304,7 @@ int Pause = 0;
 int FirstDraw = 1;
 
 int speed_correction_enabled = 1;
-int prev_frame_time = 0;
+Uint64 prev_frame_time = 0;
 
 iGameMap* curGMap;
 
@@ -315,9 +329,6 @@ extern int* AVI_index;
 
 int TotalDrawFlag = 1;
 int StartMainQuantFlag = 0;
-
-int RecorderMode = 0;
-char* RecorderName = NULL;
 
 int COMPAS_RIGHT;
 constexpr int DEFAULT_COMPAS_RIGHT = 80;
@@ -380,8 +391,19 @@ void showModal(char* fname, float reelW, float reelH, float screenW, float scree
 	winVideo.Close(); */
 }
 
-
 int xtInitApplication(void) {
+#ifdef ISCREEN_SCRIPT_COMPILER
+	extern int __internal_argc;
+	extern char **__internal_argv;
+	if (__internal_argc != 4 || strcmp(__internal_argv[1], "--compile-iscreen"))
+		ErrH.Abort(
+			"Usage: vangers_iscreen_compiler --compile-iscreen <source.scr> <output.scb>", XERR_USER
+		);
+
+	CompileIScreenScript(__internal_argv[2], __internal_argv[3]);
+	return XT_TERMINATE_ID;
+#endif
+
     XGraphWndID = "VANGERS";
     char *tmp;
 
@@ -465,15 +487,26 @@ int xtInitApplication(void) {
 #endif
 
     SetupPath();
+	vangers::settings::SettingsManager &user_settings = vangers::settings::settings_manager();
+	if (!user_settings.is_loaded()) {
+		const vangers::settings::SettingsLoadResult settings_result = user_settings.load();
+		vangers::settings::report_settings_diagnostic(settings_result.diagnostic);
+	}
+	const vangers::settings::VideoSettings &startup_video = user_settings.get().video;
 
     _MEM_STATISTIC_("FONT -> ");
 
 
     emode = ExclusiveLog ? XGR_EXCLUSIVE : 0;
-    //emode |= XGR_HICOLOR;
+	// emode |= XGR_HICOLOR;
+		if (!XGR_FULL_SCREEN)
+		XGR_FULL_SCREEN = startup_video.fullscreen;
 
 	actintLowResFlag = 1;
-    if (XGR_Init(emode)) ErrH.Abort(ErrorVideoMss);
+	if (XGR_Init(emode))
+		ErrH.Abort(ErrorVideoMss);
+	if (startup_video.resolution == vangers::settings::ResolutionMode::Legacy800x600)
+		XGR_Obj.set_resolution(800, 600);
 
 	// TODO:
 
@@ -522,16 +555,15 @@ int xtInitApplication(void) {
     LoadResourceSOUND("resource/sound/effects/", 0);
     SetSoundVolume(256);
 
-    if (XJoystickInit()) {
-        std::cout << "Joystick found\n";
-        JoystickMode = JOYSTICK_Joystick;
+	if (XGamepadInit()) {
+		std::cout << "Gamepad found\n";
     } else {
-        std::cout << "Joystick not found" << std::endl;
+		std::cout << "Gamepad not found" << std::endl;
     }
 
-    //XSocketInit();
-#ifdef _DEBUG
-    if(host_name && avaible_servers.talk_to_server(0,host_port,host_name))
+	// XSocketInit();
+#ifdef _LEGACY_VS_DEBUG
+	if (host_name && avaible_servers.talk_to_server(0, host_port, host_name))
         NetInit(avaible_servers.first());
 #endif
 
@@ -541,48 +573,34 @@ int xtInitApplication(void) {
     // Runtime objects init...
 
 	xtCreateRuntimeObjectTable(RTO_MAX_ID);
+	if (startup_video.fps == 60) {
+		RTO_GAME_QUANT_TIMER = 1000 / 60;
+		GAME_TIME_COEFF = 3;
+	} else {
 	RTO_GAME_QUANT_TIMER = 1000 / 20;
 	GAME_TIME_COEFF = 1;
-	GameQuantRTO* gqObj = new GameQuantRTO(RTO_GAME_QUANT_TIMER);
-	MainMenuRTO* mmObj = new MainMenuRTO;
-	EscaveRTO* eObj = new EscaveRTO;
-	EscaveOutRTO* eoObj = new EscaveOutRTO;
-	FirstEscaveRTO* fObj = new FirstEscaveRTO;
-	FirstEscaveOutRTO* foObj = new FirstEscaveOutRTO;
-	PaletteTransformRTO* pObj = new PaletteTransformRTO;
-	LoadingRTO1* lObj1 = new LoadingRTO1;
-	LoadingRTO2* lObj2 = new LoadingRTO2;
-	LoadingRTO3* lObj3 = new LoadingRTO3;
-	ShowImageRTO* siObj = new ShowImageRTO;
-	ShowAviRTO* saObj = new ShowAviRTO;
+	}
+	GameQuantRTO *gqObj = new GameQuantRTO(RTO_GAME_QUANT_TIMER);
+	MainMenuRTO *mmObj = new MainMenuRTO;
+	EscaveRTO *eObj = new EscaveRTO;
+	EscaveOutRTO *eoObj = new EscaveOutRTO;
+	FirstEscaveRTO *fObj = new FirstEscaveRTO;
+	FirstEscaveOutRTO *foObj = new FirstEscaveOutRTO;
+	PaletteTransformRTO *pObj = new PaletteTransformRTO;
+	LoadingRTO1 *lObj1 = new LoadingRTO1;
+	LoadingRTO2 *lObj2 = new LoadingRTO2;
+	LoadingRTO3 *lObj3 = new LoadingRTO3;
+	ShowImageRTO *siObj = new ShowImageRTO;
+	ShowAviRTO *saObj = new ShowAviRTO;
 
 //	  siObj -> SetNumFiles(1);
 //	  siObj -> SetName("resource\\iscreen\\bitmap\\kdlogo.bmp",0);
 //	  siObj -> SetNext(RTO_MAIN_MENU_ID);
 
-    if (lang() == RUSSIAN) {
-        saObj->SetNumFiles(3);
-        //saObj -> SetName("resource\\video\\intro\\logo1.avi",0);
-        //saObj -> SetName("resource\\video\\intro\\logo2.avi",1);
-        //saObj -> SetName("resource\\video\\intro\\intro.avi",2);
-
-        //	saObj -> SetFlag(0,AVI_RTO_HICOLOR);
-//	saObj -> SetFlag(1,AVI_RTO_HICOLOR);
-//	saObj -> SetFlag(2,AVI_RTO_HICOLOR);
-    } else {
-        saObj->SetNumFiles(4);
-        saObj->SetName("resource/video/intro/logo0.avi", 0);
-        saObj->SetName("resource/video/intro/logo1.avi", 1);
-        saObj->SetName("resource/video/intro/logo2.avi", 2);
-        saObj->SetName("resource/video/intro/intro.avi", 3);
-    //znfo commented in zmod
-    //	saObj -> SetFlag(0,AVI_RTO_HICOLOR);
-    //	saObj -> SetFlag(1,AVI_RTO_HICOLOR);
-    //	saObj -> SetFlag(2,AVI_RTO_HICOLOR);
-    //	saObj -> SetFlag(3,AVI_RTO_HICOLOR);
-    //znfo
-    }
-	saObj -> SetNext(RTO_MAIN_MENU_ID);
+	saObj->SetNumFiles(2);
+	saObj->SetName("resource/video/intro/logo2.avi", 0);
+	saObj->SetName("resource/video/intro/intro.avi", 1);
+	saObj->SetNext(RTO_MAIN_MENU_ID);
 
 	xtRegisterRuntimeObject(gqObj);
 	xtRegisterRuntimeObject(mmObj);
@@ -595,11 +613,8 @@ int xtInitApplication(void) {
 	xtRegisterRuntimeObject(lObj2);
 	xtRegisterRuntimeObject(lObj3);
 	xtRegisterRuntimeObject(siObj);
-	//xtRegisterRuntimeObject(saObj);
+	xtRegisterRuntimeObject(saObj);
 
-	if(RecorderMode)
-		XRec.Open(RecorderName,RecorderMode);
-	else
 		RNDVAL = SDL_GetTicks();
 
 	_MEM_STATISTIC_("AFTER FIRST INIT -> ");
@@ -616,30 +631,25 @@ int xtInitApplication(void) {
 		GameQuantRTO* p = (GameQuantRTO*)xtGetRuntimeObject(RTO_GAME_QUANT_ID);
 		p -> SetTimer(0);
 		}
-	if(RecorderMode){
-		GameQuantRTO* p = (GameQuantRTO*)xtGetRuntimeObject(RTO_GAME_QUANT_ID);
-//		p -> SetTimer(1000/20);
-		speed_correction_enabled = 0;
-		}
-
-
-	//STEAM
+	// STEAM
 #ifdef _STEAM_API_
-	if ( SteamAPI_RestartAppIfNecessary( k_uAppIdInvalid ) ) {
-		// if Steam is not running or the game wasn't started through Steam, SteamAPI_RestartAppIfNecessary starts the
-		// local Steam client and also launches this game again.
+	if (SteamAPI_RestartAppIfNecessary(k_uAppIdInvalid)) {
+		// if Steam is not running or the game wasn't started through Steam,
+		// SteamAPI_RestartAppIfNecessary starts the local Steam client and also launches this game
+		// again.
 
-		// Once you get a public Steam AppID assigned for this game, you need to replace k_uAppIdInvalid with it and
-		// removed steam_appid.txt from the game depot.
+		// Once you get a public Steam AppID assigned for this game, you need to replace
+		// k_uAppIdInvalid with it and removed steam_appid.txt from the game depot.
 
 		SDL_Quit();
 	}
 
-
 	// Init Steam CEG
-	if ( !Steamworks_InitCEGLibrary() )	{
-		std::cout<<"Steamworks_InitCEGLibrary() failed"<<std::endl;
-		std::cout<<"Fatal Error, Steam must be running to play this game (InitDrmLibrary() failed)."<<std::endl;
+	if (!Steamworks_InitCEGLibrary()) {
+		std::cout << "Steamworks_InitCEGLibrary() failed" << std::endl;
+		std::cout
+			<< "Fatal Error, Steam must be running to play this game (InitDrmLibrary() failed)."
+			<< std::endl;
 		SDL_Quit();
 	}
 
@@ -650,29 +660,33 @@ int xtInitApplication(void) {
 	// This will also load the in-game steam overlay dll into your process.  That dll is normally
 	// injected by steam when it launches games, but by calling this you cause it to always load,
 	// even when not launched via steam.
-	if ( !SteamAPI_Init() )	{
-		std::cout<<"SteamAPI_Init() failed"<<std::endl;
-		std::cout<<"Fatal Error, Steam must be running to play this game (SteamAPI_Init() failed)."<<std::endl;
+	if (!SteamAPI_Init()) {
+		std::cout << "SteamAPI_Init() failed" << std::endl;
+		std::cout
+			<< "Fatal Error, Steam must be running to play this game (SteamAPI_Init() failed)."
+			<< std::endl;
 		SDL_Quit();
 	}
 
 	// set our debug handler
-	//SteamClient()->SetWarningMessageHook( &SteamAPIDebugTextHook );
+	// SteamClient()->SetWarningMessageHook( &SteamAPIDebugTextHook );
 
-	// Tell Steam where it's overlay should show notification dialogs, this can be top right, top left,
-	// bottom right, bottom left. The default position is the bottom left if you don't call this.
-	// Generally you should use the default and not call this as users will be most comfortable with
-	// the default position.  The API is provided in case the bottom right creates a serious conflict
-	// with important UI in your game.
-	SteamUtils()->SetOverlayNotificationPosition( k_EPositionTopRight );
+	// Tell Steam where it's overlay should show notification dialogs, this can be top right, top
+	// left, bottom right, bottom left. The default position is the bottom left if you don't call
+	// this. Generally you should use the default and not call this as users will be most
+	// comfortable with the default position.  The API is provided in case the bottom right creates
+	// a serious conflict with important UI in your game.
+	SteamUtils()->SetOverlayNotificationPosition(k_EPositionTopRight);
 #endif
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 	std::cout<<"Set locale. ";
 	char* res = setlocale(LC_NUMERIC, "POSIX");
 	std::cout<<"Result:"<<res<<std::endl;
 #endif
-	if(SkipIntro)
-		return RTO_MAIN_MENU_ID;
+#ifdef SHOW_LOGOS
+	if (!SkipIntro)
+		return RTO_SHOW_AVI_ID;
+#endif
 	return RTO_MAIN_MENU_ID;
 }
 
@@ -965,7 +979,7 @@ void LoadingRTO2::Init(int id)
 	LoadingMessage(1);
 #endif
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 	StandScreenPrepare();
 #endif
 _MEM_STATISTIC_("\nBEFORE VMAP  -> ");
@@ -1142,10 +1156,14 @@ int GameQuantRTO::Quant(void)
 		gameQuant();
 //		DBGCHECK
 		frame++;
-		if(++fps_frame == RTO_GAME_QUANT_TIMER) {
-			sprintf(fps_string,"%.1f",(double)(RTO_GAME_QUANT_TIMER)/(SDL_GetTicks() - (int)fps_start)*1000);
-#ifdef _DEBUG
-			network_analysis(network_analysis_buffer,0);
+		if (++fps_frame == RTO_GAME_QUANT_TIMER) {
+			sprintf(
+				fps_string,
+				"%.1f",
+				(double)(RTO_GAME_QUANT_TIMER) / (SDL_GetTicks() - fps_start) * 1000
+			);
+#ifdef _LEGACY_VS_DEBUG
+			network_analysis(network_analysis_buffer, 0);
 #else
 			if(curGMap -> prmFlag & PRM_FPS && NetworkON)
 				short_network_analysis(network_analysis_buffer);
@@ -1270,10 +1288,10 @@ void LoadingRTO3::Init(int id)
 	if(!actIntLog){
 		palTr -> set(palbuf,NULL,0,255,&Quit);
 		Quit = 1;
-		int cnt = CLOCK();
-		while(Quit){
-			if(CLOCK() != cnt){
-				palTr -> quant();
+		Uint64 cnt = CLOCK();
+		while (Quit) {
+			if (CLOCK() != cnt) {
+				palTr->quant();
 				cnt = CLOCK();
 				xtClearMessageQueue();
 				}
@@ -1313,23 +1331,27 @@ void LoadingRTO3::Finit(void)
 	}*/
 }
 
-void xtDoneApplication(void)
-{
+void xtDoneApplication(void) {
+#ifdef ISCREEN_SCRIPT_COMPILER
+	return;
+#endif
 	restore();
 }
 
 void restore(void)
 {
 	KDWIN::destroy_server();
-#ifdef _DEBUG
-	network_analysis(network_analysis_buffer,1);
+	main_socket.close();
+	XSocketFinit();
+#ifdef _LEGACY_VS_DEBUG
+	network_analysis(network_analysis_buffer, 1);
 	fout < network_analysis_buffer.address();
 #endif
 #ifdef MEMORY_STATISTICS
 	memStart = 0;
 #endif
 	RestoreSOUND();
-	SDL_Quit();
+	XGamepadCleanup();
 
 //	  win32_dump_mem();
 
@@ -1434,22 +1456,8 @@ void ComlineAnalyze(int argc,char** argv)
 	for(i = 1;i < argc;i++)
 		if(argv[i][0] == '/'){
 			j = 0;
-			while(argv[i][j] == '/' || argv[i][j] == '-'){
-				switch(argv[i][j + 1]){
-#ifdef zRECORDER_ENABLED
-					case 'W':
-					case 'w':
-						RecorderMode = XRC_RECORD_MODE;
-						RecorderName = argv[i] + 2;
-						SkipIntro = 1;
-						break;
-					case 'P':
-					case 'p':
-						RecorderMode = XRC_PLAY_MODE;
-						RecorderName = argv[i] + 2;
-						SkipIntro = 1;
-						break;
-#endif
+			while (argv[i][j] == '/' || argv[i][j] == '-') {
+				switch (argv[i][j + 1]) {
 					case 'X':
 					case 'x':
 						ExclusiveLog = 1;
@@ -1492,7 +1500,7 @@ void ComlineAnalyze(int argc,char** argv)
 					case '&':
 						if(argv[i][j + 2] == '^') SkipCD = 1;
 						break;
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 					case 'q':
 						host_port = atoi(argv[i] + (j + 2));
 						break;
@@ -1580,8 +1588,7 @@ void costab(void)
 //	dstrect.h = 256;
 //
 //
-//    surface = SDL_CreateRGBSurface(0, map_size_x, map_size_y, 8,
-//		0, 0, 0, 0);
+//     surface = SDL_CreateSurface(map_size_x, map_size_y, SDL_PIXELFORMAT_INDEX8);
 //	surface->format = XGR_Obj.XGR_ScreenSurface->format;
 //
 //	for (iter=0; iter<map_size_y/256;iter++) {
@@ -1626,8 +1633,11 @@ void KeyCenter(SDL_Event *key)
 			disconnect_from_server();
 			ErrH.Exit();
 #endif
-			std::cout<<"road.KeyCenter:"<<key<<std::endl;
-			if(!Pause) {
+		std::cout << "road.KeyCenter:" << key << std::endl;
+		if (!Pause) {
+#ifdef ACTINT
+			acsScreenID = ACS_PAUSE_SCREEN1;
+#endif
 				Pause = 1;
 				vss::sys()
 						.quant(vss::PAUSE_QUANT)
@@ -1645,7 +1655,7 @@ void KeyCenter(SDL_Event *key)
 			curGMap -> change(3,2);
 			break;
 #endif
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 		case SDL_SCANCODE_F12:
 			DBGCHECK
 			break;
@@ -1660,17 +1670,17 @@ void KeyCenter(SDL_Event *key)
 #endif
 		case SDL_SCANCODE_F:
 			mod = SDL_GetModState();
-			if (mod&KMOD_CTRL) {
-				curGMap -> prmFlag ^= PRM_FPS;
+		if (mod & SDL_KMOD_CTRL) {
+			curGMap->prmFlag ^= PRM_FPS;
 			}
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 			else
 				message_mode++;
 #endif
 			break;
 		case SDL_SCANCODE_G:
 			mod = SDL_GetModState();
-			if (mod&KMOD_CTRL) {
+		if (mod & SDL_KMOD_CTRL) {
 				double old_game_time_coeff = GAME_TIME_COEFF;
 				if (GAME_TIME_COEFF == 1) {
 					RTO_GAME_QUANT_TIMER = 1000 / 60;
@@ -1874,8 +1884,22 @@ void iGameMap::reset(void)
 	camera_reset();
 }
 
-void calc_view_factors()
-{
+void calc_view_factors() {
+	// Stalkerg
+	//	if((speed_correction_enabled | NetworkON) && prev_frame_time){
+	//		int dt = SDL_GetTicks() - prev_frame_time;
+	//		if(dt > 5 && dt < 200) {
+	//			speed_correction_factor =
+	//(double)dt*((double)STANDART_FRAME_RATE/1000.)*speed_correction_tau +
+	// speed_correction_factor*(1 - speed_correction_tau);
+	//		}
+	//		std::cout<<"speed_correction_factor:"<<speed_correction_factor<<" dt:"<<dt<<std::endl;
+	//	} else {
+	//		speed_correction_factor = 1;
+	//	}
+	speed_correction_factor =
+		(double)50. * ((double)STANDART_FRAME_RATE / 1000.) * speed_correction_tau +
+		speed_correction_factor * (1 - speed_correction_tau);
 
 	//if(!(XRec.flags & (XRC_RECORD_MODE | XRC_PLAY_MODE)) && prev_frame_time)
 	//Stalkerg
@@ -1967,7 +1991,8 @@ void iGameMap::flush()
 void iGameMap::draw(int self)
 {
 	static XBuffer status;
-	static int blink,clcnt;
+	static int blink;
+	static Uint64 clcnt;
 
 	if(!MuteLog && ((ConTimer.counter&7) == 0)) {
 		SoundQuant();
@@ -2395,113 +2420,64 @@ void ShowImageRTO::Init(int id)
 _MEM_STATISTIC_("AFTER SHOW IMAGE RTO INIT -> ");
 }
 
+#ifndef EMSCRIPTEN
+static void DrawStartupVideoFrame(void *avi) {
+	const int canvas_width = XGR_MAXX;
+	const int canvas_height = XGR_MAXY;
+	const int video_width = AVIwidth(avi);
+	const int video_height = AVIheight(avi);
 
-void ShowAviRTO::Init(int id)
-{
-#ifdef SHOW_LOGOS
-
-
-
-/*
-	int x,y,sx,sy;
-
-	XBuffer* XBuf = new XBuffer(1024);
-	char* avi_pal,*pal,*tpal;
-
-	if(!(Flags[curFile] & AVI_RTO_HICOLOR)){
-		pal = new char[768];
-		tpal = new char[768];
-		memset(tpal,0,768);
+	int output_width = canvas_width;
+	int output_height = (video_height * canvas_width + video_width / 2) / video_width;
+	if (output_height > canvas_height) {
+		output_height = canvas_height;
+		output_width = (video_width * canvas_height + video_height / 2) / video_height;
 	}
 
-	set_key_nadlers(ShowImageKeyPress,NULL);
-	XGR_MouseSetPressHandler(XGM_LEFT_BUTTON,ShowImageMousePress);
-	XGR_MouseSetPressHandler(XGM_RIGHT_BUTTON,ShowImageMousePress);
+	const int x = (canvas_width - output_width) / 2;
+	const int y = (canvas_height - output_height) / 2;
 
-	XBuf -> init();
-	*XBuf < iVideoPathDefault < fileNames[curFile];
+	XGR_Obj.fill(0);
+	XGR_Obj.clear_2d_surface();
+	XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
+	AVIPrepareFrame(avi);
+	AVIDrawFrame(
+		avi, x, y, XGR_MAXX, XGR_Obj.get_2d_rgba_render_buffer(), 1.0f, output_width, output_height
+	);
+}
+#else
+static void DrawStartupVideoFrame(void *avi) {
+}
+#endif
 
-//	OLD XTOOL
-//	if(!AVIopen(XBuf -> address(),AVI_NOTIMER | AVI_NODRAW | AVI_NOPALETTE | AVI_NO_SOUND,0,&aviBuf)){
-	if(!AVIopen(XBuf -> address(),AVI_NOTIMER | AVI_NODRAW | AVI_NOPALETTE,0,&aviBuf)){
-		XBuf -> init();
-		*XBuf < iVideoPath < fileNames[curFile];
-//		OLD XTOOL
-//		if(!AVIopen(XBuf -> address(),AVI_NOTIMER | AVI_NODRAW | AVI_NOPALETTE | AVI_NO_SOUND,0,&aviBuf)){
-		if(!AVIopen(XBuf -> address(),AVI_NOTIMER | AVI_NODRAW | AVI_NOPALETTE,0,&aviBuf)){
-			aviBuf = NULL;
-		}
-	}
-
-	if(aviBuf){
-		if(!(Flags[curFile] & AVI_RTO_HICOLOR)){
-			if(XGR_Obj.flags & XGR_HICOLOR)
-				XGR_ReInit(800,600,emode);
-
-			XGR_Fill(0);
-			XGR_SetPal(tpal,0,255);
-			XGR_Flush(0,0,XGR_MAXX,XGR_MAXY);
-		}
-		else {
-			if(!(XGR_Obj.flags & XGR_HICOLOR)){
-				if(XGR_ReInit(800,600,emode | XGR_HICOLOR)){
-					XGR_ReInit(800,600,emode);
+void ShowAviRTO::Init(int id) {
+	XGR_Obj.set_is_scaled_renderer(false);
+	XGR_MouseHide();
 					aviBuf = NULL;
-				}
-			}
-			else {
-//				OLD XTOOL
-//				XGR_Fill16RGB(0,0,0);
-				XGR_Fill16(0);
-				XGR_Flush(0,0,XGR_MAXX - 1,XGR_MAXY - 1);
-			}
-		}
-
-		if(aviBuf){
-			sx = AVIwidth(aviBuf);
-			sy = AVIheight(aviBuf);
-
-			x = (XGR_MAXX - sx) / 2;
-			y = (XGR_MAXY - sy) / 2;
-
-			if(!(Flags[curFile] & AVI_RTO_HICOLOR)){
-				avi_pal = (char*)AVIGetPalette(aviBuf);
-				memcpy(pal,avi_pal,768);
-
-				AVIplay(aviBuf,x,y);
-				AVIdraw(aviBuf);
-				AVIstop(aviBuf);
-				AVIclose(aviBuf);
-
-				PalEvidence(tpal,pal);
-
-				if(!AVIopen(XBuf -> address(),0,0,&aviBuf))
-					ErrH.Abort(AVInotFoundMSS);
-			}
-			else {
-				AVIstop(aviBuf);
-				AVIclose(aviBuf);
-//				OLD XTOOL
-//				if(!AVIopen(XBuf -> address(),AVI_HICOLOR,0,&aviBuf))
-				if(!AVIopen(XBuf -> address(),AVI_LOOPING,0,&aviBuf))
-					ErrH.Abort(AVInotFoundMSS);
-			}
-			AVIplay(aviBuf,x,y);
-		}
-	}
-	count = CLOCK();
-
 	ShowImageMouseFlag = 0;
 	ShowImageKeyFlag = 0;
 
-	if(!(Flags[curFile] & AVI_RTO_HICOLOR)){
-		delete pal;
-		delete tpal;
+	set_key_handlers(&ShowImageKeyPress, NULL);
+	XGR_MouseSetPressHandler(XGM_LEFT_BUTTON, ShowImageMousePress);
+	XGR_MouseSetPressHandler(XGM_RIGHT_BUTTON, ShowImageMousePress);
+
+	// Without ffmpeg there is nothing to decode, so the browser build always
+	// takes the "no video" branch and just clears the screen.
+#ifdef EMSCRIPTEN
+	XGR_Obj.fill(0);
+	XGR_Obj.clear_2d_surface();
+	XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
+#else
+	if (AVIopen(fileNames[curFile], AVI_NODRAW | AVI_NOPALETTE, 0, &aviBuf)) {
+		AVIplay(aviBuf, 0, 0);
+		DrawStartupVideoFrame(aviBuf);
+	} else {
+		XGR_Obj.fill(0);
+		XGR_Obj.clear_2d_surface();
+		XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
 	}
-	delete XBuf;
-*/
 #endif
-_MEM_STATISTIC_("AFTER SHOW IMAGE RTO INIT -> ");
+	_MEM_STATISTIC_("AFTER SHOW IMAGE RTO INIT -> ");
 }
 
 int ShowImageRTO::Quant(void)
@@ -2538,32 +2514,19 @@ int ShowImageRTO::Quant(void)
 	return ID;
 }
 
-int ShowAviRTO::Quant(void)
-{
-#ifdef SHOW_LOGOS
-/*
-	int ret = 0;
-	if(aviBuf){
-		if(ShowImageKeyFlag || ShowImageMouseFlag){
-			ret = 1;
-		}
-//		OLD XTOOL
-//		if(AVIactive(aviBuf)){
-			count= CLOCK();
-//		}
-//		else {
-//			if((count + 100) < CLOCK())
-//				ret = 1;
-//		}
+int ShowAviRTO::Quant(void) {
+	if (aviBuf && !ShowImageKeyFlag && !ShowImageMouseFlag) {
+		DrawStartupVideoFrame(aviBuf);
 
-		if(!ret) return 0;
-	}
-*/
+		#ifndef EMSCRIPTEN
+		if (!AVIisFinished(aviBuf))
+			return 0;
 #endif
-	curFile ++;
-	if(curFile >= numFiles){
-		return NextID;
 	}
+
+	curFile++;
+	if (curFile >= numFiles)
+		return NextID;
 
 	return ID;
 }
@@ -2582,30 +2545,19 @@ void ShowImageRTO::Finit(void)
 _MEM_STATISTIC_("AFTER SHOW IMAGE RTO 4 FINIT -> ");
 }
 
-void ShowAviRTO::Finit(void)
-{
-#ifdef SHOW_LOGOS
-/*
-	char* pal;
-
-	if(aviBuf){
+void ShowAviRTO::Finit(void) {
+	if (aviBuf) {
+#ifndef EMSCRIPTEN
 		AVIstop(aviBuf);
 		AVIclose(aviBuf);
-
-		if(XGR_Obj.flags & XGR_HICOLOR && curFile >= numFiles) XGR_ReInit(800,600,emode);
-
-		if(!(Flags[curFile - 1] & AVI_RTO_HICOLOR)){
-			pal = new char[768];
-			i_slake_pal((unsigned char*)pal,32);
-			delete pal;
-		}
-	}
-	else {
-		if(XGR_Obj.flags & XGR_HICOLOR && curFile >= numFiles) XGR_ReInit(800,600,emode);
-	}
-*/
 #endif
-_MEM_STATISTIC_("AFTER SHOW IMAGE RTO 4 FINIT -> ");
+		aviBuf = NULL;
+		}
+	XGR_Obj.fill(0);
+	XGR_Obj.clear_2d_surface();
+	XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
+	XGR_Obj.set_is_scaled_renderer(false);
+	_MEM_STATISTIC_("AFTER SHOW IMAGE RTO 4 FINIT -> ");
 }
 
 void set_map_to_fullscreen()
@@ -2666,10 +2618,15 @@ void shotFlush(void)
 		filestr.close();
 		curShotNumber++;
 	}
-	std::cout<<"ScreenShot name:"<<out_buf.GetBuf()<<std::endl;
-	SDL_Surface* screenshotSurface = XGR_Obj.get_screenshot();
-	SDL_SaveBMP(screenshotSurface, out_buf.GetBuf());
-	SDL_FreeSurface(screenshotSurface);
+	std::cout << "ScreenShot name:" << out_buf.GetBuf() << std::endl;
+	SDL_Surface *screenshotSurface = XGR_Obj.get_screenshot();
+	if (!screenshotSurface) {
+		std::cerr << "Screenshot failed: " << SDL_GetError() << std::endl;
+		return;
+	}
+	if (!SDL_SaveBMP(screenshotSurface, out_buf.GetBuf()))
+		std::cerr << "Screenshot save failed: " << SDL_GetError() << std::endl;
+	SDL_DestroySurface(screenshotSurface);
 }
 #endif
 
@@ -2869,20 +2826,20 @@ ShowImageRTO::ShowImageRTO(void)
 		fileNames[i] = new char[256];
 }
 
-ShowAviRTO::ShowAviRTO(void)
-{
-	int i;
+ShowAviRTO::ShowAviRTO(void) {
 	ID = RTO_SHOW_AVI_ID;
 	Timer = RTO_IMAGE_TIMER;
+	aviBuf = NULL;
 }
 
 void SetupPath(void)
 {
 #if defined(BETA_TESTING) || defined(CDCHECK)
-	char* path = getVideoPath();
-	if(!path) ErrH.Abort("Software is NOT properly installed. Please, reinstall the Game!");
-	extern char* iVideoPath;
-	strcat(path,"\\");
+	char *path = getVideoPath();
+	if (!path)
+		ErrH.Abort("Software is NOT properly installed. Please, reinstall the Game!");
+	extern const char *iVideoPath;
+	strcat(path, "\\");
 	iVideoPath = path;
 #endif
 }

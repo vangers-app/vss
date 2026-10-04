@@ -188,33 +188,15 @@ class VssBrowser {
         window.addEventListener("keydown", this.onKeyDown);
         window.addEventListener("keyup", this.onKeyUp);
         window.addEventListener("blur", this.onBlur);
+        this.installFileLoader();
     }
 
-    initScripts(folder: string) {
-        this.folder = folder;
-        this.quants = {};
-        this.results = {};
-        vss.removeAllQuantListeners();
-        delete global.config;
-        global.bridge = this.createBridge();
-        global.ui = global.ui ?? createDesktopUiAdapter();
-        resetDiskCache();
-
-        // Merge enabled file mods over the Steam install: a mod file wins over the
-        // game file with the same relative path. The lazy loader below then serves it.
-        const folders = getModFolders();
-        const enabledMods = new Set(readInventoryItems().filter((item) => item.enabled).map((item) => item.id));
-        for (const mod of getModAddons()) {
-            if (!enabledMods.has(mod.id)) {
-                continue;
-            }
-            for (const folder of mod.folders ?? [mod.id]) {
-                for (const file of folders[folder] ?? []) {
-                    localInstall.set(file.rel, file.abs);
-                }
-            }
-        }
-
+    // Prepares the emscripten FS for the on-disk game data and registers the
+    // lazy file_open loader. Called from the constructor as well as from
+    // initScripts: the engine opens its first data file (road.fnt) before it
+    // initializes the script folder, so registering this later leaves that read
+    // unresolved. Both steps are idempotent, so calling it twice is fine.
+    private installFileLoader() {
         const dirs = new Set<string>();
         for (const rel of localInstall.keys()) {
             const dir = rel.substring(0, rel.lastIndexOf("/"));
@@ -223,7 +205,11 @@ class VssBrowser {
             }
         }
         for (const dir of dirs) {
-            this.Module.FS.mkdirTree(dir);
+            try {
+                this.Module.FS.mkdirTree(dir);
+            } catch {
+                // already present
+            }
         }
         const emptyBytes = new Uint8Array(0);
         for (const rel of localInstall.keys()) {
@@ -250,6 +236,33 @@ class VssBrowser {
             }
             return loadDiskFile("/" + normalized, abs);
         });
+    }
+    initScripts(folder: string) {
+        this.folder = folder;
+        this.quants = {};
+        this.results = {};
+        vss.removeAllQuantListeners();
+        delete global.config;
+        global.bridge = this.createBridge();
+        global.ui = global.ui ?? createDesktopUiAdapter();
+        resetDiskCache();
+
+        // Merge enabled file mods over the Steam install: a mod file wins over the
+        // game file with the same relative path. The lazy loader below then serves it.
+        const folders = getModFolders();
+        const enabledMods = new Set(readInventoryItems().filter((item) => item.enabled).map((item) => item.id));
+        for (const mod of getModAddons()) {
+            if (!enabledMods.has(mod.id)) {
+                continue;
+            }
+            for (const folder of mod.folders ?? [mod.id]) {
+                for (const file of folders[folder] ?? []) {
+                    localInstall.set(file.rel, file.abs);
+                }
+            }
+        }
+
+        this.installFileLoader();
 
         for (const next of addonManifest) {
             if (this.isAddonActive(next)) {

@@ -1,0 +1,138 @@
+name: OSS Windows 64bit Build
+
+on:
+  push:
+    branches:
+      - master
+      - alpha
+  pull_request:
+    branches:
+      - master
+      - alpha
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oss-windows-64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.repository == 'KranX/Vangers' }}
+    runs-on: windows-2025-vs2026
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    env:
+      BUILD_TYPE: RelWithDebInfo
+      CLUNK_COMMIT: b52d1fda2237ef9ec81d09664ad2bb3aadd0de68
+      TOML11_VERSION: 4.4.0
+      TOML11_SHA256: 815bfe6792aa11a13a133b86e7f0f45edc5d71eb78f5fb6686c49c7f792b9049
+
+    steps:
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          update: true
+          install: |
+            diffutils
+            git
+            mingw-w64-ucrt-x86_64-sdl3
+            mingw-w64-ucrt-x86_64-sdl3-net
+          pacboy: |
+            cmake:p
+            ffmpeg:p
+            gcc:p
+            libogg:p
+            libvorbis:p
+            ninja:p
+            pkgconf:p
+            zlib:p
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Show tool versions
+        run: |
+          cmake --version
+          ninja --version
+          c++ --version
+
+      - name: Download Clunk
+        id: clunk-source
+        run: |
+          git init external/clunk
+          git -C external/clunk remote add origin https://github.com/stalkerg/clunk.git
+          git -C external/clunk fetch --depth 1 origin "${CLUNK_COMMIT}"
+          git -C external/clunk checkout --detach FETCH_HEAD
+          echo "sha=$(git -C external/clunk rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Clunk build
+        id: cache-clunk
+        uses: actions/cache@v5
+        with:
+          path: external/clunk/build
+          key: oss-windows-clunk-${{ runner.os }}-ucrt64-${{ steps.clunk-source.outputs.sha }}
+
+      - name: Build Clunk
+        if: steps.cache-clunk.outputs.cache-hit != 'true'
+        run: |
+          cmake -S external/clunk -B external/clunk/build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX"
+          cmake --build external/clunk/build --parallel
+
+      - name: Install Clunk
+        run: cmake --install external/clunk/build
+
+      - name: Install toml11
+        run: |
+          curl --fail --location --retry 3 \
+            --output external/toml11.tar.gz \
+            "https://github.com/ToruNiina/toml11/archive/refs/tags/v${TOML11_VERSION}.tar.gz"
+          echo "${TOML11_SHA256}  external/toml11.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file external/toml11.tar.gz --directory external
+          cmake -Wno-deprecated \
+            -S "external/toml11-${TOML11_VERSION}" -B external/toml11-build \
+            -G Ninja \
+            -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" \
+            -DBUILD_TESTING=OFF \
+            -DTOML11_PRECOMPILE=OFF
+          cmake --install external/toml11-build
+
+      - name: Configure Vangers
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+
+      - name: Build Vangers
+        run: cmake --build build --parallel
+
+      - name: Test Vangers
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Prepare artifact folder
+        run: |
+          mkdir -p artifacts
+          cp build/src/vangers.exe artifacts/
+          cp build/surmap/surmap.exe artifacts/
+
+          for exe in artifacts/*.exe; do
+            ldd "$exe" | awk '/ucrt64/ { print $3 }' | sort -u | while read -r dll; do
+              cp -n "$dll" artifacts/
+            done
+          done
+
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Vangers-OSS-windows-x86_64
+          path: artifacts

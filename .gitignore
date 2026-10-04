@@ -4,6 +4,10 @@ data/*
 !data/actint
 !data/data
 !data/resource/actint/hd
+!data/thechain/
+data/thechain/*
+!data/thechain/fostral/
+data/thechain/fostral/output.vmt
 
 # CMake files
 CMakeFiles/
@@ -22,16 +26,29 @@ build
 .vscode/
 *.code-workspace
 
+# Local development tools
+/.ropeproject/
+/.codex
+
 # VS cmake
 .vs/
 [Oo]ut/
 CMakeSettings.json
 
+# vcpkg (manifest mode)
+/vcpkg_installed/
+/build-msvc*/
+
+# External dependencies fetched by the build scripts
+/external/
+
 # compile stuff
 /ffmpeg
 /build
+/build_*/
 /clunk
 /vangers
+/external/
 /artifacts-flatpak
 /flatpak-build
 /flatpak-repo
@@ -59,3 +76,6 @@ res_gen
 emscripten
 game-data-*.zip
 .tmp
+/build-*/
+# local notes and machine-specific paths, not for the repo
+.local/

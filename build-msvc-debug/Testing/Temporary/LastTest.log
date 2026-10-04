@@ -1,0 +1,127 @@
+Start testing: Sep 27 17:53 RTZ 2 (зима)
+----------------------------------------------------------
+1/8 Testing: xsocket_loopback
+1/8 Test: xsocket_loopback
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/xsocket_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"xsocket_loopback" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+Invalid TCP endpoint: 
+TCP socket open failed: Socket failed to connect: РџРѕРґРєР»СЋС‡РµРЅРёРµ РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅРѕ, С‚.Рє. РєРѕРЅРµС‡РЅС‹Р№ РєРѕРјРїСЊСЋС‚РµСЂ РѕС‚РІРµСЂРі Р·Р°РїСЂРѕСЃ РЅР° РїРѕРґРєР»СЋС‡РµРЅРёРµ.
+
+<end of output>
+Test time =   2.22 sec
+----------------------------------------------------------
+Test Passed.
+"xsocket_loopback" end time: Sep 27 17:53 RTZ 2 (зима)
+"xsocket_loopback" time elapsed: 00:00:02
+----------------------------------------------------------
+
+2/8 Testing: legacy_data_compat
+2/8 Test: legacy_data_compat
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/legacy_data_compat_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"legacy_data_compat" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+Legacy user data is not part of the OSS checkout; runtime compatibility checks were skipped
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"legacy_data_compat" end time: Sep 27 17:53 RTZ 2 (зима)
+"legacy_data_compat" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/8 Testing: sdl_event_buffer
+3/8 Test: sdl_event_buffer
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/sdl_event_buffer_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"sdl_event_buffer" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"sdl_event_buffer" end time: Sep 27 17:53 RTZ 2 (зима)
+"sdl_event_buffer" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/8 Testing: network_control_flags
+4/8 Test: network_control_flags
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/network_control_flags_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"network_control_flags" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"network_control_flags" end time: Sep 27 17:53 RTZ 2 (зима)
+"network_control_flags" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/8 Testing: traction_control_cadence
+5/8 Test: traction_control_cadence
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/traction_control_cadence_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"traction_control_cadence" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"traction_control_cadence" end time: Sep 27 17:53 RTZ 2 (зима)
+"traction_control_cadence" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/8 Testing: settings
+6/8 Test: settings
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/settings_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"settings" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   2.70 sec
+----------------------------------------------------------
+Test Passed.
+"settings" end time: Sep 27 17:53 RTZ 2 (зима)
+"settings" time elapsed: 00:00:02
+----------------------------------------------------------
+
+7/8 Testing: text_encoding
+7/8 Test: text_encoding
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/text_encoding_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"text_encoding" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"text_encoding" end time: Sep 27 17:53 RTZ 2 (зима)
+"text_encoding" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/8 Testing: legacy_settings_migration
+8/8 Test: legacy_settings_migration
+Command: "D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests/legacy_settings_migration_test.exe"
+Directory: D:/Windows.old-Windows-7/Users/DileSoft/Documents/git/Vangers/build-msvc-debug/tests
+"legacy_settings_migration" start time: Sep 27 17:53 RTZ 2 (зима)
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.09 sec
+----------------------------------------------------------
+Test Passed.
+"legacy_settings_migration" end time: Sep 27 17:53 RTZ 2 (зима)
+"legacy_settings_migration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 27 17:53 RTZ 2 (зима)

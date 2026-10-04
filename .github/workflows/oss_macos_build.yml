@@ -1,0 +1,192 @@
+name: OSS MacOS Build
+
+on:
+  push:
+    branches:
+      - master
+      - alpha
+  pull_request:
+    branches:
+      - master
+      - alpha
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oss-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+  CLUNK_COMMIT: b52d1fda2237ef9ec81d09664ad2bb3aadd0de68
+  MACOSX_DEPLOYMENT_TARGET: "13"
+  TOML11_VERSION: 4.4.0
+  TOML11_SHA256: 815bfe6792aa11a13a133b86e7f0f45edc5d71eb78f5fb6686c49c7f792b9049
+
+jobs:
+  build:
+    if: ${{ github.repository == 'KranX/Vangers' }}
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          brew untap aws/tap 2>/dev/null || true
+
+          install_if_missing() {
+            for formula in "$@"; do
+              if brew list --formula "$formula" >/dev/null 2>&1; then
+                echo "$formula is already installed"
+              else
+                brew install "$formula"
+              fi
+            done
+          }
+
+          install_if_missing \
+            dylibbundler \
+            ffmpeg \
+            libogg \
+            libvorbis \
+            ninja \
+            pkgconf \
+            sdl3 \
+            sdl3_net
+
+      - name: Install latest CMake 4
+        run: |
+          python3 -m venv .ci-cmake
+          .ci-cmake/bin/python -m pip install --upgrade pip
+          .ci-cmake/bin/python -m pip install --upgrade "cmake>=4.0.0"
+          echo "$PWD/.ci-cmake/bin" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          cmake --version
+          ninja --version
+          c++ --version
+
+      - name: Download Clunk
+        id: clunk-source
+        run: |
+          git init external/clunk
+          git -C external/clunk remote add origin https://github.com/stalkerg/clunk.git
+          git -C external/clunk fetch --depth 1 origin "${CLUNK_COMMIT}"
+          git -C external/clunk checkout --detach FETCH_HEAD
+          echo "sha=$(git -C external/clunk rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Clunk build
+        id: cache-clunk
+        uses: actions/cache@v5
+        with:
+          path: external/clunk/build
+          key: oss-macos-clunk-${{ runner.os }}-${{ steps.clunk-source.outputs.sha }}-${{ env.MACOSX_DEPLOYMENT_TARGET }}
+
+      - name: Build Clunk
+        if: steps.cache-clunk.outputs.cache-hit != 'true'
+        run: |
+          cmake -S external/clunk -B external/clunk/build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}"
+          cmake --build external/clunk/build --parallel
+
+      - name: Install Clunk
+        run: sudo cmake --install external/clunk/build
+
+      - name: Install toml11
+        run: |
+          mkdir -p external
+          curl --fail --location --retry 3 \
+            --output external/toml11.tar.gz \
+            "https://github.com/ToruNiina/toml11/archive/refs/tags/v${TOML11_VERSION}.tar.gz"
+          echo "${TOML11_SHA256}  external/toml11.tar.gz" | shasum --algorithm 256 --check
+          tar --extract --gzip --file external/toml11.tar.gz --directory external
+          cmake -Wno-deprecated \
+            -S "external/toml11-${TOML11_VERSION}" -B external/toml11-build \
+            -G Ninja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_TESTING=OFF \
+            -DTOML11_PRECOMPILE=OFF
+          sudo cmake --install external/toml11-build
+
+      - name: Configure Vangers
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}"
+
+      - name: Build Vangers
+        run: cmake --build build --parallel
+
+      - name: Test Vangers
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Show built binaries
+        run: |
+          file build/src/vangers
+          file build/surmap/surmap
+          otool -L build/src/vangers
+
+      - name: Prepare runtime artifact
+        run: |
+          rm -rf artifacts
+
+          APP="artifacts/bin/Vangers.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Libs" "$APP/Contents/Resources"
+
+          cp Vangers.app/Contents/Info.plist "$APP/Contents/Info.plist"
+          cp Vangers.app/Contents/Resources/iconfile.icns "$APP/Contents/Resources/iconfile.icns"
+          cp Vangers.app/Contents/MacOS/start "$APP/Contents/MacOS/start"
+          cp build/src/vangers "$APP/Contents/MacOS/Vangers"
+
+          chmod +x "$APP/Contents/MacOS/start" "$APP/Contents/MacOS/Vangers"
+
+          dylibbundler \
+            -od \
+            -b \
+            -x "$APP/Contents/MacOS/Vangers" \
+            -d "$APP/Contents/Libs" \
+            -p "@executable_path/../Libs/"
+
+          fix_install_names() {
+            local target="$1"
+            otool -L "$target" \
+              | awk '$1 ~ /^\/usr\/local\// || $1 ~ /^\/opt\/homebrew\// { print $1 }' \
+              | while read -r dep; do
+                local dep_name
+                dep_name="$(basename "$dep")"
+                if [ -f "$APP/Contents/Libs/$dep_name" ]; then
+                  install_name_tool -change "$dep" "@executable_path/../Libs/$dep_name" "$target"
+                fi
+              done
+          }
+
+          fix_install_names "$APP/Contents/MacOS/Vangers"
+          for dylib in "$APP/Contents/Libs/"*.dylib; do
+            [ -f "$dylib" ] || continue
+            dylib_name="$(basename "$dylib")"
+            codesign --remove-signature "$dylib" 2>/dev/null || true
+            install_name_tool -id "@executable_path/../Libs/$dylib_name" "$dylib" || true
+            fix_install_names "$dylib"
+          done
+
+          codesign --force --deep --sign - "$APP"
+
+          cp build/surmap/surmap artifacts/bin/
+          chmod +x artifacts/bin/surmap
+
+          otool -L "$APP/Contents/MacOS/Vangers"
+
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Vangers-OSS-macos-x86_64
+          path: artifacts

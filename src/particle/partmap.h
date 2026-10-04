@@ -1,3 +1,6 @@
+#ifndef __PARTICLE_PARTMAP_H__
+#define __PARTICLE_PARTMAP_H__
+
 
 const int  FIRE_COLOR_BITS = 5;
 const int  FIRE_COLOR_FIRST = 192;
@@ -95,3 +98,5 @@ enum {	 EXPLOSION_64x64 = 0,
 	};
 
 
+
+#endif

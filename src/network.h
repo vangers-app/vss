@@ -2,6 +2,8 @@
 #define __NETWORK_H__
 #include "zmod_client.h"
 
+#include "multiplayer.h"
+#include "xcontainers.h"
 #include "xsocket.h"
 #include "multiplayer.h"
 #ifdef EMSCRIPTEN
@@ -113,10 +115,12 @@ enum {
 struct MessageElement : XListElement {
 	char* message;
 	int color;
-	int time; //zmod
-	MessageElement(const char* player_name, char* msg,int color = 0);
-	~MessageElement(){ delete[] message; }
-	};
+Uint64 time; // zmod
+	MessageElement(const char *player_name, char *msg, int color = 0);
+	~MessageElement() {
+		delete[] message;
+	}
+};
 
 struct MessageDispatcher : XList {
 	int max_number_of_messages;
@@ -294,19 +298,19 @@ struct NetRndType
 #ifndef CLOCK
 #define CLOCK() 	(SDL_GetTicks()*18/1000)
 #endif
-#define GLOBAL_CLOCK()	(round(SDL_GetTicks()*(256./1000)) - global_clock_tau)
-#define LOCAL_CLOCK()	(round(SDL_GetTicks()*(256./1000)))
+#define LOCAL_CLOCK() static_cast<unsigned int>(round(SDL_GetTicks() * (256. / 1000)))
+#define GLOBAL_CLOCK() (LOCAL_CLOCK() - static_cast<unsigned int>(global_clock_tau))
 #define age_of_current_game() (((int)GLOBAL_CLOCK() - (int)game_birth_time_offset) >> 8)
 //#define age_of_current_game() (((int)((SDL_GetTicks()/1000.0) - global_clock_tau) - (int)game_birth_time_offset) >> 8)
 
-#define START_TIMER(interval)	unsigned int _end_time_ = SDL_GetTicks() + interval;
+#define START_TIMER(interval) Uint64 _end_time_ = SDL_GetTicks() + (interval);
 #ifdef EMSCRIPTEN
-#define CHECK_TIMER()		(html::emSleep() && ((int)(SDL_GetTicks() - _end_time_) < 0))
+#define CHECK_TIMER() (html::emSleep() && (SDL_GetTicks() < _end_time_))
 #else
-#define CHECK_TIMER()		((int)(SDL_GetTicks() - _end_time_) < 0)
+#define CHECK_TIMER() (SDL_GetTicks() < _end_time_)
 #endif
-#define IS_FUTURE(time)		((int)((time) - SDL_GetTicks()) > 0)
-#define IS_PAST(time)		((int)(SDL_GetTicks() - (time)) > 0)
+#define IS_FUTURE(time) ((time) > SDL_GetTicks())
+#define IS_PAST(time) (SDL_GetTicks() > (time))
 
 /*****************************************************************
 				Externs
@@ -323,7 +327,7 @@ extern int time_interval_t0;
 extern unsigned int game_birth_time_offset;
 extern XBuffer network_analysis_buffer;
 extern int average_lag;
-extern XQueue<unsigned int> lag_averaging_t0;
+extern XQueue<Uint64> lag_averaging_t0;
 
 extern int NetworkON;
 extern NetRndType NetRnd;

@@ -7,40 +7,40 @@
 #include "../3d/3dobject.h"
 #include "../3d/parser.h"
 
+#include "../backg.h"
 #include "../common.h"
 #include "../sqexp.h"
-#include "../backg.h"
 
 #include "../actint/item_api.h"
-#include "uvsapi.h"
 #include "../network.h"
+#include "uvsapi.h"
 
+#include "../terra/render.h"
 #include "../terra/vmap.h"
 #include "../terra/world.h"
-#include "../terra/render.h"
 
-#include "../particle/particle.h"
-#include "../particle/partmap.h"
 #include "../particle/df.h"
 #include "../particle/light.h"
+#include "../particle/particle.h"
+#include "../particle/partmap.h"
 
 #include "../uvs/univang.h"
 
 #include "../dast/poly3d.h"
 
-#include "track.h"
 #include "hobj.h"
-#include "moveland.h"
 #include "items.h"
+#include "moveland.h"
+#include "track.h"
 
-#include "sensor.h"
 #include "effect.h"
 #include "mechos.h"
+#include "sensor.h"
 
 #include "compas.h"
 
-#include "../sound/hsound.h"
 #include "../palette.h"
+#include "../sound/hsound.h"
 #include "magnum.h"
 
 const int TOUCH_SHIFT = 11;
@@ -1206,7 +1206,7 @@ void GameObjectDispatcher::Quant(void)
 	if(TurnAngle == 0 && DepthShow == 0) AdvancedView = 0;
 	else AdvancedView = 1;
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif	
 
@@ -1241,7 +1241,7 @@ void GameObjectDispatcher::Quant(void)
 		};
 	}
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 
@@ -1261,17 +1261,17 @@ void GameObjectDispatcher::Quant(void)
 
 	MapD.Quant();
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 	ActD.Quant(); 	
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 	ItemD.Quant();
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 	InsectD.Quant();
@@ -1288,14 +1288,14 @@ void GameObjectDispatcher::Quant(void)
 //znfo ai quant
 	aiMessageQueue.Quant();
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 
 	ViewTail = NULL;
 	Sort();	
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 //	DBGCHECK;
 #endif
 };
@@ -1306,8 +1306,9 @@ extern int YSIDE;
 extern int TotalDrawFlag;
 
 void GameObjectDispatcher::DrawQuant(void) {
-#ifdef _DEBUG
-	if(!TotalDrawFlag) return;
+#ifdef _LEGACY_VS_DEBUG
+	if (!TotalDrawFlag)
+		return;
 #endif
 
 	BaseObject* p;
@@ -2914,9 +2915,9 @@ char getObjectPosition(int& x,int& y)
 {
 	char c;
 	
-		if(!actCurrentViewObject){
-#ifdef _DEBUG
-			if(aiCutDominance >= 0){
+	if (!actCurrentViewObject) {
+#ifdef _LEGACY_VS_DEBUG
+		if (aiCutDominance >= 0) {
 #else
 //#ifdef ZMOD_BETA
 //			if (1) {
@@ -2925,10 +2926,10 @@ char getObjectPosition(int& x,int& y)
 				//znfo - dolly visibility
 //#endif //ZMOD_BETA
 #endif
-				if(!actCurrentViewDolly){
-#ifdef _DEBUG
-					if(!actCurrentViewStuff){
-						actCurrentViewStuff = (StuffObject*)(ItemD.Tail);
+			if (!actCurrentViewDolly) {
+#ifdef _LEGACY_VS_DEBUG
+				if (!actCurrentViewStuff) {
+					actCurrentViewStuff = (StuffObject *)(ItemD.Tail);
 
 						actCurrentViewObject = (VangerUnit*)(ActD.Tail);
 						if(actCurrentViewObject && (actCurrentViewObject->Status & SOBJ_WAIT_CONFIRMATION)){
@@ -3789,7 +3790,7 @@ void UnitList::NetEvent(int type,int id)
 {
 };
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 extern XStream fout;
 #endif
 
@@ -3829,7 +3830,7 @@ void GameObjectDispatcher::NetEvent(void)
 					NetSlotEvent(type,id);
 					break;
 				default:
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 
 					fout.SetRadix(16);
 					fout < "Ignore:  Type:" <= type;
@@ -4647,8 +4648,8 @@ int CheckThreallMessiah(void)
 	return 0;
 };
 
-extern char* iVideoPath;
-extern char* iVideoPathDefault;
+extern const char *iVideoPath;
+extern const char *iVideoPathDefault;
 
 void PassageImageType::Open(char* name)
 {

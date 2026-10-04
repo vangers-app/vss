@@ -4,25 +4,25 @@
 
 #include "../runtime.h"
 
+#include "../iscreen/controls.h"
 #include "../iscreen/hfont.h"
+#include "../iscreen/ikeys.h"
 #include "../iscreen/iscreen.h"
-#include "item_api.h"
-#include "actint.h"
+#include "a_consts.h"
+#include "aci_evnt.h"
 #include "aci_scr.h"
 #include "aci_str.h"
-#include "aci_evnt.h"
-#include "a_consts.h"
+#include "actint.h"
 #include "credits.h"
-#include "../iscreen/ikeys.h"
-#include "../iscreen/controls.h"
+#include "item_api.h"
 
 #include "mlconsts.h"
 #include "mlstruct.h"
 
 #include "../units/uvsapi.h"
 
-#include "../uvs/univang.h"
 #include "../uvs/diagen.h"
+#include "../uvs/univang.h"
 
 #include "../sound/hsound.h"
 #include "layout.h"
@@ -129,39 +129,39 @@ extern int aciWorldIndex;
 
 extern int Pause;
 
-extern char* aciSTR_OFF;
-extern char* aciSTR_DAY;
-extern char* aciSTR_UNDEFINED_PRICE;
-extern char* aciSTR_PRICE;
-extern char* aciSTR_EMPTY_SLOT;
-extern char* aciSTR_UNNAMED_SAVE;
-extern char* aciSTR_AUTOSAVE;
-extern char* aciSTR_WINS;
-extern char* aciSTR_LOSSES;
-extern char* aciSTR_LUCK;
-extern char* aciSTR_DOMINANCE;
-extern char* aciSTR_BROKEN;
-extern char* aciSTR_ENERGY_SHIELD;
-extern char* aciSTR_RESTORING_SPEED;
-extern char* aciSTR_MECHANIC_ARMOR;
-extern char* aciSTR_VELOCITY;
-extern char* aciSTR_SPIRAL_CAPACITY;
-extern char* aciSTR_AIR_RESERVE;
-extern char* aciSTR_DAMAGE;
-extern char* aciSTR_LOAD;
-extern char* aciSTR_SHOTS;
-extern char* aciSTR_BURST;
-extern char* aciSTR_WORKING_TIME;
-extern char* aciSTR_SECONDS;
-extern char* aciSTR_IN_PACK;
-extern char* aciSTR_NO_CASH;
-extern char* aciSTR_PICKUP_ITEMS_OFF;
-extern char* aciSTR_PICKUP_WEAPONS_OFF;
-extern char* aciSTR_PutThis;
+extern const char *aciSTR_OFF;
+extern const char *aciSTR_DAY;
+extern const char *aciSTR_UNDEFINED_PRICE;
+extern const char *aciSTR_PRICE;
+extern const char *aciSTR_EMPTY_SLOT;
+extern const char *aciSTR_UNNAMED_SAVE;
+extern const char *aciSTR_AUTOSAVE;
+extern const char *aciSTR_WINS;
+extern const char *aciSTR_LOSSES;
+extern const char *aciSTR_LUCK;
+extern const char *aciSTR_DOMINANCE;
+extern const char *aciSTR_BROKEN;
+extern const char *aciSTR_ENERGY_SHIELD;
+extern const char *aciSTR_RESTORING_SPEED;
+extern const char *aciSTR_MECHANIC_ARMOR;
+extern const char *aciSTR_VELOCITY;
+extern const char *aciSTR_SPIRAL_CAPACITY;
+extern const char *aciSTR_AIR_RESERVE;
+extern const char *aciSTR_DAMAGE;
+extern const char *aciSTR_LOAD;
+extern const char *aciSTR_SHOTS;
+extern const char *aciSTR_BURST;
+extern const char *aciSTR_WORKING_TIME;
+extern const char *aciSTR_SECONDS;
+extern const char *aciSTR_IN_PACK;
+extern const char *aciSTR_NO_CASH;
+extern const char *aciSTR_PICKUP_ITEMS_OFF;
+extern const char *aciSTR_PICKUP_WEAPONS_OFF;
+extern const char *aciSTR_PutThis;
 
-extern char* aciSTR_RESTRICTIONS;
-extern char* aciSTR_STATISTICS;
-extern char* aciSTR_MINUTES;
+extern const char *aciSTR_RESTRICTIONS;
+extern const char *aciSTR_STATISTICS;
+extern const char *aciSTR_MINUTES;
 
 extern int aciItmTextQueueSize;
 
@@ -317,7 +317,7 @@ void smooth_shape_quant(int sx,int sy,unsigned char* buf,int src,int dest,int cn
 void put_buf2col(int x,int y,int sx,int sy,unsigned char* buf,int null_lev,int n_mode);
 void put_map(int x,int y,int sx,int sy);
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 void aciResizeItem(double delta);
 #endif
 
@@ -471,7 +471,7 @@ int aciProtractorEvent = 0;
 int aciMechMessiahEvent = 0;
 int aciTeleportEvent = 0;
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 int aciShotCount = 0;
 int aciCurIND = 0;
 int aciIndMove = 0;
@@ -1273,6 +1273,7 @@ actIntDispatcher::actIntDispatcher(void)
 {
 	int i;
 	flags = 0;
+	invMoveItemCloseLockFrame = -1;
 
 	curIbsID = 0;
 
@@ -4865,7 +4866,7 @@ void actIntDispatcher::KeyQuant(void)
 
 	aciBitmapMenu* bm;
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 	int i;
 	invMatrix* temp;
 	invItem* temp_item;
@@ -5191,16 +5192,29 @@ void actIntDispatcher::iKeyQuant(void)
 	}
 }
 
-void actIntDispatcher::iKeyTrap(int cd)
-{
-	fncMenu* m;
-	if(!NetworkON) aciCHandler(cd);
-	if(!(flags & AS_ISCREEN_INV_MODE)){
-		m = (fncMenu*)i_menuList -> last;
-		while(m){
-			if(m -> flags & FM_LOCATION_MENU && m -> flags & FM_ACTIVE && m -> up_key -> check(cd)){
-				m -> step_up();
-				m -> set_redraw();
+void actIntDispatcher::iKeyTrap(int cd) {
+	fncMenu *m;
+	if (!NetworkON)
+		aciCHandler(cd);
+	if ((flags & AS_ISCREEN_INV_MODE) && (cd == SDL_SCANCODE_UP || cd == SDL_SCANCODE_DOWN)) {
+		m = get_imenu(SHOP_ITEMS_MENU_ID);
+		if (m && (m->flags & FM_ACTIVE) && m->curItem) {
+			if (cd == SDL_SCANCODE_UP)
+				m->step_up();
+			else
+				m->step_down();
+			m->set_redraw();
+			aciSetShopItem(m->curFunction);
+			aciInitShopAvi();
+			SOUND_SELECT();
+		}
+	}
+	if (!(flags & AS_ISCREEN_INV_MODE)) {
+		m = (fncMenu *)i_menuList->last;
+		while (m) {
+			if (m->flags & FM_LOCATION_MENU && m->flags & FM_ACTIVE && m->up_key->check(cd)) {
+				m->step_up();
+				m->set_redraw();
 				SOUND_SELECT();
 			}
 			if(m -> flags & FM_ACTIVE && m -> down_key -> check(cd)){
@@ -5246,6 +5260,8 @@ static void aciResetMatrixVisualState(invMatrix* m)
 	m -> clear_shadow_cells();
 	m -> flags &= ~(IM_REDRAW | IM_FLUSH | IM_REDRAW_SHADOW);
 }
+
+static const int ACI_IINV_MOVE_CLOSE_LOCK_FRAMES = 1;
 
 void actIntDispatcher::EventQuant(void)
 {
@@ -5340,6 +5356,8 @@ void actIntDispatcher::EventQuant(void)
 				flags |= AS_ISCREEN_INV_MODE;
 				break;
 			case EV_DEACTIVATE_IINV:
+				if((flags & AS_INV_MOVE_ITEM) || aciCurFrame <= invMoveItemCloseLockFrame)
+					break;
 				aciResetMatrixVisualState(curMatrix);
 				aciResetMatrixVisualState(secondMatrix);
 				flags &= ~AS_ISCREEN_INV_MODE;
@@ -5573,7 +5591,7 @@ void actIntDispatcher::change_mode(void)
 	fncMenu* p;
 	switch(curMode){
 		case AS_INV_MODE:
-			if(flags & AS_INV_MOVE_ITEM) break;
+			if((flags & AS_INV_MOVE_ITEM) || aciCurFrame <= invMoveItemCloseLockFrame) break;
 			curMode = AS_INFO_MODE;
 			XGR_MouseSetPromptData(infPrompt);
 			change_screen(prevScrMode);
@@ -6233,6 +6251,7 @@ int actIntDispatcher::put_item_xy(invItem* p,int x,int y,int sflag)
 		m -> put_item(x,y,p);
 		m -> clear_shadow_cells();
 		m -> set_redraw();
+		invMoveItemCloseLockFrame = aciCurFrame + ACI_IINV_MOVE_CLOSE_LOCK_FRAMES;
 		if(flags & AS_INV_MOVE_ITEM)
 			restore_mouse_cursor();
 		flags &= ~AS_INV_MOVE_ITEM;
@@ -9841,9 +9860,8 @@ int aciScreenText::NextPage(void)
 	return 0;
 }
 
-#ifdef _DEBUG
-void actIntDispatcher::save_items(void)
-{
+#ifdef _LEGACY_VS_DEBUG
+void actIntDispatcher::save_items(void) {
 	int i;
 	invItem* p;
 	XStream fh;

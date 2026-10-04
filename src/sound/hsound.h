@@ -3,8 +3,8 @@
 
 #include "../../lib/xsound/_xsound.h"
 
-#ifdef _DEBUG
-//#define _NO_CDAUDIO_
+#ifdef _LEGACY_VS_DEBUG
+// #define _NO_CDAUDIO_
 #endif
 
 enum EFFECT_VALUE {

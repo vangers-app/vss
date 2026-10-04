@@ -8,36 +8,36 @@
 #include "../3d/3dobject.h"
 #include "../3d/parser.h"
 
+#include "../backg.h"
 #include "../common.h"
 #include "../sqexp.h"
-#include "../backg.h"
 
 #include "../sound/hsound.h"
 
+#include "../terra/render.h"
 #include "../terra/vmap.h"
 #include "../terra/world.h"
-#include "../terra/render.h"
 
 #include "../actint/item_api.h"
-#include "uvsapi.h"
 #include "../network.h"
+#include "uvsapi.h"
 
-#include "../particle/particle.h"
-#include "../particle/partmap.h"
 #include "../particle/df.h"
 #include "../particle/light.h"
+#include "../particle/particle.h"
+#include "../particle/partmap.h"
 
 #include "../uvs/univang.h"
 
 #include "../dast/poly3d.h"
 
-#include "track.h"
-#include "hobj.h"
-#include "moveland.h"
-#include "items.h"
-#include "sensor.h"
 #include "effect.h"
+#include "hobj.h"
+#include "items.h"
 #include "mechos.h"
+#include "moveland.h"
+#include "sensor.h"
+#include "track.h"
 
 //#define SAVE_TNT_DATA
 
@@ -77,7 +77,7 @@ const int TNT_DETONATION_RADIUS = 50;
 
 char* TntCloneName;
 
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 XStream fDanger;
 #endif
 
@@ -278,8 +278,8 @@ void StaticOpen(void)
 	EnterCenterData = new EnterCenter[NumEnterCenter];
 	for(i = 0;i < NumEnterCenter;i++) EnterCenterData[i].Open(in);
 
-#ifdef _DEBUG
-	fDanger.open("danger.log",XS_OUT);
+#ifdef _LEGACY_VS_DEBUG
+	fDanger.open("danger.log", XS_OUT);
 #endif
 
 	for(i = 0;i < DngTableSize;i++)
@@ -364,7 +364,7 @@ void StaticClose(void)
 	
 	for(i = 0;i < NumEnterCenter;i++) EnterCenterData[i].Close();
 	delete[] EnterCenterData;
-#ifdef _DEBUG
+#ifdef _LEGACY_VS_DEBUG
 	fDanger.close();
 #endif
 };
@@ -381,19 +381,20 @@ void StaticQuant(void) //world animation quant
 	} else {
 		sensorStaticFrame++;
 	}
+	const bool legacy_static_tick = sensorStaticFrame == 1;
 	if(NetworkON){
 		for(i = 0;i < TntTableSize;i++)
 		{
 			if(lt[TntObjectData[i]->R_curr.y]) {
-				TntObjectData[i]->NetQuant();
+				TntObjectData[i]->NetQuant(legacy_static_tick);
 			} else
 				TntObjectData[i]->NetHideEvent();
 		}
 	}else{
 		for(i = 0;i < TntTableSize;i++)
-		{		
+		{
 			if(lt[TntObjectData[i]->R_curr.y]) {
-				if (sensorStaticFrame == 1)
+				if(legacy_static_tick)
 					TntObjectData[i]->Quant(); //animate mushroom grow
 			} else
 				TntObjectData[i]->HideEvent();
@@ -1783,10 +1784,15 @@ void DangerDataType::Quant(void)
 
 	switch(Type){
 		case DangerTypeList::FASTSAND:
-//#ifdef _DEBUG
-//			fDanger < "\nFastSand : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <= R_curr.z;
-//#endif
-			if(Enable){
+		// #ifdef _LEGACY_VS_DEBUG
+		//			fDanger < "\nFastSand : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <=
+		// R_curr.z; #endif
+		if (Enable) {
+			if (radius <= 0) {
+				if (!RND(100 * GAME_TIME_COEFF))
+					Enable = 0;
+					break;
+				};
 				if(rActive > radius - abs(dActive) || rActive <= abs(dActive)) dActive = -dActive;
 				rActive += dActive;
 
@@ -1812,9 +1818,9 @@ void DangerDataType::Quant(void)
 			};
 			break;
 		case DangerTypeList::WHIRLPOOL:
-//#ifdef _DEBUG
-//			fDanger < "\nWhirlpool : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <= R_curr.z;
-//#endif
+		// #ifdef _LEGACY_VS_DEBUG
+		//			fDanger < "\nWhirlpool : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < ","
+		//<= R_curr.z; #endif
 
 			if(Enable){
 				if(Time <= 0){
@@ -1845,10 +1851,15 @@ void DangerDataType::Quant(void)
 			break;
 		case DangerTypeList::SWAMP:
 
-//#ifdef _DEBUG
-//			fDanger < "\nSwamp : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <= R_curr.z;
-//#endif
-			if(Enable){
+		// #ifdef _LEGACY_VS_DEBUG
+		//			fDanger < "\nSwamp : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <=
+		// R_curr.z; #endif
+		if (Enable) {
+			if (radius <= 0) {
+				if (!RND(100 * GAME_TIME_COEFF))
+					Enable = 0;
+					break;
+				};
 				if(rActive > radius - abs(dActive) || rActive <= abs(dActive)) dActive = -dActive;
 				rActive += dActive;
 
@@ -1891,9 +1902,9 @@ void DangerDataType::Quant(void)
 			break;
 		case DangerTypeList::HOLE: // Necross road animated hole
 
-//#ifdef _DEBUG
-//			fDanger < "\nHole : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <= R_curr.z;
-//#endif
+		// #ifdef _LEGACY_VS_DEBUG
+		//			fDanger < "\nHole : " <= Enable < ";" <= R_curr.x < "," <= R_curr.y < "," <=
+		// R_curr.z; #endif
 
 			if(Enable){
 //zmod fixed 1.15
@@ -2233,7 +2244,7 @@ void TntCreature::Quant(void)
 			}else{
 				switch(CurrentWorld){
 					case 0:
-						if(RND(300 * GAME_TIME_COEFF) < 5){
+						if(RND(300) < 5){
 							p = BulletD.CreateBullet();
 							vCheck = Vector(radius,0,0) * DBM((int)(RND(2*PI)),Z_AXIS);
 							p->CreateBullet(R_curr,
@@ -2242,8 +2253,8 @@ void TntCreature::Quant(void)
 						};
 						break;
 					case 1:
-						if(RND(1000 * GAME_TIME_COEFF) < 5 && abs(getDistY(R_curr.y,ViewY)) - (radius << 1) < TurnSideY && abs(getDistX(R_curr.x,ViewX)) - (radius << 1) < TurnSideX)
-							TouchTime = TntLinkDelay * GAME_TIME_COEFF;
+						if(RND(1000) < 5 && abs(getDistY(R_curr.y,ViewY)) - (radius << 1) < TurnSideY && abs(getDistX(R_curr.x,ViewX)) - (radius << 1) < TurnSideX)
+							TouchTime = TntLinkDelay;
 						break;
 				};
 			};
@@ -2473,7 +2484,7 @@ void TntCreature::NetEvent(void)
 		NetDestroy(0);
 };
 
-void TntCreature::NetQuant(void)
+void TntCreature::NetQuant(bool legacy_static_tick)
 {
 	BulletObject* p;
 	Vector vCheck;
@@ -2494,22 +2505,24 @@ void TntCreature::NetQuant(void)
 				TntClone->setPhase(0,1);
 				if(CurrentWorld == WORLD_GLORX) ClearBarell(R_curr.x,R_curr.y,radius,83,R_curr.z);
 				else ClearBarell(R_curr.x,R_curr.y,radius,7,R_curr.z);
-				TntClone->setPhase(CurrentHeight,0);					
+				TntClone->setPhase(CurrentHeight,0);
 			};
 			HideFlag = 0;
 		};
-		
+
 		if(TouchTime > 0){
 			TouchTime--;
 			if(TouchTime <= 0) NetDestroy();
 		}else{
 			if(NetTime < NetGlobalTime){
 				if(CurrentHeight < MaxHeight){
-					if(Time <= 0){
-						Time =  DelayHeight;
-						CurrentHeight++;
-						TntClone->setPhase(CurrentHeight,0);
-					}else Time--;
+					if(legacy_static_tick){
+						if(Time <= 0){
+							Time =  DelayHeight;
+							CurrentHeight++;
+							TntClone->setPhase(CurrentHeight,0);
+						}else Time--;
+					}
 				}else{
 					switch(CurrentWorld){
 						case 0:

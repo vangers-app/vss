@@ -6,9 +6,9 @@
 #include "../common.h"
 #include "../sound/hsound.h"
 
-#include "../terra/world.h"
-#include "../terra/vmap.h"
 #include "../terra/render.h"
+#include "../terra/vmap.h"
+#include "../terra/world.h"
 
 #define MIN_SHADOW_dZ	4
 #define OBJSHADOW_H	50
@@ -127,7 +127,7 @@ void Object::set_body_color(unsigned int color_id)
 		ErrH.Abort("Bad color id",XERR_USER,color_id);
 	body_color_offset = COLORS_VALUE_TABLE[2*color_id];
 	body_color_shift = COLORS_VALUE_TABLE[2*color_id + 1];
-	if(model_instance_handle.handle != 0){
+	if(model_instance_handle.handle != 0 || frame_handles){
 		destroy_model_instance();
 		create_model_instance();
 	}
@@ -201,6 +201,9 @@ void Object::draw()
 		}
 
 #ifdef _ROAD_
+	// Set before the shadow, not just before the image: the external renderer draws its own
+	// shadows from the shadow map, so a CPU blob here would double up and waste a raster.
+	draw_image_visible = !(vMap->__use_external_renderer && (model_instance_handle.handle != 0 || frame_handles));
 	// Put Shadow 
 	if(draw_mode == NORMAL_DRAW_MODE){
 		if(ID != ID_INSECT)
@@ -225,7 +228,6 @@ void Object::draw()
 		}
 
 	// Put Image
-	draw_image_visible = !(vMap->__use_external_renderer && model_instance_handle.handle != 0);
 	if(!DepthShow)
 		DrawLinear(R_scr.x - draw_offset,R_scr.y - draw_offset,draw_size,draw_shift,draw_buffer,draw_mode);
 	else{
@@ -878,7 +880,7 @@ inline void shadow_line(int len,int fx,int fy)
 		uchar* linePtr = draw_lt[(fy >> 16) & clip_mask_y];
 		if(linePtr != nullptr && (dz = *draw_dbuf) != 0){
 			mbuf = linePtr + (((fx >> 16) | 1) & clip_mask_x);
-			if ((unsigned int)z_low_level + (unsigned int)dz > (unsigned int)*mbuf)
+			if(draw_image_visible && (unsigned int)z_low_level + (unsigned int)dz > (unsigned int)*mbuf)
 				*draw_vbuf = ShadowColorTable[*draw_vbuf];
 		}
 		draw_vbuf++;

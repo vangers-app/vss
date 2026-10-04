@@ -1,9 +1,9 @@
 #ifndef __ISCREEN_H__
 #define __ISCREEN_H__
 
-#include "lang.h"
 #include "hfont.h"
 #include "iscreen_options.h"
+#include "lang.h"
 #include <vector>
 //#define iMOVE_MOUSE_OBJECTS
 
@@ -528,6 +528,7 @@ struct iScrollerElement : public iBitmapElement
 	int Value;
 	int maxValue;
 	int prevValue;
+	int keyboard_delta;
 
 	int scale;
 	int scale_delta;
@@ -535,7 +536,8 @@ struct iScrollerElement : public iBitmapElement
 	int space;
 
 	void change_quant(void);
-	void change_val(int x,int y);
+	void change_val(int x, int y);
+	void change_value_by(int delta);
 	void scroller_init(void);
 
 	iScrollerElement(void);
@@ -697,7 +699,8 @@ struct iScreen : public iListElement
 	XGR_MousePromptScreen* promptData;
 
 	void CheckScanCode(int sc);
-	void HandleEvent(iScreenEvent* ev);
+	void HandleEvent(iScreenEvent *ev);
+	bool HandlePrimaryAction(iScreenObject *target);
 	void redraw(int mode = 0);
 	void prepare(void);
 	void init(void);
@@ -842,9 +845,6 @@ struct iScreenDispatcher : public iList
 
 	void pal_quant(void);
 
-	void save_data(XStream* fh);
-	void load_data(XStream* fh);
-
 	iScreenDispatcher(void);
 };
 
@@ -868,13 +868,7 @@ struct iScreenFont
 #define iOPTION_VALUE_CUR	0
 #define iOPTION_VALUE_MAX	1
 
-// iScreenOption flags...
-#define iOPTION_NO_SAVE 	0x01
-
-struct iScreenOption
-{
-	int flags;
-
+struct iScreenOption {
 	int ObjectType;
 	int ValueType;
 
@@ -887,9 +881,6 @@ struct iScreenOption
 
 	char* GetValueCHR(void);
 	void SetValueCHR(const char* p);
-
-	void save(XStream* fh);
-	void load(XStream* fh);
 
 	void update(void);
 
@@ -912,7 +903,7 @@ iListElement* iGetOptionObj(int id);
 void i_preExtQuant(void);
 void i_postExtQuant(void);
 
-void ParseScript(const char* fname,const char* bname = NULL);
+void ParseScript(const char *fname, const char *bname = NULL, bool initialize_objects = true);
 void iInit(void);
 int iQuant(void);
 
@@ -967,8 +958,7 @@ void iKeyClear(void);
 
 void iHandleExtEvent(int code,int data = 0);
 
-const char* iGetKeyNameText(int vkey, Language lang = ENGLISH, bool scan = false);
-const char* iGetJoyBtnNameText(int vkey, Language lang = ENGLISH);
+const char *iGetKeyNameText(int vkey, Language lang = ENGLISH, bool scan = false);
 
 void i_slake_pal(unsigned char* p,int delta);
 int iGetKeyName(int vkey,int shift,int lng_flag);

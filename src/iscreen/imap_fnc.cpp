@@ -6,9 +6,9 @@
 #include "iworld.h"
 
 #include "hfont.h"
-#include "iscreen.h"
 #include "i_mem.h"
 #include "ikeys.h"
+#include "iscreen.h"
 
 /* ----------------------------- EXTERN SECTION ----------------------------- */
 
@@ -40,8 +40,8 @@ void change_terrain(int x,int y,int sx,int sy,int terr1,int terr2);
 
 void map_init(void);
 
-#ifdef _DEBUG
-void map_rectangle(int x,int y,int sx,int sy,int col);
+#ifdef _LEGACY_VS_DEBUG
+void map_rectangle(int x, int y, int sx, int sy, int col);
 #endif
 
 /* --------------------------- DEFINITION SECTION --------------------------- */
@@ -857,12 +857,11 @@ void iPutS_Str(int x,int y,int font,int color,unsigned char* str,int bsx,int bsy
 */
 }
 
-#ifdef _DEBUG
-void map_rectangle(int x,int y,int sx,int sy,int col)
-{
-	int i,scr_offs = iScreenOffs;
-	unsigned char** ltc = ivMap -> lineTcolor;
-	int yy,xx;
+#ifdef _LEGACY_VS_DEBUG
+void map_rectangle(int x, int y, int sx, int sy, int col) {
+	int i, scr_offs = iScreenOffs;
+	unsigned char **ltc = ivMap->lineTcolor;
+	int yy, xx;
 
 	yy = iYCYCL(y);
 	for(i = 0; i < sx; i ++){

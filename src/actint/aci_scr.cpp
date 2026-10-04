@@ -4,6 +4,8 @@
 #include "lang.h"
 #include "../iscreen/hfont.h"
 #include "../runtime.h"
+#include "../settings/text_encoding.h"
+#include "lang.h"
 
 #include "aci_evnt.h"
 #include "aci_scr.h"
@@ -27,8 +29,8 @@ extern int iMouseY;
 
 extern int NetworkON;
 
-extern char* aciSTR_ON;
-extern char* aciSTR_OFF;
+extern const char *aciSTR_ON;
+extern const char *aciSTR_OFF;
 
 extern iScreenOption** iScrOpt;
 int acs_is_legacy_caller(void);
@@ -881,7 +883,7 @@ void aciScreenDispatcher::KeyTrap(int code, SDL_Event *event)
 	if(activeInput) {
 		InputQuant(event);
 	}
-	if (event == nullptr || event->type != SDL_TEXTINPUT) {
+	if (event == nullptr || event->type != SDL_EVENT_TEXT_INPUT) {
 		curScr->KeyTrap(code);
 	}
 }
@@ -1576,7 +1578,8 @@ void aciScreenDispatcher::InputQuant(SDL_Event *event)
 		return;
 	}
 
-	if (!(event != nullptr && (event->type == SDL_KEYDOWN || event->type == SDL_TEXTINPUT)))
+	if (!(event != nullptr &&
+			(event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_TEXT_INPUT)))
 		return;
 
 	ptr = (unsigned char*)activeInput -> string;
@@ -1584,14 +1587,14 @@ void aciScreenDispatcher::InputQuant(SDL_Event *event)
 		hfnt = acsFntTable[activeInput -> font];
 	}
 
-	if (event != nullptr && event->type == SDL_KEYDOWN) {
-		if (event->key.keysym.sym > 0 && event->key.keysym.sym < 127) {
-			chr = event->key.keysym.sym;
+	if (event != nullptr && event->type == SDL_EVENT_KEY_DOWN) {
+		if (event->key.key > 0 && event->key.key < 127) {
+			chr = event->key.key;
 		} else {
 			return;
 		}
 
-		switch(event->key.keysym.sym) {
+switch (event->key.key) {
 			case SDLK_RETURN:
 				DoneInput();
 				break;
@@ -1608,20 +1611,13 @@ void aciScreenDispatcher::InputQuant(SDL_Event *event)
 				}
 				break;
 		}
-	} else if (event != nullptr && event->type == SDL_TEXTINPUT) {
-		if ((unsigned char)event->text.text[0] < 128) {
-			chr = event->text.text[0];
-		} else {
-			unsigned short utf = ((unsigned short *)event->text.text)[0];
-			utf = ntohs(utf);
-			// All cyrilic chars should be coding in two octets. 8, 11 bit-index for 1,2 octets
-			if ((utf & (1<<(7))) && !(utf & (1<<(10)))) {
-				chr = UTF8toCP866(utf);
-			} else {
-				chr = ' ';
-			}
-		}
-		if(hfnt && chr < (hfnt->StartChar-hfnt->EndChar+1) && (hfnt->data[chr]->Flags & NULL_HCHAR) && chr != ' ')
+	} else if (event != nullptr && event->type == SDL_EVENT_TEXT_INPUT) {
+		const std::string encoded = vangers::settings::utf8_to_cp866(event->text.text);
+		if (encoded.empty())
+			return;
+		chr = static_cast<unsigned char>(encoded.front());
+		if (hfnt && chr < (hfnt->StartChar - hfnt->EndChar + 1) &&
+			(hfnt->data[chr]->Flags & NULL_HCHAR) && chr != ' ')
 			return;
 		sz = strlen((char*)ptr);
 		if(sz <= activeInput->MaxStrLen) {
@@ -1634,26 +1630,7 @@ void aciScreenDispatcher::InputQuant(SDL_Event *event)
 
 }
 
-// Only for russian letters
-unsigned char UTF8toCP866(unsigned short utf) {
-	if (utf >= 0xd090 && utf <= 0xd0bf) {
-		return utf - 0xd010;
-	}
-
-	if (utf >= 0xd180 && utf <= 0xd18f) {
-		return utf - 0xd0a0;
-	}
-	switch(utf) {
-		case 0xd081: //Ё
-			return 0xf0;
-		case 0xd191: //ё
-			return 0xf1;
-	}
-	return 0xdb;
-}
-
-void aciScreenDispatcher::PrepareInput(int obj_id)
-{
+void aciScreenDispatcher::PrepareInput(int obj_id) {
 	int sz;
 	aciScreenInputField* p = (aciScreenInputField*)GetObject(obj_id);
 	if(p){
@@ -1670,7 +1647,8 @@ void aciScreenDispatcher::PrepareInput(int obj_id)
 		p -> string[sz] = 0;
 		p -> flags |= ACS_ACTIVE_STRING;
 		activeInput = p;
-		SDL_StartTextInput();
+		if (!SDL_StartTextInput(XGR_Obj.get_window()))
+			ErrH.Abort(SDL_GetError(), XERR_USER, 0);
 	}
 }
 
@@ -1786,7 +1764,7 @@ void aciScreenDispatcher::CancelInput(void)
 	activeInput = NULL;
 	delete[] acsBackupStr;
 	acsBackupStr = NULL;
-	SDL_StopTextInput();
+	SDL_StopTextInput(XGR_Obj.get_window());
 }
 
 void aciScreenDispatcher::DoneInput(void)
@@ -1799,7 +1777,7 @@ void aciScreenDispatcher::DoneInput(void)
 	activeInput = NULL;
 	delete[] acsBackupStr;
 	acsBackupStr = NULL;
-	SDL_StopTextInput();
+	SDL_StopTextInput(XGR_Obj.get_window());
 }
 
 void aciScreenInputField::Quant(void)

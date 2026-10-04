@@ -10,17 +10,14 @@
 #include "sound/hsound.h"
 #endif
 
-#ifndef _WIN32
-#include <arpa/inet.h> // ntohl() FIXME: remove
-#endif
+#include "network.h"
+#include "runtime.h"
+#include "xgraph.h"
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
 #include <vector>
-#include "runtime.h"
-#include "xgraph.h"
-#include "network.h"
 
 #include "./vss/sys.h"
 
@@ -29,8 +26,8 @@ extern XStream fout;
 extern int frame;
 extern int GlobalExit;
 
-#define CLIENT_VERSION	5
-#define SERVER_VERSION	5
+#define CLIENT_VERSION 6
+#define SERVER_VERSION 6
 
 //zmod
 int zserver_version = 0;
@@ -40,9 +37,9 @@ NetRndType NetRnd;
 
 #define PLAYER_REMOVAL_EVENT(p) {NetCheckRemovePlayer(p);}
 
-#ifdef _DEBUG
-#define EVENTS_LOG
-#define _FOUT_
+#ifdef _LEGACY_VS_DEBUG
+#	define EVENTS_LOG
+#	define _FOUT_
 #endif
 
 #ifdef EVENTS_LOG
@@ -79,7 +76,7 @@ int non_blocking_mode = 1;
 int enable_transferring = 0;
 int enable_send = 1;
 int average_lag = 0;
-XQueue<unsigned int> lag_averaging_t0(32);
+XQueue<Uint64> lag_averaging_t0(32);
 
 int global_clock_tau = 0;
 unsigned int game_birth_time_offset;
@@ -88,13 +85,15 @@ double time_synchronization_sigma;
 
 int n_sended_events, n_sended_bytes;
 int n_received_events, n_received_bytes;
-int network_clock, network_frame;
+Uint64 network_clock;
+int network_frame;
 int n_sended_events_global, n_sended_bytes_global;
 int n_received_events_global, n_received_bytes_global;
-int network_clock_global = -1, network_frame_global;
-int delay_time,delay_time_global;
-int delay_time_counter,delay_time_counter_global;
-int now_unsent_size,global_unsent_size = 0;
+Uint64 network_clock_global;
+int network_frame_global;
+int delay_time, delay_time_global;
+int delay_time_counter, delay_time_counter_global;
+int now_unsent_size, global_unsent_size = 0;
 int set_world_status = 0;
 
 enum NetworkSnapshotState {
@@ -122,7 +121,7 @@ PlayerBody my_player_body;
 PlayerData* my_player_data = 0;
 PlayersList players_list;
 
-static unsigned int total_players_data_list_query_last_time = 0;
+static Uint64 total_players_data_list_query_last_time = 0;
 static int total_players_data_list_query_pending = 0;
 static const unsigned int TOTAL_PLAYERS_DATA_LIST_QUERY_RETRY_MS = 1000;
 
@@ -147,10 +146,10 @@ int object_ID_offsets[16];
 #define GITHUB_BRANCH ""
 #endif
 
-static FILE* network_log_file = NULL;
-static unsigned int network_log_last_flush = 0;
+static FILE *network_log_file = NULL;
+static Uint64 network_log_last_flush = 0;
 static unsigned int network_log_skipped_update_count = 0;
-static unsigned int network_log_skipped_update_last_ms = 0;
+static Uint64 network_log_skipped_update_last_ms = 0;
 static int network_log_last_world = -1000000;
 
 static const char* network_event_name(int event_ID)
@@ -297,8 +296,8 @@ static void network_log_vprintf(const char* tag,const char* fmt,va_list args)
 	vfprintf(network_log_file,fmt,args);
 	fputc('\n',network_log_file);
 
-	unsigned int now = SDL_GetTicks();
-	if(now - network_log_last_flush > 1000){
+	Uint64 now = SDL_GetTicks();
+	if (now - network_log_last_flush > 1000) {
 		fflush(network_log_file);
 		network_log_last_flush = now;
 	}
@@ -364,9 +363,10 @@ void network_log_object_event(const char* direction,int event_ID,int object_ID,i
 	int event = event_ID & (~ECHO_EVENT);
 	if(!network_log_should_log_object_event(event,object_ID)){
 		network_log_skipped_update_count++;
-		unsigned int now = SDL_GetTicks();
-		if(now - network_log_skipped_update_last_ms > 5000){
-			network_log_printf(direction ? direction : "OBJ",
+		Uint64 now = SDL_GetTicks();
+		if (now - network_log_skipped_update_last_ms > 5000) {
+			network_log_printf(
+				direction ? direction : "OBJ",
 				"%s summary skipped_ordinary_updates=%u",
 				network_event_name(event),
 				network_log_skipped_update_count);
@@ -561,12 +561,14 @@ namespace KDWIN {
 //PROCESS_INFORMATION ProcessInformation;
 //STARTUPINFO StartUpInfo;
 
-int create_server(int port)
-{
-	if(!XSocketLocalHostADDR.host)
-		ErrH.Abort("You have an incompatible network configuration. Please consult Readme.txt on how to configure your network for Vangers multiplayer.");
+int create_server(int port) {
+	if (XSocketLocalHostAddress.empty())
+		ErrH.Abort(
+			"You have an incompatible network configuration. Please consult Readme.txt on how to "
+			"configure your network for Vangers multiplayer."
+		);
 	avaible_servers.clear_states();
-	if(avaible_servers.talk_to_server(ntohl(XSocketLocalHostADDR.host),port,0,1))
+	if (avaible_servers.talk_to_server(0, port, XSocketLocalHostAddress.data(), 1))
 		return avaible_servers.size();
 
 	destroy_server(); // if  You've already created server on another port
@@ -651,11 +653,11 @@ void ServerFindChain::connect(XSocket &target)
 	if(IP)
 		socket.open(IP,port);
 	else
-// 		if(!iProxyUsage || !iProxyServer)
-			socket.open(domain_name,port);
-// 		else
-// 			socket.open_by_socks5(domain_name,port,iProxyServer,iProxyPort);
-	target=socket;
+		// 		if(!iProxyUsage || !iProxyServer)
+		socket.open(domain_name, port);
+	// 		else
+	// 			socket.open_by_socks5(domain_name,port,iProxyServer,iProxyPort);
+	target = std::move(socket);
 }
 
 /*****************************************************************
@@ -727,8 +729,8 @@ int identification(XSocket& socket)
     if(!socket.send(zbuffer.GetBuf(),zbuffer.tell()))
         return 0;
 
-    unsigned int z_end_time_ = SDL_GetTicks() + 2*60*1000;
-    while (((int)(SDL_GetTicks() - z_end_time_) < 0))
+	Uint64 z_end_time_ = SDL_GetTicks() + 2 * 60 * 1000;
+	while (SDL_GetTicks() < z_end_time_)
 	if (socket.receive(zbuffer.GetBuf(), zbuffer.length(), 1000))
 	   break;
 
@@ -1021,16 +1023,25 @@ int OutputEventBuffer::send(int system_send, XSocket& sock)
 	if(pointer_to_size_of_event > 0)
 		ErrH.Abort("There wasn't an end of event");
 	int sent_size = 0;
-	//if(sock() && (system_send | enable_send))
-	if(sock()){
-		sent_size = sock.send(address(),tell());
-		//if(!system_send)
+	// if(sock() && (system_send | enable_send))
+	if (sock.is_open()) {
+		// Synchronous protocol requests are followed immediately by a response wait, so they must
+		// enter SDL3_net's ordered queue even while an earlier realtime batch is still pending.
+		sent_size =
+			system_send ? sock.send(address(), tell()) : sock.send_if_ready(address(), tell());
+		// if(!system_send)
 		//	enable_send = 0;
 		}
 	int unsent_size = tell() - sent_size;
 	n_sended_bytes += sent_size;
-	if(sent_size == 0 && tell() > 0)
-		network_log_printf("SOCKET_ERROR","send_failed requested_size=%d sent_size=%d socket_alive=%d",tell(),sent_size,sock());
+	if (sent_size == 0 && tell() > 0 && !sock.is_open())
+		network_log_printf(
+			"SOCKET_ERROR",
+			"send_failed requested_size=%d sent_size=%d socket_alive=%d",
+			tell(),
+			sent_size,
+			sock.is_open()
+		);
 #ifdef _FOUT_
 	if(sent_size)
 		fout < "Send: " <= SDL_GetTicks() < "\t" <= sent_size < "\t" <= unsent_size < "\t" <= n_event < "\n";
@@ -1335,8 +1346,8 @@ int InputEventBuffer::next_event() {
 				*this > time;
 				if(enable_transferring) {
 					ignore_event();
-					if(!lag_averaging_t0.empty()) {
-						int dt = (int)(SDL_GetTicks() - lag_averaging_t0.get());
+				if (!lag_averaging_t0.empty()) {
+					int dt = static_cast<int>(SDL_GetTicks() - lag_averaging_t0.get());
 						// if(dt > 100 && dt < 20000) {
 							average_lag = dt;
 						// }
@@ -1503,7 +1514,7 @@ int connect_to_server(ServerFindChain* p)
 	network_log_open(p,"connect_to_server");
 	network_log_printf("CONNECT","server_game_id=%d",p ? p->game_ID : 0);
 	p->connect(main_socket);
-	if(main_socket() && identification(main_socket)){
+	if (main_socket.is_open() && identification(main_socket)) {
 		current_server_addr = *p;
 
 		events_out.clear();
@@ -1546,9 +1557,9 @@ int connect_to_server(ServerFindChain* p)
 		return GlobalStationID;
 		}
 	NetworkON = 0;
-	network_log_printf("CONNECT_FAIL","socket_alive=%d",main_socket());
-	if(!main_socket())
-		network_log_printf("SOCKET_CLOSED","reason=connect_failed");
+	network_log_printf("CONNECT_FAIL", "socket_alive=%d", main_socket.is_open());
+	if (!main_socket.is_open())
+		network_log_printf("SOCKET_CLOSED", "reason=connect_failed");
 	network_log_close("connect_failed");
 	vss::sys()
 			.quant(vss::NETWORK_STATE_QUANT)
@@ -1556,9 +1567,8 @@ int connect_to_server(ServerFindChain* p)
 			.send();
 	return 0;
 }
-int restore_connection()
-{
-	if(main_socket())
+int restore_connection() {
+	if (main_socket.is_open())
 		return 1;
 	//std::cout<<"restore_connection:Connection lost"<<std::endl;
 	DOUT("Connection lost");
@@ -1612,10 +1622,9 @@ void disconnect_from_server()
 {
 	network_log_printf("CLOSE_SOCKET","reason=disconnect_from_server");
 	events_out.send_simple_query(CLOSE_SOCKET);
-	delay(256);
+	main_socket.flush(1000);
 	main_socket.close();
-	network_log_printf("SOCKET_CLOSED","reason=disconnect_from_server");
-	delay(256);
+	network_log_printf("SOCKET_CLOSED", "reason=disconnect_from_server");
 	events_out.clear();
 	events_in.reset();
 	network_log_close("disconnect_from_server");
@@ -1710,10 +1719,10 @@ void total_players_data_list_query()
 	events_in.ignore_event();
 }
 
-void request_total_players_data_list_query_async()
-{
-	unsigned int now = SDL_GetTicks();
-	if(total_players_data_list_query_pending && now - total_players_data_list_query_last_time < TOTAL_PLAYERS_DATA_LIST_QUERY_RETRY_MS)
+void request_total_players_data_list_query_async() {
+	Uint64 now = SDL_GetTicks();
+	if (total_players_data_list_query_pending &&
+		now - total_players_data_list_query_last_time < TOTAL_PLAYERS_DATA_LIST_QUERY_RETRY_MS)
 		return;
 
 	total_players_data_list_query_pending = 1;
@@ -1758,8 +1767,8 @@ void network_analysis(XBuffer& out,int integral)
 		pm = (MessageElement*)pm -> prev;
 		}
 
-	if(!integral){
-		double dt = (double)(SDL_GetTicks() - (int)network_clock)/1000;
+	if (!integral) {
+		double dt = (double)(SDL_GetTicks() - network_clock) / 1000;
 		double df = frame - network_frame;
 		out < "Rate: " <= df/dt < " FPS\n";
 		out < "Time synchronization, lag: " <= response_time < " Sec,  Sigma: " <= time_synchronization_sigma < " Sec\n";
@@ -1787,8 +1796,8 @@ void network_analysis(XBuffer& out,int integral)
 		}
 	else{
 		out < "Frames: "        <= frame < "\n";
-		out < "Time: " <= (double)GLOBAL_CLOCK()/256. < " sec\n";
-		double dt = (double)(SDL_GetTicks() - (int)network_clock_global)/1000;
+		out < "Time: " <= (double)GLOBAL_CLOCK() / 256. < " sec\n";
+		double dt = (double)(SDL_GetTicks() - network_clock_global) / 1000;
 		double df = frame - network_frame_global;
 		out < "Rate: " <= df/dt < " FPS\n";
 		out < "Time synchronization, lag: " <= response_time < " Sec,  Sigma: " <= time_synchronization_sigma < " Sec\n";
@@ -1810,7 +1819,7 @@ void network_analysis(XBuffer& out,int integral)
 //	out < "InitialRND	: " <= (unsigned int)my_server_data.InitialRND < "\n";
 //#endif
 
-	if(network_clock_global == -1){
+	if (!network_clock_global) {
 		network_clock_global = SDL_GetTicks();
 		network_frame_global = frame;
 		n_sended_events_global = n_sended_bytes_global = n_received_events_global = n_received_bytes_global = delay_time_global = 0;
@@ -1823,12 +1832,13 @@ void short_network_analysis(XBuffer& out)
 	out < "Network's Statistics\n";
 	out < "Time synchronization lag: " <= response_time < " Sec\n";
 	out < "Time synchronization sigma: " <= time_synchronization_sigma < " Sec\n";
-	double dt = (double)(SDL_GetTicks() - (int)network_clock)/1000;
+	double dt = (double)(SDL_GetTicks() - network_clock) / 1000;
 	double df = frame - network_frame;
-	out < (main_socket() ? "Connection ok\n" : "Connection lost\n");
-	out < "Rate: " <= df/dt < " FPS\n";
-	//if(delay_time_counter)
-	//out < "Average lag of events (C->S->C): " <= (double)delay_time/(delay_time_counter*256) < " Sec\n";
+	out < (main_socket.is_open() ? "Connection ok\n" : "Connection lost\n");
+	out < "Rate: " <= df / dt < " FPS\n";
+	// if(delay_time_counter)
+	// out < "Average lag of events (C->S->C): " <= (double)delay_time/(delay_time_counter*256) < "
+	// Sec\n";
 	out < "Average lag of events (C->S->C): " <= average_lag < " mSec\n";
 	out < "Send:  " <= round(n_sended_bytes/dt) < " BPS\n";
 	out < "Receive: " <= round(n_received_bytes/dt) < " BPS\n";
@@ -1859,7 +1869,7 @@ void short_network_analysis(XBuffer& out)
 		global_unsent_size = now_unsent_size;
 	now_unsent_size = n_sended_events = n_sended_bytes = n_received_events = n_received_bytes = delay_time = delay_time_counter = 0;
 
-	if(network_clock_global == -1){
+	if (!network_clock_global) {
 		network_clock_global = SDL_GetTicks();
 		network_frame_global = frame;
 		n_sended_events_global = n_sended_bytes_global = n_received_events_global = n_received_bytes_global = delay_time_global = 0;
@@ -2305,10 +2315,10 @@ double _sigma_;
 double single_measurement(int size,int delay,int N)
 {
 	static unsigned char buffer[16000];
-	int time = 0;
+	Uint64 time = 0;
 	int sent = 0;
 	int recv = 0;
-	int recv_time;
+	Uint32 recv_time;
 	double sum_time = 0;
 	double sum_time2 = 0;
 	XCon < "Measurement: " <= size < "\t" <= delay < "\t" <= N < "\n";
@@ -2317,8 +2327,8 @@ double single_measurement(int size,int delay,int N)
 	for(;recv < N;){
 		if(time < SDL_GetTicks()){
 			events_out.begin_direct_send(1 << GlobalStationID - 1);
-			events_out < char(0) < SDL_GetTicks();
-			events_out.write(buffer,size);
+			events_out < char(0) < static_cast<Uint32>(SDL_GetTicks());
+			events_out.write(buffer, size);
 			events_out.end_body();
 			events_out.send(1);
 			time = SDL_GetTicks() + delay;
@@ -2328,8 +2338,9 @@ double single_measurement(int size,int delay,int N)
 		while(events_in.current_event()){
 			if(events_in.current_event() == DIRECT_RECEIVING){
 				events_in > recv_time;
-				sum_time += SDL_GetTicks() - recv_time;
-				sum_time2 += sqr((double)SDL_GetTicks() - recv_time);
+				const Uint32 elapsed = static_cast<Uint32>(SDL_GetTicks()) - recv_time;
+				sum_time += elapsed;
+				sum_time2 += sqr(static_cast<double>(elapsed));
 				recv++;
 				}
 			events_in.ignore_event();

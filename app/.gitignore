@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Game data copied from vangers/bin so the emscripten build can be run in a
+# plain browser, without going through the Tauri installer.
+/public/gamedata/
+package-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

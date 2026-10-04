@@ -1,3 +1,8 @@
+#ifndef __UVS_SCREEN_H__
+#define __UVS_SCREEN_H__
+
+#include "univang.h"
+
 struct WorldScreen;
 
 struct Place : listElem {
@@ -32,3 +37,5 @@ struct WorldScreen {
 
 void ScreenQuant(void);
 void StandScreenPrepare(void);
+
+#endif

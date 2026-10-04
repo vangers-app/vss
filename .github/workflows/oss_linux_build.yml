@@ -1,0 +1,266 @@
+name: OSS Linux Build
+
+on:
+  push:
+    branches:
+      - master
+      - alpha
+  pull_request:
+    branches:
+      - master
+      - alpha
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oss-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.repository == 'KranX/Vangers' }}
+    runs-on: ubuntu-24.04
+
+    env:
+      BUILD_TYPE: RelWithDebInfo
+      CLUNK_COMMIT: b52d1fda2237ef9ec81d09664ad2bb3aadd0de68
+      TOML11_VERSION: 4.4.0
+      TOML11_SHA256: 815bfe6792aa11a13a133b86e7f0f45edc5d71eb78f5fb6686c49c7f792b9049
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            elfutils \
+            flatpak \
+            flatpak-builder \
+            git \
+            ninja-build \
+            pkg-config \
+            python3-venv \
+            ca-certificates \
+            curl \
+            libasound2-dev \
+            libdbus-1-dev \
+            libdecor-0-dev \
+            libdrm-dev \
+            libegl1-mesa-dev \
+            libfribidi-dev \
+            libgbm-dev \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libibus-1.0-dev \
+            libjack-dev \
+            libogg-dev \
+            libpipewire-0.3-dev \
+            libpulse-dev \
+            libsndio-dev \
+            libthai-dev \
+            libudev-dev \
+            liburing-dev \
+            libusb-1.0-0-dev \
+            libvorbis-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libxi-dev \
+            libxkbcommon-dev \
+            libxrandr-dev \
+            libxss-dev \
+            libxtst-dev \
+            zlib1g-dev
+
+      - name: Install latest CMake 4
+        run: |
+          python3 -m venv .ci-cmake
+          .ci-cmake/bin/python -m pip install --upgrade pip
+          .ci-cmake/bin/python -m pip install --upgrade "cmake>=4.0.0"
+          echo "$PWD/.ci-cmake/bin" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          cmake --version
+          ninja --version
+          c++ --version
+
+      - name: Build native SDL3 dependencies
+        env:
+          SDL_VERSION: 3.4.12
+          SDL_SHA256: f07b958a9ac5020fb7a44cadb957f658b2149c3c8abb4f63145fac9303249db7
+          SDL_NET_VERSION: 3.2.0
+          SDL_NET_SHA256: 098522fc26d4e302ef9348aee6e76e67fe504dfefd7f596236568f8330570c41
+        run: |
+          mkdir -p external
+
+          curl --fail --location --retry 3 \
+            --output external/SDL3.tar.gz \
+            "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz"
+          echo "${SDL_SHA256}  external/SDL3.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file external/SDL3.tar.gz --directory external
+          cmake -S "external/SDL3-${SDL_VERSION}" -B external/SDL3-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DSDL_SHARED=ON \
+            -DSDL_STATIC=OFF \
+            -DSDL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF
+          cmake --build external/SDL3-build --parallel
+          sudo cmake --install external/SDL3-build
+
+          curl --fail --location --retry 3 \
+            --output external/SDL3_net.tar.gz \
+            "https://github.com/libsdl-org/SDL_net/releases/download/release-${SDL_NET_VERSION}/SDL3_net-${SDL_NET_VERSION}.tar.gz"
+          echo "${SDL_NET_SHA256}  external/SDL3_net.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file external/SDL3_net.tar.gz --directory external
+          cmake -S "external/SDL3_net-${SDL_NET_VERSION}" -B external/SDL3_net-build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_SHARED_LIBS=ON \
+            -DSDLNET_SAMPLES=OFF
+          cmake --build external/SDL3_net-build --parallel
+          sudo cmake --install external/SDL3_net-build
+          sudo ldconfig
+
+      - name: Download Clunk
+        id: clunk-source
+        run: |
+          git init external/clunk
+          git -C external/clunk remote add origin https://github.com/stalkerg/clunk.git
+          git -C external/clunk fetch --depth 1 origin "${CLUNK_COMMIT}"
+          git -C external/clunk checkout --detach FETCH_HEAD
+          echo "sha=$(git -C external/clunk rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Clunk build
+        id: cache-clunk
+        uses: actions/cache@v5
+        with:
+          path: external/clunk/build
+          key: oss-linux-clunk-${{ runner.os }}-${{ steps.clunk-source.outputs.sha }}
+
+      - name: Build Clunk
+        if: steps.cache-clunk.outputs.cache-hit != 'true'
+        run: |
+          cmake -S external/clunk -B external/clunk/build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build external/clunk/build --parallel
+
+      - name: Install Clunk
+        run: |
+          sudo cmake --install external/clunk/build
+          sudo ldconfig
+
+      - name: Install toml11
+        run: |
+          curl --fail --location --retry 3 \
+            --output external/toml11.tar.gz \
+            "https://github.com/ToruNiina/toml11/archive/refs/tags/v${TOML11_VERSION}.tar.gz"
+          echo "${TOML11_SHA256}  external/toml11.tar.gz" | sha256sum --check --strict
+          tar --extract --gzip --file external/toml11.tar.gz --directory external
+          cmake -Wno-deprecated \
+            -S "external/toml11-${TOML11_VERSION}" -B external/toml11-build \
+            -G Ninja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_TESTING=OFF \
+            -DTOML11_PRECOMPILE=OFF
+          sudo cmake --install external/toml11-build
+
+      - name: Configure Vangers
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+
+      - name: Build Vangers
+        run: cmake --build build --parallel
+
+      - name: Test Vangers
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Show built binaries
+        run: |
+          file build/src/vangers
+          file build/surmap/surmap
+
+      - name: Prepare runtime artifact
+        run: |
+          rm -rf artifacts
+          mkdir -p artifacts/bin artifacts/lib
+
+          cp build/src/vangers artifacts/bin/
+          cp build/surmap/surmap artifacts/bin/
+
+          for exe in artifacts/bin/*; do
+            ldd "$exe" | awk '/=>/ { if ($3 ~ /^\//) print $3; next } $1 ~ /^\// { print $1 }'
+          done | sort -u | while read -r lib; do
+            [ -f "$lib" ] || continue
+            case "$lib" in
+              /lib*/ld-linux*|/lib*/libc.so*|/lib*/libm.so*|/lib*/libpthread.so*|/lib*/libdl.so*|/lib*/librt.so*)
+                continue
+                ;;
+            esac
+            cp -L "$lib" artifacts/lib/
+          done
+
+          chmod +x artifacts/bin/*
+
+      - name: Install Flatpak runtime
+        run: |
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install --noninteractive -y flathub \
+            org.freedesktop.Platform//24.08 \
+            org.freedesktop.Sdk//24.08
+
+      - name: Build Flatpak bundle
+        run: |
+          rm -rf \
+            artifacts-flatpak \
+            flatpak-build \
+            flatpak-repo \
+            packaging/flatpak/flatpak-payload
+
+          mkdir -p packaging/flatpak/flatpak-payload artifacts-flatpak
+          cp -a artifacts/bin packaging/flatpak/flatpak-payload/
+          cp -a artifacts/lib packaging/flatpak/flatpak-payload/
+
+          flatpak-builder \
+            --force-clean \
+            --disable-rofiles-fuse \
+            --default-branch=stable \
+            --repo=flatpak-repo \
+            flatpak-build \
+            packaging/flatpak/org.kranx.vangers.yml
+
+          flatpak build-bundle \
+            flatpak-repo \
+            artifacts-flatpak/Vangers-OSS-linux-x86_64.flatpak \
+            org.kranx.vangers \
+            stable
+
+      - name: Upload runtime artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Vangers-OSS-linux-x86_64
+          path: artifacts
+
+      - name: Upload Flatpak bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: Vangers-OSS-linux-x86_64-flatpak
+          path: artifacts-flatpak

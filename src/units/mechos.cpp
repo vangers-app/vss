@@ -12,39 +12,40 @@
 #include "../3d/parser.h"
 #include <renderer/visualbackend/VisualBackendContext.h>
 
+#include "../backg.h"
 #include "../common.h"
 #include "../sqexp.h"
-#include "../backg.h"
 
+#include "../terra/render.h"
 #include "../terra/vmap.h"
 #include "../terra/world.h"
-#include "../terra/render.h"
 
 #include "../iscreen/controls.h"
 #include "../iscreen/iscreen_options.h"
 
 #include "../actint/item_api.h"
-#include "uvsapi.h"
 #include "../network.h"
+#include "../xgamepad.h"
+#include "uvsapi.h"
 
 #include "../uvs/univang.h"
 
 #include "../dast/poly3d.h"
 
-#include "../particle/particle.h"
-#include "../particle/partmap.h"
 #include "../particle/df.h"
 #include "../particle/light.h"
+#include "../particle/particle.h"
+#include "../particle/partmap.h"
 
-#include "track.h"
-#include "hobj.h"
-#include "moveland.h"
-#include "items.h"
-#include "sensor.h"
-#include "effect.h"
-#include "mechos.h"
-#include "compas.h"
 #include "../sound/hsound.h"
+#include "compas.h"
+#include "effect.h"
+#include "hobj.h"
+#include "items.h"
+#include "mechos.h"
+#include "moveland.h"
+#include "sensor.h"
+#include "track.h"
 
 #include "../uvs/diagen.h"
 #include "magnum.h"
@@ -52,6 +53,7 @@
 #include "../actint/credits.h"
 
 #include "../vss/sys.h"
+#include <cstdint>
 
 #define INSECTOIDS
 
@@ -71,6 +73,7 @@ extern int multi_analysis;
 extern int multi_draw;
 extern int RAM16;
 extern int GameQuantReturnValue;
+extern int aciKeyboardLocked;
 
 extern int aciWorldIndex;
 
@@ -209,6 +212,12 @@ static inline int sensor_enable_ticks(void)
 {
 	int ticks = (int)round((20 - 1) * GAME_TIME_COEFF) + 1;
 	return ticks > 0 ? ticks : 1;
+}
+
+static inline int threall_lava_damage_tick(void)
+{
+	int ticks = (int)round(GAME_TIME_COEFF);
+	return ticks <= 1 || !(frame % ticks);
 }
 
 static StuffObject* resolve_stuff_owner(uvsUnitType* owner, actintItemData* d);
@@ -718,6 +727,8 @@ void ActionUnit::CreateActionUnit(int nmodel/*Object& _model*/,int _status,const
 	Object::operator = (ModelD.ActiveModel(nModel));
 	external_model_handle = ModelD.ModelHandles[nModel];
 	external_wheel_model_handles = ModelD.WheelModelHandles[nModel];
+	external_frame_model_handles = ModelD.FrameModelHandles[nModel];
+	external_model_index = nModel;
 	create_model_instance();
 	cycleTor(R_curr.x,R_curr.y);
 
@@ -926,8 +937,7 @@ void ActionUnit::Quant(void)
 	vUp = Vector(ymax_real,0,0)*MovMat;
 	vDown = -vUp;
 	const bool external_model_visible = ExternalModelVisible();
-	if(model_instance_handle.handle != 0)
-		renderer::visualbackend::VisualBackendContext::backend()->model_instance_set_visible(model_instance_handle,external_model_visible);
+	set_external_model_visible(external_model_visible);
 	if(wheel_handles)
 		for(int i = 0;i < n_wheels;i++)
 			if(wheel_handles[i].handle != 0)
@@ -2338,6 +2348,7 @@ void ModelDispatcher::Init(Parser& in)
 	NameData = new char*[MaxModel];
 	ModelHandles = new ModelHandle[MaxModel];
 	WheelModelHandles = new ModelHandle*[MaxModel];
+	FrameModelHandles = new ModelHandle*[MaxModel];
 
 	for(i = 0;i < MaxModel;i++){
 		in.search_name("ModelNum");
@@ -2351,8 +2362,16 @@ void ModelDispatcher::Init(Parser& in)
 		Data[i].ID = ID_VANGER;
 		Data[i].load(n,size);
 		WheelModelHandles[i] = Data[i].n_wheels ? new ModelHandle[Data[i].n_wheels] : nullptr;
+		// An .a3d holds the whole animation as separate meshes; upload all of them so the
+		// GPU can animate by showing one frame instance at a time.
+		FrameModelHandles[i] = Data[i].n_models > 1 ? new ModelHandle[Data[i].n_models] : nullptr;
 		if(renderer::visualbackend::VisualBackendContext::has_renderer()){
 			ModelHandles[i] = renderer::visualbackend::VisualBackendContext::backend()->model_create(n,Data[i].model);
+			if(FrameModelHandles[i]){
+				for(int j = 1;j < Data[i].n_models;j++)
+					FrameModelHandles[i][j] = renderer::visualbackend::VisualBackendContext::backend()->model_create(n,&Data[i].models[j]);
+				FrameModelHandles[i][0] = ModelHandles[i];
+			}
 			for(int j = 0;j < Data[i].n_wheels;j++)
 				WheelModelHandles[i][j] = Data[i].wheels[j].steer ?
 					renderer::visualbackend::VisualBackendContext::backend()->model_create(n,&Data[i].wheels[j].model) :
@@ -2360,6 +2379,9 @@ void ModelDispatcher::Init(Parser& in)
 		}
 		else{
 			ModelHandles[i] = {0};
+			if(FrameModelHandles[i])
+				for(int j = 0;j < Data[i].n_models;j++)
+					FrameModelHandles[i][j] = {0};
 			for(int j = 0;j < Data[i].n_wheels;j++)
 				WheelModelHandles[i][j] = {0};
 		}
@@ -2392,6 +2414,22 @@ int ModelDispatcher::FindModel(const char* name)
 	return 0;
 };
 
+// convert_to_beeb() copies the model data but stops before the external handle fields,
+// so a Vanger that turns into a beeb kept rendering its own mesh on the GPU. Rebinding has to
+// be explicit: swap the handles and recreate the instances.
+void ModelDispatcher::BindExternalModel(Object& o, int index)
+{
+	if(index < 0 || index >= MaxModel)
+		return;
+	o.destroy_model_instance();
+	o.destroy_weapon_instances();
+	o.external_model_index = index;
+	o.external_model_handle = ModelHandles[index];
+	o.external_wheel_model_handles = WheelModelHandles[index];
+	o.external_frame_model_handles = FrameModelHandles[index];
+	o.create_model_instance();
+}
+
 void ModelDispatcher::Free(void)
 {
 	int i;
@@ -2404,11 +2442,19 @@ void ModelDispatcher::Free(void)
 					renderer::visualbackend::VisualBackendContext::backend()->model_destroy(WheelModelHandles[i][j]);
 			delete[] WheelModelHandles[i];
 		}
+		if(FrameModelHandles[i]){
+			// Frame 0 aliases ModelHandles[i], which is destroyed by the loop above.
+			for(int j = 1;j < Data[i].n_models;j++)
+				if(FrameModelHandles[i][j].handle != 0 && renderer::visualbackend::VisualBackendContext::has_renderer())
+					renderer::visualbackend::VisualBackendContext::backend()->model_destroy(FrameModelHandles[i][j]);
+			delete[] FrameModelHandles[i];
+		}
 		Data[i].free();
 		delete[] NameData[i];
 	};
 	delete[] ModelHandles;
 	delete[] WheelModelHandles;
+	delete[] FrameModelHandles;
 	delete[] NameData;
 	delete[] Data;
 };
@@ -3942,8 +3988,10 @@ void VangerUnit::DrawQuant(void)
 
 			if(dynamic_state & TOUCH_OF_WATER){
 				if(CurrentWorld == WORLD_THREALL){
+					if(threall_lava_damage_tick()){
 					if(NetworkON) BulletCollision((MaxEnergy + MaxArmor) / 150,NULL);
 					else BulletCollision((MaxEnergy + MaxArmor) / 20,NULL);
+					}
 				}else{
 					if(!(dynamic_state & TOUCH_OF_AIR)){
 						ChargeWeapon(this,ACI_MACHOTINE_GUN_LIGHT,1);
@@ -3961,9 +4009,10 @@ void VangerUnit::DrawQuant(void)
 			};
 		}else{
 			if(dynamic_state & TOUCH_OF_WATER){
-				if(CurrentWorld == WORLD_THREALL)
+				if(CurrentWorld == WORLD_THREALL){
+					if(threall_lava_damage_tick())
 					BulletCollision(Energy / 20,NULL);
-				else{
+				}else{
 					if(Speed){
 						p = (WaterParticleObject*)(EffD.GetObject(EFF_PARTICLE03));
 						if(p){
@@ -4557,11 +4606,17 @@ void VangerUnit::Quant(void)
 			NETWORK_OUT_STREAM.end_body();
 			need_to_send_vanger = 0;
 
-			static const unsigned int SERVER_TIME_QUERY_TIMEOUT = 20000;
-			static unsigned int last_server_time_query = 0;
-			unsigned int now = SDL_GetTicks();
-			if(!lag_averaging_t0.empty() && IS_PAST(last_server_time_query + SERVER_TIME_QUERY_TIMEOUT)){
-				network_log_printf("LAG","SERVER_TIME_QUERY timeout pending=%d timeout_ms=%u",lag_averaging_t0.tell(),SERVER_TIME_QUERY_TIMEOUT);
+static const Uint64 SERVER_TIME_QUERY_TIMEOUT = 20000;
+			static Uint64 last_server_time_query = 0;
+			Uint64 now = SDL_GetTicks();
+			if (!lag_averaging_t0.empty() &&
+				IS_PAST(last_server_time_query + SERVER_TIME_QUERY_TIMEOUT)) {
+				network_log_printf(
+					"LAG",
+					"SERVER_TIME_QUERY timeout pending=%d timeout_ms=%u",
+					lag_averaging_t0.tell(),
+					SERVER_TIME_QUERY_TIMEOUT
+				);
 				lag_averaging_t0.clear();
 				}
 
@@ -4707,6 +4762,7 @@ void VangerUnit::InitEnvironment(void)
 	aiUnitResolve* pp;
 
 	if(Status & SOBJ_WAIT_CONFIRMATION) return;
+	UpdateStationTouched = 0;
 	nDoorFlag = DoorFlag;
 	ActionUnit::InitEnvironment();
 	vTarget = Vector(0,0,0);
@@ -5141,6 +5197,8 @@ void VangerUnit::InitEnvironment(void)
 			};
 		};
 	};
+	if(!UpdateStationTouched)
+		UpdateStationActive = 0;
 
 /*	if(Visibility == VISIBLE){
 		p = (ActionUnit*)(ActD.Tail);
@@ -5319,7 +5377,9 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 			break;
 		case SensorTypeList::RANDOMIZE_UPDATE:
 			aiMessageQueue.Send(AI_MESSAGE_RANDOM_UPDATE,Speed,1);//aiMessageData[AI_MESSAGE_RANDOM_UPDATE].Send(Speed,1);
-			if(RandomUpdate != frame - 1){
+			UpdateStationTouched = 1;
+			if(!UpdateStationActive){
+				UpdateStationActive = 1;
 				r_log = 0;
 				while(!r_log){
 					switch(RND(6)){
@@ -5371,7 +5431,6 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 					};
 				};
 			};
-			RandomUpdate = frame;
 			break;
 		case SensorTypeList::OXIGEN_UPDATE:
 			if(p->data5 == CheckPointCount){
@@ -5385,14 +5444,15 @@ void VangerUnit::TouchSensor(SensorDataType* p)
 			break;
 		case SensorTypeList::FLY_UPDATE:
 			aiMessageQueue.Send(AI_MESSAGE_COPTER,Speed,1);//aiMessageData[AI_MESSAGE_COPTER].Send(Speed,1);
-			if(RandomUpdate != frame - 1){	
+			UpdateStationTouched = 1;
+			if(!UpdateStationActive){
+				UpdateStationActive = 1;
 				ChargeDevice(this,ACI_EMPTY_COPTE_RIG,1);			
 				ChargeDevice(this,ACI_EMPTY_CROT_RIG,1);
 				ChargeDevice(this,ACI_EMPTY_CUTTE_RIG,1);
 				ChargeDevice(this,ACI_COPTE_RIG,1);
 				ChargeDevice(this,ACI_CROT_RIG,1);
 				ChargeDevice(this,ACI_CUTTE_RIG,1);
-				RandomUpdate = frame;
 			};
 			break;
 		case SensorTypeList::FIRE_UPDATE:			
@@ -6291,7 +6351,8 @@ void VangerUnit::CreateVangerUnit(void)
 	VangerChangerEnergy = 0;
 	VangerChangerColor = 0;
 
-	RandomUpdate = -1;
+	UpdateStationActive = 0;
+	UpdateStationTouched = 0;
 	LastMole = 0;
 	MoleTrailPrev = Vector(0,0,0);
 	MoleTrailStep = 0;
@@ -6921,8 +6982,10 @@ VangerUnit* addVanger(uvsVanger* p,uvsSpot* origin,int Human)
 extern VangerUnit* actCurrentViewObject;
 void uvsChangeCycle(void);
 
-void VangerUnit::NewKeyHandler(void)
-{
+void VangerUnit::NewKeyHandler(void) {
+	if (aciKeyboardLocked)
+		return;
+
 	Vector vCheck;
 	BulletObject* g;
 //	VangerUnit* v;
@@ -6931,11 +6994,10 @@ void VangerUnit::NewKeyHandler(void)
 	StuffObject* p;
 	StuffObject* n;
 
-	
-	if(iKeyPressed(iKEY_USE_GLUEK)){
-		p = GetStuffObject(this,ACI_GLUEK);
-		if(p){
-			(ActD.Active)->Armor += 10 << 16;
+	if (iKeyPressed(iKEY_USE_GLUEK)) {
+		p = GetStuffObject(this, ACI_GLUEK);
+		if (p) {
+			ActD.Active->RestoreGluekArmor();
 			ObjectDestroy(p);
 			(ActD.Active)->CheckOutDevice(p);
 			ActD.CheckDevice(p);
@@ -7079,11 +7141,15 @@ void VangerUnit::NewKeyHandler(void)
 	if(iKeyPressed(iKEY_CHANGE_TARGET))
 		ActD.ChangeLocator();
 
-	if((Status & SOBJ_ACTIVE) && (Status & SOBJ_AUTOMAT) && 
-	   (iKeyPressed(iKEY_TURN_WHEELS_LEFT) || iKeyPressed(iKEY_TURN_WHEELS_RIGHT) || iKeyPressed(iKEY_MOVE_FORWARD) || iKeyPressed(iKEY_MOVE_BACKWARD) || iKeyPressed(iKEY_TURN_OVER_LEFT)
-	   || iKeyPressed(iKEY_TURN_OVER_RIGHT) || iKeyPressed(iKEY_DEVICE_ON) || iKeyPressed(iKEY_DEVICE_OFF) || iKeyPressed(iKEY_ACTIVATE_KID) || iKeyPressed(iKEY_ACCELERATION) || iKeyPressed(iKEY_OPEN))){
-		Status &=~SOBJ_AUTOMAT;
-		aiMessageQueue.Send(AI_MESSAGE_AUTOMATIC_OFF,0,0xff,0);
+	if ((Status & SOBJ_ACTIVE) && (Status & SOBJ_AUTOMAT) &&
+		(iKeyPressed(iKEY_TURN_WHEELS_LEFT) || iKeyPressed(iKEY_TURN_WHEELS_RIGHT) ||
+			iKeyPressed(iKEY_MOVE_FORWARD) || iKeyPressed(iKEY_MOVE_BACKWARD) ||
+			iKeyPressed(iKEY_TURN_OVER_LEFT) || iKeyPressed(iKEY_TURN_OVER_RIGHT) ||
+			iKeyPressed(iKEY_DEVICE_ON) || iKeyPressed(iKEY_DEVICE_OFF) ||
+			iKeyPressed(iKEY_ACTIVATE_KID) || iKeyPressed(iKEY_ACCELERATION) ||
+			iKeyPressed(iKEY_OPEN) || XGamepadHasManualDrivingInput())) {
+		Status &= ~SOBJ_AUTOMAT;
+		aiMessageQueue.Send(AI_MESSAGE_AUTOMATIC_OFF, 0, 0xff, 0);
 	};
 };
 
@@ -7136,9 +7202,9 @@ void VangerUnit::keyhandler(int key)
 			static int i_model = 0;
 			static int models[2] = {0,0};
 			mod = SDL_GetModState();
-			if(!(mod&KMOD_CTRL)){
-				if(!(mod&KMOD_SHIFT)){
-					if(++NumHumanModel >= ModelD.MaxModel)
+if (!(mod & SDL_KMOD_CTRL)) {
+			if (!(mod & SDL_KMOD_SHIFT)) {
+				if (++NumHumanModel >= ModelD.MaxModel)
 						NumHumanModel = 0;
 					}
 				else{
@@ -7153,6 +7219,8 @@ void VangerUnit::keyhandler(int key)
 			Object::operator = (ModelD.ActiveModel(NumHumanModel));
 			external_model_handle = ModelD.ModelHandles[NumHumanModel];
 			external_wheel_model_handles = ModelD.WheelModelHandles[NumHumanModel];
+			external_frame_model_handles = ModelD.FrameModelHandles[NumHumanModel];
+			external_model_index = NumHumanModel;
 			create_model_instance();
 			cycleTor(R_curr.x,R_curr.y);
 			set_active(1);
@@ -7946,12 +8014,16 @@ void VangerUnit::CheckOutDevice(StuffObject* p)
 	};
 };
 
+void VangerUnit::RestoreGluekArmor(void) {
+	// Armor is 16.16 fixed-point. Widen before adding so the cap cannot overflow.
+	const std::int64_t healed = static_cast<std::int64_t>(Armor) + (10 << 16);
+	Armor = healed > MaxArmor ? MaxArmor : static_cast<int>(healed);
+}
 
-void VangerUnit::ItemQuant(void)
-{
-	StuffObject* p;
-	StuffObject* pp;
-	actintItemData* n;
+void VangerUnit::ItemQuant(void) {
+	StuffObject *p;
+	StuffObject *pp;
+	actintItemData *n;
 	int i;
 	
 	if(!VangerChanger){
@@ -8009,8 +8081,8 @@ void VangerUnit::ItemQuant(void)
 					else{
 						switch(p->ActIntBuffer.type){
 							case ACI_GLUEK:
-								if(Armor < MaxArmor / 2){
-									Armor += 10 << 16;
+							if (Armor < MaxArmor / 2) {
+								RestoreGluekArmor();
 									ObjectDestroy(p);
 									if(Status & SOBJ_ACTIVE){
 										aciSendEvent2actint(ACI_DROP_ITEM,&(p->ActIntBuffer));
@@ -8043,8 +8115,8 @@ void VangerUnit::ItemQuant(void)
 				pp = p->NextDeviceList;
 				switch(p->ActIntBuffer.type){
 					case ACI_GLUEK:
-						if(Armor < MaxArmor / 2){
-							Armor += 10 << 16;
+					if (Armor < MaxArmor / 2) {
+						RestoreGluekArmor();
 							ObjectDestroy(p);
 							if(Status & SOBJ_ACTIVE){
 								aciSendEvent2actint(ACI_DROP_ITEM,&(p->ActIntBuffer));
@@ -8404,9 +8476,10 @@ void aciSendEvent2itmdsp(int code,actintItemData* p,int data)
 						active->Status ^= SOBJ_AUTOMAT;
 						break;
 					case ACI_GLUEK:
-						dev = resolve_stuff_owner(active,p);
-						if(!dev) break;
-						active->Armor += 10 << 16;
+				dev = resolve_stuff_owner(active, p);
+				if (!dev)
+					break;
+				active->RestoreGluekArmor();
 						ObjectDestroy(dev);
 						active->CheckOutDevice(dev);
 						ActD.CheckDevice(dev);
@@ -8981,23 +9054,34 @@ void CreatePhantomTarget(void)
 {
 	CompasTargetType* n;
 	uvsPassage* pass;
+	Vector target;
+	int target_found = 0;
 
 	if(my_server_data.GameType == PASSEMBLOSS && UsedCheckNum < GloryPlaceNum){
+		if(GloryPlaceData[UsedCheckNum].World == CurrentWorld){
+			target.x = GloryPlaceData[UsedCheckNum].R_curr.x;
+			target.y = GloryPlaceData[UsedCheckNum].R_curr.y;
+			target.z = GloryPlaceData[UsedCheckNum].R_curr.z;
+			target_found = 1;
+		}else{
+			pass = GetPassage(CurrentWorld,GloryPlaceData[UsedCheckNum].World);
+			if(pass && pass->unitPtr.PassageT && pass->unitPtr.PassageT->ActionLink){
+				target.x = pass->unitPtr.PassageT->ActionLink->R_curr.x;
+				target.y = pass->unitPtr.PassageT->ActionLink->R_curr.y;
+				target.z = pass->unitPtr.PassageT->ActionLink->R_curr.z;
+				target_found = 1;
+			};
+		};
+
+		if(!target_found)
+			return;
+
 		n = CompasObj.TargetData;
 		while(n){	
 			if(n -> ID == CMP_OBJECT_VECTOR){
-				if(GloryPlaceData[UsedCheckNum].World == CurrentWorld){
-					(n->Data).vT.x = GloryPlaceData[UsedCheckNum].R_curr.x;
-					(n->Data).vT.y = GloryPlaceData[UsedCheckNum].R_curr.y;
-					(n->Data).vT.z = GloryPlaceData[UsedCheckNum].R_curr.z;					
-				}else{
-					pass = GetPassage(CurrentWorld,GloryPlaceData[UsedCheckNum].World);
-					if(pass){
-						(n->Data).vT.x = pass->unitPtr.PassageT->ActionLink->R_curr.x;
-						(n->Data).vT.y = pass->unitPtr.PassageT->ActionLink->R_curr.y;
-						(n->Data).vT.z = pass->unitPtr.PassageT->ActionLink->R_curr.z;
-					};
-				};
+				(n->Data).vT.x = target.x;
+				(n->Data).vT.y = target.y;
+				(n->Data).vT.z = target.z;
 				break;
 			};
 			n = n->Next;
@@ -9005,10 +9089,10 @@ void CreatePhantomTarget(void)
 
 		if(!n){
 			if(lang() == RUSSIAN){
-				CompasObj.AddTarget(CMP_OBJECT_VECTOR,UnitOrderType(GloryPlaceData[UsedCheckNum].R_curr.x,GloryPlaceData[UsedCheckNum].R_curr.y,GloryPlaceData[UsedCheckNum].R_curr.z),NULL,rCheckPointCompasTarget);
+				CompasObj.AddTarget(CMP_OBJECT_VECTOR,UnitOrderType(target.x,target.y,target.z),NULL,rCheckPointCompasTarget);
 				SelectCompasTarget(rCheckPointCompasTarget);
 			}else{
-				CompasObj.AddTarget(CMP_OBJECT_VECTOR,UnitOrderType(GloryPlaceData[UsedCheckNum].R_curr.x,GloryPlaceData[UsedCheckNum].R_curr.y,GloryPlaceData[UsedCheckNum].R_curr.z),NULL,CheckPointCompasTarget);
+				CompasObj.AddTarget(CMP_OBJECT_VECTOR,UnitOrderType(target.x,target.y,target.z),NULL,CheckPointCompasTarget);
 				SelectCompasTarget(CheckPointCompasTarget);
 			};
 			aciRefreshTargetsMenu();
@@ -9066,17 +9150,19 @@ void CompasObject::Quant(void)
 			break;
 		case CMP_OBJECT_VANGER:
 			tt = (uvsVanger*)(CurrentTarget->Data.TargetT);
+			if(!tt || !tt->Pworld)
+				return;
 			if(tt ->Pworld->gIndex == CurrentWorld){
 				R_curr.x = tt->pos_x;
 				R_curr.y = tt->pos_y;
 				R_curr.z = 0;
 			}else{
 				pass = GetPassage(CurrentWorld,tt ->Pworld->gIndex);
-				if(pass){
+				if(pass && pass->unitPtr.PassageT && pass->unitPtr.PassageT->ActionLink){
 					R_curr.x = pass->unitPtr.PassageT->ActionLink->R_curr.x;
 					R_curr.y = pass->unitPtr.PassageT->ActionLink->R_curr.y;
 					R_curr.z = pass->unitPtr.PassageT->ActionLink->R_curr.z;
-				};
+				}else return;
 			};
 			break;
 		case CMP_OBJECT_VECTOR:
@@ -9583,6 +9669,7 @@ void VangerFunctionType::Quant(void)
 			case MECHANIC_BEEB_NATION:
 				if(ActD.mfActive){
 					((VangerUnit*)(ActD.mfActive))->convert_to_beeb(NULL);
+					ModelD.BindExternalModel(*ActD.mfActive,ActD.mfActive->beeb_return_model_index);
 					ActD.mfActive->BeebonationFlag = 0;
 				};
 				SOUND_MES_BEEBSOSPY();
@@ -9708,7 +9795,10 @@ void VangerFunctionType::Quant(void)
 						if(Time == LifeTime - (SKY_QUAKE_DELAY * GAME_TIME_COEFF)){
 							SOUND_MES_BEEBSOSPY();
 							ActD.mfActive->BeebonationFlag = 1;
-							((VangerUnit*)(ActD.mfActive))->convert_to_beeb(&(ModelD.ActiveModel(ModelD.FindModel("Bug"))));
+								const int beeb_model = ModelD.FindModel("Bug");
+						ActD.mfActive->beeb_return_model_index = ActD.mfActive->external_model_index;
+						((VangerUnit*)(ActD.mfActive))->convert_to_beeb(&(ModelD.ActiveModel(beeb_model)));
+						ModelD.BindExternalModel(*ActD.mfActive,beeb_model);
 							switch(((VangerUnit*)(ActD.mfActive))->uvsPoint->Pmechos->color){
 								case 0:			
 									((VangerUnit*)(ActD.mfActive))->set_body_color(COLORS_IDS::BODY_GREEN);
@@ -9809,6 +9899,8 @@ void VangerUnit::SetMechos(int n)
 	Object::operator = (ModelD.ActiveModel(n));
 	external_model_handle = ModelD.ModelHandles[n];
 	external_wheel_model_handles = ModelD.WheelModelHandles[n];
+	external_frame_model_handles = ModelD.FrameModelHandles[n];
+	external_model_index = n;
 	create_model_instance();
 	set_active(1);
 	set_3D(SET_3D_CHOOSE_LEVEL,R_curr.x,R_curr.y,R_curr.z,0,-Angle,Speed);
@@ -14533,6 +14625,8 @@ void VangerUnit::ChangeVangerProcess(void)
 	Object::operator = (ModelD.ActiveModel(nModel));
 	external_model_handle = ModelD.ModelHandles[nModel];
 	external_wheel_model_handles = ModelD.WheelModelHandles[nModel];
+	external_frame_model_handles = ModelD.FrameModelHandles[nModel];
+	external_model_index = nModel;
 	create_model_instance();
 	if(Status & SOBJ_ACTIVE) set_active(1);
 	else set_active(0);

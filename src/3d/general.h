@@ -20,9 +20,8 @@ extern MemoryHeap load_heap;
 #define HEAP_ALLOC1(c)    (static_cast<c*>(load_heap.get(static_cast<int>(sizeof(c)))))
 #define HEAP_END		  load_heap.end_alloc()
 
-
-#ifdef _DEBUG
-#define _FOUT_
+#ifdef _LEGACY_VS_DEBUG
+#	define _FOUT_
 extern XStream fout;
 #endif
 extern XBuffer msg_buf;

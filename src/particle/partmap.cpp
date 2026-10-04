@@ -1,20 +1,20 @@
+#include "../3d/3d_math.h"
 #include "../global.h"
 #include "../runtime.h"
-#include "../3d/3d_math.h"
 
 #include "../common.h"
 
-#ifdef _DEBUG
-#include "../win32f.h"
+#ifdef _LEGACY_VS_DEBUG
+#	include "../win32f.h"
 #endif
 
-#include "../sqexp.h"
 #include "../backg.h"
+#include "../sqexp.h"
 
+#include "../dast/poly3d.h"
+#include "../terra/render.h"
 #include "../terra/vmap.h"
 #include "../terra/world.h"
-#include "../terra/render.h"
-#include "../dast/poly3d.h"
 
 #include "particle.h"
 #include "partmap.h"

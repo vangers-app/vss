@@ -1,3 +1,10 @@
+#ifndef __UVS_UNIVANG_H__
+#define __UVS_UNIVANG_H__
+
+#include "../common.h"
+#include "xbuffer.h"
+struct XStream;
+
 /*
 		uniVang-STAND Header File
 		(C)1997 by K-D Lab
@@ -1382,3 +1389,5 @@ void uvsCheckKronIventTabuTask(int KronType, int Kroncount, int MYresult = 0, in
 void uvsKronDeleteItem(int type, int param2, int param1);
 int ActInt_param2(int InType);
 uvsVanger* uvsCreateNetVanger(int CarType, int Color, int PassageIndex,int TownTabutaskID);
+
+#endif

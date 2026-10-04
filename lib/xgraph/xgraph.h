@@ -132,9 +132,11 @@ struct XGR_Screen
 	void set_fullscreen(bool fullscreen); 
 	void set_resolution(int width, int height);
 	void set_is_scaled_renderer(bool is_scaled_renderer);
-	const bool get_is_scaled_renderer();
-	const float get_screen_scale_x();
-	const float get_screen_scale_y();
+	SDL_Window *get_window() const;
+	SDL_Renderer *get_renderer() const;
+	bool get_is_scaled_renderer() const;
+	float get_screen_scale_x() const;
+	float get_screen_scale_y() const;
 
 	void setpixel(int x,int y,int col);
 	int getpixel(int x,int y);
@@ -210,7 +212,10 @@ private:
 
 	renderer::compositor::Texture HDBackgroundTexture;
 	SDL_Window *sdlWindow;
-	renderer::compositor::AbstractCompositor *compositor;
+renderer::compositor::AbstractCompositor *compositor;
+	SDL_Texture *sdlTexture;
+SDL_Renderer *sdlRenderer;
+	SDL_TimerID cursorTimer;
 
 	SDL_Color XGR_Palette[256] {{0, 0, 0, 0}};
 
@@ -277,8 +282,8 @@ struct XGR_MousePromptData : XListElement
 	char* textData;
 
 	void init(void);
-	void init_text(char* p);
-	void set_text(char* p);
+	void init_text(const char *p);
+	void set_text(const char *p);
 
 	int check_xy(int x,int y);
 

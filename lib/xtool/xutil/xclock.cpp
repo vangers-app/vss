@@ -120,11 +120,10 @@ double clockf()
 	return (double)SDL_GetTicks()*MS_PER_PERIOD;
 } 
 
-int clocki()
-{
-//std::cout<<"clocki() "<<(int)((getRDTSC()-beg_tick)/tick_per_sec)<<std::endl;
-//	return (int)((getRDTSC()-beg_tick)/tick_per_sec);
-//	return (int)((getRDTSC()-beg_tick)*1000);
-	return (SDL_GetTicks()*MS_PER_PERIOD);
+std::uint64_t clocki() {
+	// std::cout<<"clocki() "<<(int)((getRDTSC()-beg_tick)/tick_per_sec)<<std::endl;
+	//	return (int)((getRDTSC()-beg_tick)/tick_per_sec);
+	//	return (int)((getRDTSC()-beg_tick)*1000);
+	return SDL_GetTicks() * MS_PER_PERIOD;
 }
 

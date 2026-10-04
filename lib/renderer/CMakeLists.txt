@@ -39,6 +39,8 @@ if (ANDROID)
 else()
 	ADD_LIBRARY(renderer STATIC ${renderer_SRCS})
 endif()
+# ResourceStorage.h uses designated initializers; the root CMakeLists raises the
+# standard to C++20 for MSVC, where they are not a C++17 extension.
 if (TARGET rusty_vangers)
 	add_dependencies(renderer rusty_vangers)
 endif()

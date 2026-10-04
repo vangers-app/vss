@@ -1,6 +1,9 @@
+#include <cstring>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utility>
 
 #ifdef _WINDOWS_
 #	define WIN32_EXTRA_LEAN
@@ -9,7 +12,9 @@
 #	include <winsock.h>
 #else
 #	include <limits.h> // HOST_NAME_MAX
+#if !defined(_MSC_VER)
 #	include <unistd.h> // gethostname()
+#endif
 #	ifdef __HAIKU__
 #		include <posix/sys/select.h> // fd_set
 #	endif
@@ -19,6 +24,81 @@
 #endif
 
 #include "xsocket.h"
+
+#ifdef EMSCRIPTEN
+
+// Emscripten provides no SDL3_net port and a browser has no BSD sockets, so
+// every entry point below reports failure. That keeps all callers - which only
+// ever take an XSocket reference - compiling and linking, while making sure no
+// code path mistakes a dead socket for a live one: is_open() stays false and
+// send/receive return an error.
+
+std::string XSocketLocalHostAddress;
+std::string XSocketLocalHostExternalAddress;
+
+int XSocketInit(int ErrHUsed) {
+	return 0;
+}
+
+void XSocketFinit() {
+}
+
+XSocket::XSocket() : ErrHUsed(0), streamSocket(nullptr), remotePort(0) {
+}
+
+XSocket::~XSocket() {
+}
+
+XSocket::XSocket(XSocket &&donor) noexcept : ErrHUsed(donor.ErrHUsed), streamSocket(donor.streamSocket), remoteAddress(std::move(donor.remoteAddress)), remotePort(donor.remotePort) {
+	donor.streamSocket = nullptr;
+	donor.remotePort = 0;
+}
+
+XSocket &XSocket::operator=(XSocket &&donor) noexcept {
+	if (this != &donor) {
+		ErrHUsed = donor.ErrHUsed;
+		streamSocket = donor.streamSocket;
+		remoteAddress = std::move(donor.remoteAddress);
+		remotePort = donor.remotePort;
+		donor.streamSocket = nullptr;
+		donor.remotePort = 0;
+	}
+	return *this;
+}
+
+int XSocket::open(int IP, int port) {
+	return -1;
+}
+
+int XSocket::open(const char *name, int port) {
+	return -1;
+}
+
+void XSocket::close() {
+	streamSocket = nullptr;
+}
+
+int XSocket::send(const char *buffer, int size) {
+	return -1;
+}
+
+int XSocket::send_if_ready(const char *buffer, int size) {
+	return -1;
+}
+
+int XSocket::flush(int ms_time) {
+	return -1;
+}
+
+int XSocket::receive(char *buffer, int size_of_buffer, int ms_time) {
+	return -1;
+}
+
+int XSocket::tcp_open(const char *name, int port) {
+	return -1;
+}
+
+#else
 
 #define XSOCKET_ERROR(str, code)                      \
 	do {                                              \
@@ -30,204 +110,218 @@
 		}                                             \
 	} while (0)
 
-// HOST_NAME_MAX is deprecated; use conservative value
-#ifndef HOST_NAME_MAX
-#	define HOST_NAME_MAX 255
-#endif
-
-static char *XSocketLastErrorString = 0;
-static char *XSocketLastErrorCode = 0;
-IPaddress XSocketLocalHostADDR;
-IPaddress XSocketLocalHostExternADDR;
-// HOST_NAME_MAX is POSIX.1-2001
-static char XSocketLocalHostName[HOST_NAME_MAX + 1];
+static const char *XSocketLastErrorString = nullptr;
+static const char *XSocketLastErrorCode = nullptr;
+static bool XSocketInitializationOK = false;
+std::string XSocketLocalHostAddress;
+std::string XSocketLocalHostExternalAddress;
 
 int XSocketInit(int ErrHUsed) {
-	static int XSocketInitializationOK = 0;
-
 	if (XSocketInitializationOK)
 		return 1;
 
 	// SDL_Init() should have already been called before this.
-	if (SDLNet_Init() == -1) {
-		XSOCKET_ERROR("Network init failed", SDLNet_GetError());
+	if (!NET_Init()) {
+		XSOCKET_ERROR("Network init failed", SDL_GetError());
 		return 0;
 	}
 
-	if (gethostname(XSocketLocalHostName, HOST_NAME_MAX) == -1) {
-		XSOCKET_ERROR("gethostname failed", "");
+	int addressCount = 0;
+	NET_Address **addresses = NET_GetLocalAddresses(&addressCount);
+	if (!addresses) {
+		XSOCKET_ERROR("Local address lookup failed", SDL_GetError());
+		NET_Quit();
 		return 0;
 	}
-	XSocketLocalHostName[HOST_NAME_MAX] = 0;
 
-	if (SDLNet_ResolveHost(&XSocketLocalHostExternADDR, XSocketLocalHostName, 0) == -1) {
-		XSOCKET_ERROR("resolvehost failed", SDLNet_GetError());
+	std::string fallbackAddress;
+	for (int i = 0; i < addressCount; ++i) {
+		const char *addressString = NET_GetAddressString(addresses[i]);
+		if (!addressString)
+			continue;
+		if (fallbackAddress.empty())
+			fallbackAddress = addressString;
+		if (strcmp(addressString, "127.0.0.1") && strcmp(addressString, "::1")) {
+			XSocketLocalHostAddress = addressString;
+			break;
+		}
+	}
+	NET_FreeLocalAddresses(addresses);
+
+	if (XSocketLocalHostAddress.empty())
+		XSocketLocalHostAddress = fallbackAddress;
+	if (XSocketLocalHostAddress.empty()) {
+		XSOCKET_ERROR("Local address lookup returned no addresses", "");
+		NET_Quit();
 		return 0;
 	}
-	XSocketLocalHostADDR = XSocketLocalHostExternADDR;
+	XSocketLocalHostExternalAddress = XSocketLocalHostAddress;
 
-	// TODO: resolve to external address if hostname resolves to localhost
-
-	XSocketInitializationOK = 1;
+	XSocketInitializationOK = true;
 	return 1;
 }
 
+void XSocketFinit() {
+	if (!XSocketInitializationOK)
+		return;
+	XSocketLocalHostAddress.clear();
+	XSocketLocalHostExternalAddress.clear();
+	XSocketInitializationOK = false;
+	NET_Quit();
+}
+
 XSocket::XSocket() {
-	tcpSock = NULL;
 	ErrHUsed = 1;
-	addr.host = 0;
-	addr.port = 0;
-	socketSet = NULL;
+	streamSocket = nullptr;
+	remotePort = 0;
 }
 
 XSocket::~XSocket() {
-	if (tcpSock != NULL)
 		close();
 }
 
-XSocket::XSocket(XSocket &donor) {
-	tcpSock = donor.tcpSock;
+XSocket::XSocket(XSocket &&donor) noexcept {
+	streamSocket = donor.streamSocket;
 	ErrHUsed = donor.ErrHUsed;
-	addr = donor.addr;
-	donor.tcpSock = NULL;
-	socketSet = NULL;
+	remoteAddress = std::move(donor.remoteAddress);
+	remotePort = donor.remotePort;
+	donor.streamSocket = nullptr;
+	donor.remotePort = 0;
 }
 
-XSocket &XSocket::operator=(XSocket &donor) {
-	tcpSock = donor.tcpSock;
+XSocket &XSocket::operator=(XSocket &&donor) noexcept {
+	if (this == &donor)
+		return *this;
+	close();
+	streamSocket = donor.streamSocket;
 	ErrHUsed = donor.ErrHUsed;
-	addr = donor.addr;
-	socketSet = donor.socketSet;
-	donor.tcpSock = NULL;
-	donor.socketSet = NULL;
+	remoteAddress = std::move(donor.remoteAddress);
+	remotePort = donor.remotePort;
+	donor.streamSocket = nullptr;
+	donor.remotePort = 0;
 	return *this;
 }
 
-int XSocket::tcp_open() {
-	tcpSock = SDLNet_TCP_Open(&addr);
-
-	if (!tcpSock) {
-		XSOCKET_ERROR("TCP socket open failed", SDLNet_GetError());
+int XSocket::tcp_open(const char *name, int port) {
+	close();
+	if (!name || port <= 0 || port > 65535) {
+		XSOCKET_ERROR("Invalid TCP endpoint", "");
+		return 0;
+	}
+	NET_Address *address = NET_ResolveHostname(name);
+	if (!address) {
+		XSOCKET_ERROR("TCP socket hostname resolution failed", SDL_GetError());
+		return 0;
+	}
+	if (NET_WaitUntilResolved(address, -1) != NET_SUCCESS) {
+		XSOCKET_ERROR("TCP socket hostname resolution failed", SDL_GetError());
+		NET_UnrefAddress(address);
 		return 0;
 	}
 
-	socketSet = SDLNet_AllocSocketSet(64);
-	if (!socketSet) {
-		XSOCKET_ERROR("TCP socket set allocation failed", SDLNet_GetError());
+	streamSocket = NET_CreateClient(address, static_cast<Uint16>(port), 0);
+	if (!streamSocket || NET_WaitUntilConnected(streamSocket, -1) != NET_SUCCESS) {
+		XSOCKET_ERROR("TCP socket open failed", SDL_GetError());
+		NET_UnrefAddress(address);
 		close();
 		return 0;
 	}
-	if (SDLNet_TCP_AddSocket(socketSet, tcpSock) == -1) {
-		XSOCKET_ERROR("TCP socket set add failed", SDLNet_GetError());
-		close();
-		return 0;
-	}
+	const char *addressString = NET_GetAddressString(address);
+	remoteAddress = addressString ? addressString : name;
+	remotePort = port;
+	NET_UnrefAddress(address);
 
 	return 1;
 }
 
 /* Open TCP client socket */
 int XSocket::open(int IP, int port) {
-	addr.host = htonl(IP);
-	addr.port = htons(port);
-
-	return tcp_open();
+	char address[16];
+	snprintf(
+		address,
+		sizeof(address),
+		"%u.%u.%u.%u",
+		(IP >> 24) & 0xff,
+		(IP >> 16) & 0xff,
+		(IP >> 8) & 0xff,
+		IP & 0xff
+	);
+	return tcp_open(address, port);
 }
 
-int XSocket::open(char *name, int port) {
-	if (!name)
-		ErrH.Abort("NULL inet_addr() argument...");
-
-	if (SDLNet_ResolveHost(&addr, name, port) == -1) {
-		XSOCKET_ERROR("TCP socket hostname resolution failed", SDLNet_GetError());
-		return 0;
-	}
-
-	return tcp_open();
+int XSocket::open(const char *name, int port) {
+	return tcp_open(name, port);
 }
 
 void XSocket::close() {
-	if (tcpSock) {
-		SDLNet_TCP_Close(tcpSock);
-		tcpSock = NULL;
+	if (streamSocket) {
+		NET_DestroyStreamSocket(streamSocket);
+		streamSocket = nullptr;
 	}
-	if (socketSet) {
-		SDLNet_FreeSocketSet(socketSet);
-		socketSet = NULL;
-	}
-	addr.host = 0;
-	addr.port = 0;
-}
-
-int XSocket::listen(int port) {
-	addr.host = INADDR_ANY;
-	addr.port = htons(port);
-
-	tcpSock = SDLNet_TCP_Open(&addr);
-	if (tcpSock == NULL) {
-		XSOCKET_ERROR("TCP listen failed", SDLNet_GetError());
-		return 0;
-	}
-
-	return 1;
-}
-
-XSocket XSocket::accept() {
-	XSocket xsock;
-	TCPsocket newSock;
-
-	newSock = SDLNet_TCP_Accept(tcpSock);
-	if (!newSock) // TODO: Should emit error here
-		return xsock;
-
-	xsock.tcpSock = newSock;
-	xsock.ErrHUsed = ErrHUsed;
-	xsock.addr.port = addr.port;
-	xsock.socketSet = SDLNet_AllocSocketSet(16);
-	SDLNet_TCP_AddSocket(xsock.socketSet, newSock);
-
-	return xsock;
+	remoteAddress.clear();
+	remotePort = 0;
 }
 
 int XSocket::send(const char *buffer, int size) {
-	if (!tcpSock)
+	if (!streamSocket || !buffer || size <= 0)
 		return 0;
 
-	int status = SDLNet_TCP_Send(tcpSock, buffer, size);
-	if (status < size) {
-		XSOCKET_ERROR("TCP send failed", SDLNet_GetError()); // TODO: close socket?
+	if (!NET_WriteToStreamSocket(streamSocket, buffer, size)) {
+		XSOCKET_ERROR("TCP send failed", SDL_GetError());
+		close();
 		return 0;
 	}
-	return status;
+	return size;
+}
+
+int XSocket::send_if_ready(const char *buffer, int size) {
+	if (!streamSocket || !buffer || size <= 0)
+		return 0;
+
+	const int pending = NET_GetStreamSocketPendingWrites(streamSocket);
+	if (pending < 0) {
+		XSOCKET_ERROR("TCP pending-write query failed", SDL_GetError());
+		close();
+		return 0;
+	}
+	if (pending > 0)
+		return 0;
+
+	return send(buffer, size);
+}
+
+int XSocket::flush(int ms_time) {
+	if (!streamSocket)
+		return 0;
+
+	const int pending = NET_WaitUntilStreamSocketDrained(streamSocket, ms_time);
+	if (pending < 0) {
+		XSOCKET_ERROR("TCP flush failed", SDL_GetError());
+		close();
+		return 0;
+	}
+	return pending == 0;
 }
 
 int XSocket::receive(char *buffer, int size_of_buffer, int ms_time) {
-	if (!tcpSock || !socketSet || size_of_buffer <= 0)
+	if (!streamSocket || !buffer || size_of_buffer <= 0)
 		return 0;
 
-	if (ms_time == 0) {
-		int n;
-
-		n = SDLNet_CheckSockets(socketSet, 0);
-		if (n == -1) {
+	void *socket = streamSocket;
+	int available = NET_WaitUntilInputAvailable(&socket, 1, ms_time);
+	if (available < 0) {
 			close();
 			return 0;
-		} else if (n == 0) {
-			return 0;
 		}
-
-		if (!tcpSock)
+	if (available == 0)
 			return 0;
 
-		if (!SDLNet_SocketReady(tcpSock)) {
-			return 0;
-		}
-	}
-
-	int status = SDLNet_TCP_Recv(tcpSock, buffer, size_of_buffer);
-	if (status <= 0) {
+	int status = NET_ReadFromStreamSocket(streamSocket, buffer, size_of_buffer);
+	if (status < 0) {
 		close();
 		return 0;
 	}
 	return status;
 }
+
+#endif // EMSCRIPTEN
