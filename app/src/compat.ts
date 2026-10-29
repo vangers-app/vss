@@ -87,6 +87,16 @@ export async function download_mods(onProgress: (progress: DownloadProgress) => 
     return invoke<void>('download_mods', { onProgress: channel });
 }
 
+export async function download_game_data(onProgress: (progress: DownloadProgress) => void) {
+    if (!TAURI_BUILD) {
+        throw new Error("game data download is only available in the desktop build");
+    }
+
+    const channel = new Channel<DownloadProgress>();
+    channel.onmessage = onProgress;
+    return invoke<void>('download_game_data', { onProgress: channel });
+}
+
 export async function cancel_download() {
     if (!TAURI_BUILD) {
         return;

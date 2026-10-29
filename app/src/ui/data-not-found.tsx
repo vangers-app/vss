@@ -2,12 +2,18 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import appIconUrl from "../assets/app-icon.png";
 import bgUrl from "../assets/vss-bg.jpg";
+import { useUiStore } from "../store";
+import { DownloadDialog, startDownload } from "./download-mods";
 
 const STEAM_URL = "https://store.steampowered.com/app/264080/Vangers/";
 const GOG_URL = "https://www.gog.com/game/vangers";
 const HELP_URL = "https://t.me/vangers_mobile";
 
 export function DataNotFound() {
+    const downloadActive = useUiStore((state) => state.download.active);
+    if (downloadActive) {
+        return <DownloadDialog />;
+    }
     return <div class="absolute inset-0 flex items-center justify-center bg-cover bg-center text-white"
         style={{ backgroundImage: `url(${bgUrl})` }}>
         <div class="absolute inset-0 bg-black/70"></div>
@@ -17,8 +23,14 @@ export function DataNotFound() {
             <h1 class="text-3xl font-bold mb-4">Game data not found</h1>
             <p class="mb-6 text-lg leading-relaxed">
                 Vangers: Soup Supervisor could not locate an installed copy of the original
-                game. Please install Vangers from Steam or GOG and launch this application again.
+                game. Download the game data, or install Vangers from Steam or GOG and launch
+                this application again.
             </p>
+            <button
+                class="cursor-pointer px-6 py-3 mb-4 rounded border border-yellow-700 bg-yellow-900/40 hover:bg-yellow-800/60 text-xl"
+                onClick={() => startDownload("game-data")}>
+                Download game data
+            </button>
             <div class="flex flex-row gap-4 mb-8">
                 <button
                     class="cursor-pointer px-6 py-3 rounded border border-yellow-700 bg-yellow-900/40 hover:bg-yellow-800/60 text-xl"
@@ -37,11 +49,12 @@ export function DataNotFound() {
                     onClick={() => openUrl(HELP_URL)}>
                     Help
                 </button>
-                <button
-                    class="cursor-pointer underline text-yellow-400 hover:text-yellow-200 text-lg"
-                    onClick={() => getCurrentWindow().close()}>
-                    Exit
-                </button>
+                {(window as any).__VSS_MOBILE__ !== true &&
+                    <button
+                        class="cursor-pointer underline text-yellow-400 hover:text-yellow-200 text-lg"
+                        onClick={() => getCurrentWindow().close()}>
+                        Exit
+                    </button>}
             </div>
         </div>
     </div>;

@@ -17,6 +17,10 @@ use tauri::{path::BaseDirectory};
 const MODS_URL: &str =
     "https://github.com/vangers-app/vss-geerah-super-set/releases/download/v1.3/vss-mods.zip";
 
+// Archive layout: the game `data` folder contents at the root, as produced by
+// scripts/pack-game-data.sh.
+const GAME_DATA_URL: &str = "https://replace-me.invalid/game-data.zip";
+
 static CANCEL_DOWNLOAD: AtomicBool = AtomicBool::new(false);
 
 #[derive(Serialize)]
@@ -418,25 +422,79 @@ async fn download_mods(
     app: AppHandle,
     on_progress: Channel<DownloadProgress>,
 ) -> Result<(), String> {
-    CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
-
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
-    fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
-    fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    download_archive(
+        &on_progress,
+        MODS_URL,
+        "mods",
+        cache_dir.join("mods-download.zip"),
+        data_dir.join("mods-tmp"),
+        data_dir.join("mods").join("scripts"),
+        // The archive may wrap the mods root (the dir containing mods.json) in an
+        // extra folder.
+        |tmp_dir| {
+            find_file_dir(tmp_dir, "mods.json", 4)
+                .ok_or_else(|| "mods.json not found in archive".to_string())
+        },
+    )
+    .await
+}
 
-    let zip_path = cache_dir.join("mods-download.zip");
-    let tmp_dir = data_dir.join("mods-tmp");
-    let final_dir = data_dir.join("mods");
+#[tauri::command]
+async fn download_game_data(
+    app: AppHandle,
+    on_progress: Channel<DownloadProgress>,
+) -> Result<(), String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    download_archive(
+        &on_progress,
+        GAME_DATA_URL,
+        "game data",
+        cache_dir.join("game-data-download.zip"),
+        data_dir.join("data-tmp"),
+        data_dir.join("data"),
+        // scripts/pack-game-data.sh zips the data folder contents directly.
+        |tmp_dir| Ok(tmp_dir.to_path_buf()),
+    )
+    .await
+}
 
-    // Clean any leftovers from a previous interrupted run.
+// Downloads `url` to `zip_path`, extracts it into `tmp_dir` and atomically swaps
+// the directory chosen by `locate_root` into `dest`. Leftovers of an interrupted
+// run are removed before starting and after a failure.
+async fn download_archive(
+    on_progress: &Channel<DownloadProgress>,
+    url: &str,
+    subject: &str,
+    zip_path: PathBuf,
+    tmp_dir: PathBuf,
+    dest: PathBuf,
+    locate_root: impl Fn(&Path) -> Result<PathBuf, String>,
+) -> Result<(), String> {
+    CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
+
+    for dir in [zip_path.parent(), tmp_dir.parent()].into_iter().flatten() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+
     let cleanup = || {
         let _ = fs::remove_file(&zip_path);
         let _ = fs::remove_dir_all(&tmp_dir);
     };
     cleanup();
 
-    let result = download_and_extract(&app, &on_progress, &zip_path, &tmp_dir, &final_dir).await;
+    let result = download_and_extract(
+        url,
+        subject,
+        on_progress,
+        &zip_path,
+        &tmp_dir,
+        &dest,
+        locate_root,
+    )
+    .await;
     if result.is_err() {
         cleanup();
     } else {
@@ -446,14 +504,16 @@ async fn download_mods(
 }
 
 async fn download_and_extract(
-    _app: &AppHandle,
+    url: &str,
+    subject: &str,
     on_progress: &Channel<DownloadProgress>,
     zip_path: &Path,
     tmp_dir: &Path,
-    final_dir: &Path,
+    dest: &Path,
+    locate_root: impl Fn(&Path) -> Result<PathBuf, String>,
 ) -> Result<(), String> {
     // 1. Download to a temp zip with streamed progress.
-    let response = reqwest::get(MODS_URL).await.map_err(|e| e.to_string())?;
+    let response = reqwest::get(url).await.map_err(|e| e.to_string())?;
     if !response.status().is_success() {
         return Err(format!("download failed: HTTP {}", response.status()));
     }
@@ -461,10 +521,11 @@ async fn download_and_extract(
     let mut file = fs::File::create(zip_path).map_err(|e| e.to_string())?;
     let mut stream = response.bytes_stream();
     let mut loaded: u64 = 0;
+    let downloading = format!("Downloading {subject}");
     on_progress
         .send(DownloadProgress {
             phase: "downloading".into(),
-            label: "Downloading mods".into(),
+            label: downloading.clone(),
             loaded,
             total,
         })
@@ -479,7 +540,7 @@ async fn download_and_extract(
         on_progress
             .send(DownloadProgress {
                 phase: "downloading".into(),
-                label: "Downloading mods".into(),
+                label: downloading.clone(),
                 loaded,
                 total,
             })
@@ -492,7 +553,7 @@ async fn download_and_extract(
     on_progress
         .send(DownloadProgress {
             phase: "extracting".into(),
-            label: "Extracting mods".into(),
+            label: format!("Extracting {subject}"),
             loaded,
             total,
         })
@@ -501,13 +562,13 @@ async fn download_and_extract(
     fs::create_dir_all(tmp_dir).map_err(|e| e.to_string())?;
     extract_zip(zip_path, tmp_dir)?;
 
-    // 3. Locate the mods root (the dir containing mods.json) — the archive may wrap
-    // it in an extra folder — and swap it into <mods>/scripts.
-    let scripts_src = find_file_dir(tmp_dir, "mods.json", 4)
-        .ok_or_else(|| "mods.json not found in archive".to_string())?;
-    let _ = fs::remove_dir_all(final_dir);
-    fs::create_dir_all(final_dir).map_err(|e| e.to_string())?;
-    fs::rename(&scripts_src, final_dir.join("scripts")).map_err(|e| e.to_string())?;
+    // 3. Swap the located root into `dest`.
+    let root = locate_root(tmp_dir)?;
+    let _ = fs::remove_dir_all(dest);
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&root, dest).map_err(|e| e.to_string())?;
     let _ = fs::remove_dir_all(tmp_dir);
 
     on_progress
@@ -535,6 +596,7 @@ pub fn run() {
             read_local_file,
             list_mods,
             download_mods,
+            download_game_data,
             cancel_download,
             delete_mods
         ])
@@ -577,6 +639,144 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::Mutex;
+
+    // Tests share the global CANCEL_DOWNLOAD flag, so they must not run concurrently.
+    static SERIAL: Mutex<()> = Mutex::new(());
+
+    // Serves `body` once over plain HTTP on an ephemeral port and returns its URL.
+    fn serve_once(body: Vec<u8>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request);
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            stream.write_all(header.as_bytes()).unwrap();
+            stream.write_all(&body).unwrap();
+        });
+        format!("http://127.0.0.1:{port}/archive.zip")
+    }
+
+    fn zip_bytes(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(&mut cursor);
+        for (name, contents) in entries {
+            writer
+                .start_file(*name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(contents).unwrap();
+        }
+        writer.finish().unwrap();
+        cursor.into_inner()
+    }
+
+    fn progress_sink() -> Channel<DownloadProgress> {
+        Channel::new(|_| Ok(()))
+    }
+
+    fn temp_root(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("vss-download-test-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn game_data_archive_is_swapped_into_dest() {
+        let _serial = SERIAL.lock().unwrap();
+        CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
+        let root = temp_root("ok");
+        let url = serve_once(zip_bytes(&[("resource/a.txt", b"a"), ("b.txt", b"b")]));
+        let dest = root.join("data");
+        let result = tauri::async_runtime::block_on(download_and_extract(
+            &url,
+            "game data",
+            &progress_sink(),
+            &root.join("archive.zip"),
+            &root.join("data-tmp"),
+            &dest,
+            |tmp_dir| Ok(tmp_dir.to_path_buf()),
+        ));
+        assert_eq!(result, Ok(()));
+        assert_eq!(fs::read(dest.join("resource/a.txt")).unwrap(), b"a");
+        assert_eq!(fs::read(dest.join("b.txt")).unwrap(), b"b");
+        assert!(!root.join("data-tmp").exists());
+    }
+
+    #[test]
+    fn mods_root_is_located_inside_wrapper_folder() {
+        let _serial = SERIAL.lock().unwrap();
+        CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
+        let root = temp_root("mods");
+        let url = serve_once(zip_bytes(&[("wrapper/scripts/mods.json", b"{}")]));
+        let dest = root.join("mods").join("scripts");
+        let result = tauri::async_runtime::block_on(download_and_extract(
+            &url,
+            "mods",
+            &progress_sink(),
+            &root.join("archive.zip"),
+            &root.join("mods-tmp"),
+            &dest,
+            |tmp_dir| {
+                find_file_dir(tmp_dir, "mods.json", 4)
+                    .ok_or_else(|| "mods.json not found in archive".to_string())
+            },
+        ));
+        assert_eq!(result, Ok(()));
+        assert!(dest.join("mods.json").is_file());
+    }
+
+    #[test]
+    fn unreachable_url_fails_without_creating_dest() {
+        let _serial = SERIAL.lock().unwrap();
+        CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
+        let root = temp_root("err");
+        let dest = root.join("data");
+        let result = tauri::async_runtime::block_on(download_and_extract(
+            "http://127.0.0.1:9/archive.zip",
+            "game data",
+            &progress_sink(),
+            &root.join("archive.zip"),
+            &root.join("data-tmp"),
+            &dest,
+            |tmp_dir| Ok(tmp_dir.to_path_buf()),
+        ));
+        assert!(result.is_err());
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn cancel_aborts_before_dest_is_written() {
+        let _serial = SERIAL.lock().unwrap();
+        let root = temp_root("cancel");
+        let url = serve_once(zip_bytes(&[("b.txt", b"b")]));
+        let dest = root.join("data");
+        CANCEL_DOWNLOAD.store(true, Ordering::SeqCst);
+        let result = tauri::async_runtime::block_on(download_and_extract(
+            &url,
+            "game data",
+            &progress_sink(),
+            &root.join("archive.zip"),
+            &root.join("data-tmp"),
+            &dest,
+            |tmp_dir| Ok(tmp_dir.to_path_buf()),
+        ));
+        CANCEL_DOWNLOAD.store(false, Ordering::SeqCst);
+        assert_eq!(result, Err("cancelled".to_string()));
+        assert!(!dest.exists());
+    }
 }
 
 fn percent_decode(s: &str) -> Option<String> {

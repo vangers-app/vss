@@ -2,8 +2,11 @@ import { create } from "zustand";
 
 export type DownloadPhase = "idle" | "downloading" | "extracting" | "done" | "error";
 
+export type DownloadKind = "mods" | "game-data";
+
 export interface DownloadState {
     active: boolean;
+    kind: DownloadKind;
     phase: DownloadPhase;
     label: string;
     loaded: number;
@@ -13,6 +16,7 @@ export interface DownloadState {
 
 const idleDownload: DownloadState = {
     active: false,
+    kind: "mods",
     phase: "idle",
     label: "",
     loaded: 0,

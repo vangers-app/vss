@@ -13,7 +13,7 @@ import { find_install, toggle_devtools, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
 import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
-import { DownloadMods, startModsDownload } from "./ui/download-mods";
+import { DownloadDialog, startDownload } from "./ui/download-mods";
 import { state as addonState } from "./addons/state";
 import { dismissCreditsOverlay } from "./addons/redraw-quant";
 import { currentLanguage, setCurrentLanguage } from "./language";
@@ -76,7 +76,7 @@ function App() {
 
     return <>
         <Game />
-        {downloadActive && <DownloadMods />}
+        {downloadActive && <DownloadDialog />}
     </>;
 }
 
@@ -241,7 +241,7 @@ function DesktopFrame() {
     }
     if (!modsPresentState && TAURI_BUILD) {
         return <>
-            <DownloadModsButton class="absolute cl-0 ct-0" onButtonUp={() => startModsDownload()} />
+            <DownloadModsButton class="absolute cl-0 ct-0" onButtonUp={() => startDownload("mods")} />
             <DesktopLanguageButton />
             <Telegram class="absolute cr-0 ct-2" openUrl={openUrl} />
         </>;

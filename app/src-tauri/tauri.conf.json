@@ -40,8 +40,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "resources/game-data.zip"
-    ]
+    "iOS": {
+      "minimumSystemVersion": "15.2"
+    }
   }
 }

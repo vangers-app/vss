@@ -164,9 +164,109 @@ jobs:
           path: dist-artifacts/*
           if-no-files-found: error
 
+  ios:
+    name: Build (ios-aarch64)
+    runs-on: macos-14
+    timeout-minutes: 90
+    env:
+      # `tauri ios init` asks for a development team even though the archive is
+      # built with code signing disabled; any value satisfies it.
+      APPLE_DEVELOPMENT_TEAM: XXXXXXXXXX
+
+    steps:
+      - name: Rewrite SSH submodule URLs to HTTPS
+        shell: bash
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 5.0.2
+          actions-cache-folder: emsdk-cache-ios-aarch64
+
+      - name: Setup CMake 4
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.0.3'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,wasm32-unknown-emscripten
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          key: ios-aarch64
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: app/yarn.lock
+
+      - name: Build vangers (WebAssembly)
+        shell: bash
+        run: |
+          source "$EMSDK/emsdk_env.sh"
+          mkdir -p emscripten
+          cd emscripten
+          cmake -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
+            -DCMAKE_BUILD_TYPE=MinSizeRel ..
+          ninja vangers
+
+      - name: Install frontend dependencies
+        shell: bash
+        working-directory: app
+        run: yarn install --frozen-lockfile
+
+      - name: Generate Xcode project
+        shell: bash
+        working-directory: app
+        run: yarn tauri ios init --ci
+
+      - name: Build unsigned iOS IPA
+        shell: bash
+        working-directory: app
+        run: yarn tauri ios build --ci --no-sign
+
+      - name: Collect & rename artifact
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist-artifacts
+          shopt -s nullglob
+          files=( app/src-tauri/gen/apple/build/arm64/*.ipa )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No IPA found under app/src-tauri/gen/apple/build/arm64"
+            exit 1
+          fi
+          ref_name="${GITHUB_REF_NAME//\//-}"
+          cp "${files[0]}" "dist-artifacts/Vangers-${ref_name}-ios-aarch64.ipa"
+          echo "Collected: dist-artifacts/Vangers-${ref_name}-ios-aarch64.ipa"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vangers-ios-aarch64
+          path: dist-artifacts/*
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, ios]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
