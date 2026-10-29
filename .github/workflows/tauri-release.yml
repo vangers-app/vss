@@ -166,7 +166,9 @@ jobs:
 
   ios:
     name: Build (ios-aarch64)
-    runs-on: macos-14
+    # Intel runner: macOS arm64 runners are frequently unavailable ("not acquired
+    # by Runner of type hosted"); Xcode cross-builds the arm64 iOS app regardless.
+    runs-on: macos-15-intel
     timeout-minutes: 90
     env:
       # `tauri ios init` asks for a development team even though the archive is
