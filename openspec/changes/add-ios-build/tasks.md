@@ -22,9 +22,9 @@
 
 ## 4. GitHub Actions: job `ios`
 
-- [ ] 4.1 Добавить job `ios` в `.github/workflows/tauri-release.yml` на `macos-14`: checkout с submodules, Ninja, emsdk 5.0.2, CMake 4, Rust с `aarch64-apple-ios`, rust-cache (key `ios-aarch64`), Node 20, сборка wasm (копия шага из `build`), `yarn install --frozen-lockfile`, `yarn tauri ios init --ci` (env `APPLE_DEVELOPMENT_TEAM` с фиктивным значением), `yarn tauri ios build --ci --no-sign`; проверить: `actionlint` или просмотр в GitHub без ошибок синтаксиса.
-- [ ] 4.2 Сбор артефакта: найти `app/src-tauri/gen/apple/build/arm64/*.ipa`, скопировать в `dist-artifacts/Vangers-<ref>-ios-aarch64.ipa`, `upload-artifact` с именем `Vangers-ios-aarch64`; `release` job — `needs: [build, ios]`; проверить: `workflow_dispatch` прогон на ветке зелёный, артефакт скачивается, `unzip -l` показывает `Payload/*.app/Info.plist`.
-- [ ] 4.3 Проверить содержимое `Info.plist` в артефакте: `UISupportedInterfaceOrientations` только landscape, `UIStatusBarHidden` true, `MinimumOSVersion` 15.2, иконка AppIcon присутствует (`unzip -l | grep AppIcon`).
+- [x] 4.1 Добавить job `ios` в `.github/workflows/tauri-release.yml` на `macos-15-intel` (arm64-runner'ы `macos-14` трижды не выделялись, см. design D3): checkout с submodules, Ninja, emsdk 5.0.2, CMake 4, Rust с `aarch64-apple-ios`, rust-cache (key `ios-aarch64`), Node 20, сборка wasm (копия шага из `build`), `yarn install --frozen-lockfile`, `yarn tauri ios init --ci` (env `APPLE_DEVELOPMENT_TEAM` с фиктивным значением), `yarn tauri ios build --ci --no-sign`; проверить: `actionlint` или просмотр в GitHub без ошибок синтаксиса.
+- [x] 4.2 Сбор артефакта: найти `app/src-tauri/gen/apple/build/arm64/*.ipa`, скопировать в `dist-artifacts/Vangers-<ref>-ios-aarch64.ipa`, `upload-artifact` с именем `Vangers-ios-aarch64`; `release` job — `needs: [build, ios]`; проверить: `workflow_dispatch` прогон на ветке зелёный, артефакт скачивается, `unzip -l` показывает `Payload/*.app/Info.plist`.
+- [x] 4.3 Проверить содержимое `Info.plist` в артефакте: `UISupportedInterfaceOrientations` только landscape, `UIStatusBarHidden` true, `MinimumOSVersion` 15.2, иконка AppIcon присутствует (`unzip -l | grep AppIcon`).
 
 ## 5. Документация и проверка на устройстве
 

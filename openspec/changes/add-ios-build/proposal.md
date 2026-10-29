@@ -6,7 +6,7 @@
 
 ## What Changes
 
-- Новый job `ios` в `.github/workflows/tauri-release.yml`: сборка на `macos-14` под `aarch64-apple-ios`, неподписанный IPA через `tauri ios build --no-sign`, артефакт `Vangers-<ref>-ios-aarch64.ipa`, попадает в GitHub Release по тегу вместе с остальными.
+- Новый job `ios` в `.github/workflows/tauri-release.yml`: сборка на `macos-15-intel` под `aarch64-apple-ios`, неподписанный IPA через `tauri ios build --no-sign`, артефакт `Vangers-<ref>-ios-aarch64.ipa`, попадает в GitHub Release по тегу вместе с остальными.
 - Xcode-проект (`gen/apple`) генерируется в CI командой `tauri ios init --ci`, в репозиторий не коммитится.
 - iOS-конфигурация приложения: iOS-иконки, минимальная версия iOS, `Info.ios.plist` (только landscape, скрытый status bar, fullscreen).
 - `bundle.resources` с `resources/game-data.zip` переезжает в `tauri.android.conf.json` → desktop и iOS сборки перестают требовать архив при сборке; Android продолжает бандлить данные как сейчас.

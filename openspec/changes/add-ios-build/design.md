@@ -34,8 +34,8 @@
 ### D2. Неподписанный IPA через `tauri ios build --no-sign`
 Вместо ручного `xcodebuild archive` + упаковки `Payload/` — флаг CLI делает то же (archive без codesign, вынимает `.app`, пишет IPA). Меньше скриптов в workflow, путь артефакта стабильный: `app/src-tauri/gen/apple/build/arm64/*.ipa`. `--ci` отключает интерактив. Запасной путь при проблемах — `xcodebuild` с `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` (описан в tauri-apps/tauri#14940).
 
-### D3. Отдельный job `ios`, а не запись в matrix
-Шаги сборки отличаются (`ios init`, `ios build` вместо `tauri build --target`), артефакт собирается из другого пути. Шаги подготовки (checkout, emsdk, cmake, rust, node, wasm-сборка, `yarn install`) дублируются; это осознанная плата за читаемость matrix-job'а. `release` job добавляет `needs: [build, ios]`, `download-artifact` с `merge-multiple` подхватит IPA без изменений.
+### D3. Отдельный job `ios` на Intel-runner'е, а не запись в matrix
+Runner — `macos-15-intel`: при проверке (run 40903884033, три перезапуска) GitHub ни разу не выделил macOS arm64 runner («The job was not acquired by Runner of type hosted»), падал и существующий job `macos-aarch64`. Xcode на Intel собирает arm64 iOS-приложение так же (проверено: run 40912033657, 28 мин, Mach-O arm64 в IPA). Шаги сборки отличаются (`ios init`, `ios build` вместо `tauri build --target`), артефакт собирается из другого пути. Шаги подготовки (checkout, emsdk, cmake, rust, node, wasm-сборка, `yarn install`) дублируются; это осознанная плата за читаемость matrix-job'а. `release` job добавляет `needs: [build, ios]`, `download-artifact` с `merge-multiple` подхватит IPA без изменений.
 
 ### D4. Ресурсы Android — в `tauri.android.conf.json`
 `bundle.resources: ["resources/game-data.zip"]` уезжает из `tauri.conf.json` в `app/src-tauri/tauri.android.conf.json`. Для Linux/Windows/macOS/iOS `resources` становится пустым → `tauri-build` не ищет файл. Rust-код распаковки остаётся под `cfg(target_os = "android")` без изменений.
