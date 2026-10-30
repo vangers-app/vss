@@ -19,7 +19,7 @@ const MODS_URL: &str =
 
 // Archive layout: the game `data` folder contents at the root, as produced by
 // scripts/pack-game-data.sh.
-const GAME_DATA_URL: &str = "https://replace-me.invalid/game-data.zip";
+const GAME_DATA_URL: &str = "https://cdn.dos.zone/kdlab/vangers/1011/vangers.zip";
 
 static CANCEL_DOWNLOAD: AtomicBool = AtomicBool::new(false);
 
