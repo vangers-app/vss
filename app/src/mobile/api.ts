@@ -7,8 +7,10 @@ export type UIType = "default" | "main-menu" |
     "calendar";
 
 export interface Event {
-    type: "ready" | "scaled_renderer_changed" | "ui_type_changed" | "log" | "orientation_changed" | "inapp-result" |
+    type: "ready" | "renderer_size_changed" | "scaled_renderer_changed" | "ui_type_changed" | "log" | "orientation_changed" | "inapp-result" |
         "network_state" | "desktop_controls_overlay";
+    width: number;
+    height: number;
     orientation: "portrait" | "landscape";
     enabled: boolean;
     id: RuntimeObjectId;
@@ -44,8 +46,6 @@ export interface Api {
 
     rendererWidth(): number;
     rendererHeight(): number;
-    windowWidth(): number;
-    windowHeight(): number;
 
     onMouseDown(button: 1 | 2, x: number, y: number): void;
     onMouseMove(x: number, y: number): void;
@@ -70,8 +70,6 @@ export interface Api {
     toggleShopAvi(): void;
 
     requestToken(showUiIfNeeded: boolean): void;
-
-    haveRendererScale(): boolean;
 
     menuUp(): void;
     menuDown(): void;

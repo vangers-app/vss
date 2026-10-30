@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef } from "preact/hooks";
 import { fromHex } from "../../encoder";
 import { pauseFrame } from "../../frame-info";
 import { BridgeContext } from "../bridge";
-import { bindMouseControl } from "../controls/mouse";
+import { bindFrameMouseControl } from "../controls/mouse";
 
 const aspect = pauseFrame.width / pauseFrame.height;
 
@@ -17,8 +17,6 @@ export function PauseFrame(props: {}) {
 
         let live = true;
         const canvas = canvasRef.current;
-        const frameStartX = (bridge.rendererWidth - pauseFrame.width) / 2;
-        const frameStartY = (bridge.rendererHeight - pauseFrame.height) / 2;
         canvas.width = pauseFrame.width;
         canvas.height = pauseFrame.height;
 
@@ -33,16 +31,10 @@ export function PauseFrame(props: {}) {
 
         requestAnimationFrame(update);
 
-        const unbind = bindMouseControl(canvas, bridge, (pageX, pageY) => {
-            const scale = bridge.rendererHeight / pauseFrame.height;
-            const rect = canvas.getBoundingClientRect();
-            const { x: pageOffsetX, y: pageOffsetY } =
-                bridge.rendererToPage(frameStartX, frameStartY);
-            return bridge.map2Window(
-                bridge.windowOffsetX / bridge.pageScaleX + pageOffsetX + (pageX - rect.left) / scale,
-                pageOffsetY + (pageY - rect.top) / scale,
-            );
-        });
+        const unbind = bindFrameMouseControl(canvas, bridge, () => ({
+            x: (bridge.rendererWidth - pauseFrame.width) / 2,
+            y: (bridge.rendererHeight - pauseFrame.height) / 2,
+        }), pauseFrame);
 
         return () => {
             live = false;

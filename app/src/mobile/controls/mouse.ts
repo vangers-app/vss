@@ -14,6 +14,21 @@ export function bindRightMouseControl(
     return bindMouseControlImpl(target, bridge, 2, optionalMap2Window);
 }
 
+export function bindFrameMouseControl(
+    canvas: HTMLCanvasElement,
+    bridge: Bridge,
+    frameStart: () => { x: number, y: number },
+    frame: { width: number, height: number }) {
+    return bindMouseControlImpl(canvas, bridge, 1, (clientX, clientY) => {
+        const rect = canvas.getBoundingClientRect();
+        const start = frameStart();
+        return {
+            x: start.x + (clientX - rect.left) * frame.width / rect.width,
+            y: start.y + (clientY - rect.top) * frame.height / rect.height,
+        };
+    });
+}
+
 function bindMouseControlImpl(
     target: HTMLElement,
     bridge: Bridge,

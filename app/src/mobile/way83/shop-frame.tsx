@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { shopFrame } from "../../frame-info";
 import { BridgeContext } from "../bridge";
 import { QuestionButton, ZoomButton } from "../controls/keys";
-import { bindMouseControl } from "../controls/mouse";
+import { bindFrameMouseControl, bindMouseControl } from "../controls/mouse";
 import { fromHex } from "../../encoder";
 import { UIType } from "../api";
 
@@ -21,8 +21,6 @@ export function ShopFrame(props: { setUiType: (uiType: UIType) => void}) {
 
         let live = true;
         const canvas = canvasRef.current;
-        const frameStartX = shopFrame.left;
-        const frameStartY = shopFrame.top;
         canvas.width = shopFrame.width;
         canvas.height = shopFrame.height;
 
@@ -44,20 +42,8 @@ export function ShopFrame(props: { setUiType: (uiType: UIType) => void}) {
 
         requestAnimationFrame(update);
 
-        const unbind = bindMouseControl(canvas, bridge, (pageX, pageY) => {
-            const scale = bridge.rendererHeight / shopFrame.height;
-            const { x: pageOffsetX, y: pageOffsetY } =
-                bridge.rendererToPage(frameStartX, frameStartY);
-            return bridge.map2Window(
-                bridge.windowOffsetX / bridge.pageScaleX * bridge.scaledRendererScale +
-                pageOffsetX * bridge.scaledRendererScale +
-                pageX / scale * bridge.scaledRendererScale,
-
-                pageOffsetY * bridge.scaledRendererScale +
-                pageY / scale * bridge.scaledRendererScale,
-
-                false);
-        });
+        const unbind = bindFrameMouseControl(canvas, bridge,
+            () => ({ x: shopFrame.left, y: shopFrame.top }), shopFrame);
 
         return () => {
             live = false;

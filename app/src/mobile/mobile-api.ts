@@ -2,6 +2,7 @@ import { toHex } from "../encoder";
 import { isAddonEnabled, readCustomProp, writeCustomProp } from "../inventory/storage";
 import { currentLanguage, setCurrentLanguage } from "../language";
 import type { Api } from "./api";
+import { rendererToWindow, Size } from "./letterbox";
 
 type UiAddonBridge = {
     joyActive(): boolean;
@@ -14,6 +15,7 @@ type UiAddonBridge = {
     log(message: string): void;
     localStorageUpdates(): string[];
     registerFramesData(...frames: Uint8Array[]): void;
+    setRendererSize(width: number, height: number): void;
     lockFrames(): void;
     unlockFrames(): void;
     filterEvent(code: number): boolean;
@@ -58,6 +60,7 @@ class BrowserMobileApi implements Api {
     private joyIsReverse = false;
     private storageUpdates: string[] = [];
     private frames: Uint8Array[] = [];
+    private rendererSize: Size = { width: 0, height: 0 };
 
     readonly ui: UiAddonBridge = {
         joyActive: () => this.joyIsActive,
@@ -75,6 +78,13 @@ class BrowserMobileApi implements Api {
         },
         registerFramesData: (...frames) => {
             this.frames = frames;
+        },
+        setRendererSize: (width, height) => {
+            if (width === this.rendererSize.width && height === this.rendererSize.height) {
+                return;
+            }
+            this.rendererSize = { width, height };
+            this.emitAddonMessage(JSON.stringify({ type: "renderer_size_changed", width, height }));
         },
         lockFrames: () => {
         },
@@ -111,19 +121,11 @@ class BrowserMobileApi implements Api {
     }
 
     rendererWidth(): number {
-        return this.canvas()?.width ?? 800;
+        return this.rendererSize.width;
     }
 
     rendererHeight(): number {
-        return this.canvas()?.height ?? 600;
-    }
-
-    windowWidth(): number {
-        return window.innerWidth;
-    }
-
-    windowHeight(): number {
-        return window.innerHeight;
+        return this.rendererSize.height;
     }
 
     onMouseDown(button: 1 | 2, x: number, y: number): void {
@@ -197,10 +199,6 @@ class BrowserMobileApi implements Api {
         }).onTokenResolve?.("browser");
     }
 
-    haveRendererScale(): boolean {
-        return true;
-    }
-
     menuUp(): void {
         this.tapKey(82);
     }
@@ -246,18 +244,26 @@ class BrowserMobileApi implements Api {
 
     private dispatchMouse(type: "mousedown" | "mousemove" | "mouseup", button: number, x: number, y: number) {
         const canvas = this.canvas();
-        if (canvas !== null) {
-            const bounds = canvas.getBoundingClientRect();
-            const clientX = bounds.left + x / this.rendererWidth() * bounds.width;
-            const clientY = bounds.top + y / this.rendererHeight() * bounds.height;
-            canvas.dispatchEvent(new MouseEvent(type, {
-                bubbles: true,
-                button: button > 0 ? button - 1 : 0,
-                buttons: type === "mouseup" ? 0 : button,
-                clientX,
-                clientY,
-            }));
+        if (canvas === null) {
+            return;
         }
+        const bounds = canvas.getBoundingClientRect();
+        const windowPoint = rendererToWindow(x, y, this.rendererSize, canvas);
+        const clientX = bounds.left + windowPoint.x / canvas.width * bounds.width;
+        const clientY = bounds.top + windowPoint.y / canvas.height * bounds.height;
+        // SAFETY: the engine takes the press/release position from the last
+        // SDL_MOUSEMOTION (lib/xgraph/xgraph.cpp), so a button event must be
+        // preceded by a move to the same point.
+        if (type !== "mousemove") {
+            canvas.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, buttons: type === "mousedown" ? 0 : button, clientX, clientY }));
+        }
+        canvas.dispatchEvent(new MouseEvent(type, {
+            bubbles: true,
+            button: button > 0 ? button - 1 : 0,
+            buttons: type === "mouseup" ? 0 : button,
+            clientX,
+            clientY,
+        }));
     }
 
     private dispatchKey(type: "keydown" | "keyup", scanCode: number, repeat: boolean) {

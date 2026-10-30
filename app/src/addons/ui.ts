@@ -8,6 +8,7 @@ export interface UI {
     localStorageUpdates(): string[];
     registerFramesData(menuFrame: Uint8Array, pauseFrame: Uint8Array,
         mapFrame: Uint8Array, shopFrame: Uint8Array): void;
+    setRendererSize(width: number, height: number): void;
     lockFrames(): void;
     unlockFrames(): void;
     filterEvent(code: number): boolean;
@@ -35,6 +36,8 @@ const fallback: UI = {
     localStorageUpdates: () => [],
     registerFramesData: () => {
     },
+    setRendererSize: () => {
+    },
     lockFrames: () => {
     },
     unlockFrames: () => {
@@ -56,6 +59,7 @@ const ui: UI = {
     log: (message) => (global.ui ?? fallback).log(message),
     localStorageUpdates: () => (global.ui ?? fallback).localStorageUpdates(),
     registerFramesData: (...frames) => (global.ui ?? fallback).registerFramesData(...frames),
+    setRendererSize: (width, height) => (global.ui ?? fallback).setRendererSize(width, height),
     lockFrames: () => (global.ui ?? fallback).lockFrames(),
     unlockFrames: () => (global.ui ?? fallback).unlockFrames(),
     filterEvent: (code) => (global.ui ?? fallback).filterEvent(code),

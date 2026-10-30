@@ -3,6 +3,7 @@ import { Event, Api, UIType } from "./api";
 import { init as initOptions } from "./controls/options";
 import { fromHex } from "../encoder";
 import { installCellStyle, renderCellStyle } from "../ui/cell-style";
+import { windowToRenderer } from "./letterbox";
 
 const textDecoder = new TextDecoder();
 export const BridgeContext = createContext<Bridge>(null as any);
@@ -13,19 +14,9 @@ export class Bridge {
     private readyFn?: (bridge: Bridge) => void;
     public rendererWidth = 0;
     public rendererHeight = 0;
-    public windowWidth = 0;
-    public windowHeight = 0;
-    public windowOffsetX = 0;
     public pageWidth = 0;
     public pageHeight = 0;
-    public pageScaleX = 1;
-    public pageScaleY = 1;
-    public rendererScaleX = 1;
-    public rendererScaleY = 1;
-    public scaledRenderer = true;
-    public scaledRendererOffsetX = 0;
-    public scaledRendererScale = 1;
-    public useRendererScale = true;
+    public scaledRenderer = false;
 
     public cellCount = 10;
     public cellSizeInPx = 0;
@@ -56,7 +47,6 @@ export class Bridge {
             this.onEvent(event);
         };
 
-        this.useRendererScale = this.native.haveRendererScale();
         this.native.ready();
     }
 
@@ -66,31 +56,24 @@ export class Bridge {
                 initOptions(this);
                 this.rendererWidth = this.native.rendererWidth();
                 this.rendererHeight = this.native.rendererHeight();
-                this.windowWidth = this.native.windowWidth();
-                this.windowHeight = this.native.windowHeight();
                 this.pageWidth = window.innerWidth;
                 this.pageHeight = window.innerHeight;
-                this.pageScaleX = this.windowWidth / this.pageWidth;
-                this.pageScaleY = this.windowHeight / this.pageHeight;
-                this.rendererScaleX = this.windowWidth / this.rendererWidth;
-                this.rendererScaleY = this.windowHeight / this.rendererHeight;
-                this.windowOffsetX = (this.windowWidth -
-                    this.windowHeight * (this.rendererWidth / this.rendererHeight)) / 2;
-                this.scaledRendererScale = this.rendererHeight / 600.0;
-                this.scaledRendererOffsetX =
-                    (800 * this.scaledRendererScale - this.rendererWidth) / 2 * this.rendererScaleX;
                 this.cutout = this.native.cutout();
                 this.log("ready",
                     "renderer", this.rendererWidth + "x" + this.rendererHeight,
-                    "window", this.windowWidth + "x" + this.windowHeight,
                     "viewport", this.pageWidth + "x" + this.pageHeight);
                 this.renderUiStyleSheet(this.renderSize());
                 this.readyFn?.(this);
                 delete this.readyFn;
             } break;
+            case "renderer_size_changed": {
+                this.rendererWidth = event.width;
+                this.rendererHeight = event.height;
+                this.log("renderer_size_changed", this.rendererWidth + "x" + this.rendererHeight);
+            } break;
             case "scaled_renderer_changed": {
                 this.scaledRenderer = event.enabled;
-                this.log("scaledRendererChanged", this.scaledRenderer);
+                this.log("scaled_renderer_changed", this.scaledRenderer);
             } break;
             case "ui_type_changed": {
                 this.log("ui_type_changed", event.uiType);
@@ -115,56 +98,22 @@ export class Bridge {
         }
     }
 
-    rendererToPage(rendererX: number, rendererY: number) {
-        const windowX = (rendererX * this.rendererScaleX -
-            this.windowOffsetX / this.rendererScaleX);
-        const windowY = rendererY * this.rendererScaleY;
-
-        return {
-            x: windowX / this.pageScaleX,
-            y: windowY / this.pageScaleY,
-        };
-    }
-
-    map2Window(pageX: number, pageY: number, useScaledOffset?: boolean) {
-        let windowX = pageX * this.pageScaleX;
-        let windowY = pageY * this.pageScaleY;
-        let scaledRendererOffsetX = this.scaledRendererOffsetX;
-
-        if (!this.useRendererScale) {
-            windowX /= this.rendererScaleX;
-            windowY /= this.rendererScaleY;
-            scaledRendererOffsetX /= this.rendererScaleX;
+    map2Window(pageX: number, pageY: number) {
+        // SAFETY: the game canvas fills the viewport and SDL keeps its pixel size equal
+        // to its CSS size, so viewport pixels are the engine window pixels.
+        const point = windowToRenderer(pageX, pageY,
+            { width: this.rendererWidth, height: this.rendererHeight },
+            { width: window.innerWidth, height: window.innerHeight });
+        if (!this.scaledRenderer) {
+            return point;
         }
-
-        if (this.scaledRenderer) {
-            let scaledX = windowX;
-
-            if (this.useRendererScale) {
-                // not supported by 3d render, so ignore
-                scaledX += this.windowOffsetX / this.scaledRendererScale;
-            }
-
-            if (useScaledOffset !== false) {
-                scaledX += scaledRendererOffsetX;
-            }
-
-            scaledX = scaledX / this.scaledRendererScale;
-            const scaledY = windowY / this.scaledRendererScale;
-
-            if (scaledX < 0) {
-                scaledX = 0;
-            }
-
-            return {
-                x: scaledX,
-                y: scaledY,
-            };
-        }
-
+        // SAFETY: in scaled mode the engine draws the 800x600 2D screen upscaled and
+        // centered in the renderer (XGR_Screen::flip) and reads mouse positions as
+        // 800x600 coordinates, the same space the frames are cut in.
+        const scale = this.rendererHeight / 600;
         return {
-            x: windowX,
-            y: windowY,
+            x: (point.x - (this.rendererWidth - 800 * scale) / 2) / scale,
+            y: point.y / scale,
         };
     }
 

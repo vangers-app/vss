@@ -8,12 +8,7 @@ export function init() {
 
     vss.addQuantListener("ready", () => ui.sendObject({ type: "ready" }));
     vss.addQuantListener("scaled_renderer",
-        (payload) => {
-            ui.sendObject({
-                type: "scaled_renderer_changed",
-                enabled: payload.enabled,
-            });
-        });
+        (payload) => ui.sendObject({ type: "scaled_renderer_changed", enabled: payload.enabled }));
     vss.addQuantListener("option", optionQuant);
     vss.addQuantListener("send_event", (payload) => {
         if (ui.filterEvent(payload.code)) {

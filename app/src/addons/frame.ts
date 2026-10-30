@@ -24,6 +24,7 @@ export function init() {
     ui.registerFramesData(menuFrameData, pauseFrameData, mapFrameData, shopFrameData);
 
     vss.addQuantListener("frame", (payload) => {
+        ui.setRendererSize(payload.width, payload.height);
         if (state().uiType === "menu") {
             const { frame, width, height } = payload;
             { // menu
