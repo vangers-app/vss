@@ -337,7 +337,14 @@ int SoundInit(int maxHZ, int schannels)
 
 	Mix_AllocateChannels(MAX_CHANNELS); */
 	//std::cout<<"SoundInit maxHZ:"<<maxHZ<<std::endl;
+#ifdef EMSCRIPTEN
+	// PERF: the emscripten SDL2 port mixes in a ScriptProcessorNode on the main
+	// thread, so one period has to cover a whole game frame (up to ~40 ms on
+	// mobile) or the output underruns and crackles.
+	context.init(maxHZ, 2, 2048);
+#else
 	context.init(maxHZ, 2, 512);
+#endif
 	g_freq = maxHZ;
 	context.set_max_sources(MAX_CHANNELS);
 	clunk_object = context.create_object();
