@@ -51,6 +51,7 @@ void XGR_MouseFnc(SDL_Event* p);
 
 extern void sys_scaledRendererQuant(bool enabled);
 extern void sys_frameQuant(void* frame, int width, int height, int bpp);
+static int hd_height_for(int width, int height);
 //RECT XGR_Rect;
 
 //LPDIRECTDRAWPALETTE XGR_DDPal = NULL;		// DirectDraw palette...
@@ -173,21 +174,9 @@ int XGR_Screen::init(int flags_in)
 
 	SDL_DisplayMode displayMode;
 	SDL_GetCurrentDisplayMode(0, &displayMode);
-	int maxWidth = displayMode.w;
-	int maxHeight = displayMode.h;
-
-	const float maxAspect = 1280.0f / 600;
-	float aspect = (float) maxWidth / (float) maxHeight;
-	if (aspect < 4/3.f) {
-		aspect = 4/3.f;
-	}
-
-	if (aspect > maxAspect) {
-		aspect = maxAspect;
-	}
 
 	this->hdWidth = 1280;
-	this->hdHeight = round(1280 / aspect);
+	this->hdHeight = hd_height_for(displayMode.w, displayMode.h);
 
 	std::cout<<"SDL_CreateWindowAndRenderer"<<std::endl;
 	if (XGR_FULL_SCREEN) {
@@ -310,6 +299,31 @@ void XGR_Screen::create_surfaces(int width, int height) {
 	set_clip(0,0, width, height);
 	set_clip_mode(XGR_CLIP_PUTSPR);
 	set_default_render_buffer();
+}
+
+// The hd surface is 1280 wide; its height follows the window aspect clamped
+// between 4:3 and 1280:600
+static int hd_height_for(int width, int height) {
+	const float maxAspect = 1280.0f / 600;
+	float aspect = (float) width / (float) height;
+	if (aspect < 4/3.f) {
+		aspect = 4/3.f;
+	}
+	if (aspect > maxAspect) {
+		aspect = maxAspect;
+	}
+	return round(1280 / aspect);
+}
+
+void (*XGR_HdResizeHandler)() = nullptr;
+
+bool XGR_Screen::refit_hd_to_window() {
+	int height = hd_height_for(RealX, RealY);
+	if (height == hdHeight) {
+		return false;
+	}
+	hdHeight = height;
+	return true;
 }
 
 void XGR_Screen::set_resolution(int width, int height){

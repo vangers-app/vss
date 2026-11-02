@@ -659,6 +659,13 @@ int xtDispatchMessage(SDL_Event* msg)
 					if (renderer::visualbackend::VisualBackendContext::has_renderer()) {
 						renderer::visualbackend::VisualBackendContext::backend()->set_screen_resolution(XGR_Obj.RealX, XGR_Obj.RealY);
 					}
+#ifdef EMSCRIPTEN
+					// On mobile the window is the screen, so a rotation changes the
+					// aspect the hd surface was sized for at startup.
+					if (XGR_Obj.compositor != nullptr && XGR_Obj.refit_hd_to_window() && XGR_HdResizeHandler != nullptr) {
+						XGR_HdResizeHandler();
+					}
+#endif
 					break;
 			}
 			break;

@@ -724,6 +724,7 @@ _MEM_STATISTIC_("AFTER IQUANTFIRST INIT -> ");
 	p -> SetTimer(RTO_GAME_QUANT_TIMER);
 
 	XGR_Obj.set_fullscreen(iGetOptionValue(iFULLSCREEN));
+	XGR_HdResizeHandler = [] { iSetResolution(0); };
 	iSetResolution(iGetOptionValue(iSCREEN_RESOLUTION));
 _MEM_STATISTIC_("AFTER MAIN MENU INIT -> ");
 }

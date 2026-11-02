@@ -131,6 +131,8 @@ struct XGR_Screen
 
 	void set_fullscreen(bool fullscreen); 
 	void set_resolution(int width, int height);
+	// Recomputes hdHeight from the current RealX/RealY aspect; true when it changed
+	bool refit_hd_to_window();
 	void set_is_scaled_renderer(bool is_scaled_renderer);
 	const bool get_is_scaled_renderer();
 	const float get_screen_scale_x();
@@ -566,6 +568,8 @@ void doCursorAnimation();
 
 extern XGR_Screen XGR_Obj;
 extern XGR_Mouse XGR_MouseObj;
+// Called after refit_hd_to_window() changed the hd size on a window resize
+extern void (*XGR_HdResizeHandler)();
 
 void XGR_OutString(int x,int y,int col,void* str,int font = 0,int space = 1,int pr_flag = 1);
 int XGR_StrLen(void* str,int font = 0,int space = 1);
