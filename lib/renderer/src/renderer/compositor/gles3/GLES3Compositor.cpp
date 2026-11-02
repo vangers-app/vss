@@ -308,6 +308,11 @@ void GLES3Compositor::render_begin(bool clearColorBuffer)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glViewport(_viewport.x, _viewport.y, _viewport.width, _viewport.height);
+	// SAFETY: the wgpu 3D renderer leaves its sampler object bound to texture
+	// unit 0 (mipmap min filter); it overrides the parameters of our mipless
+	// textures and makes them sample as black, so unbind it before drawing.
+	glActiveTexture(GL_TEXTURE0);
+	glBindSampler(0, 0);
 }
 
 void GLES3Compositor::render_present()
