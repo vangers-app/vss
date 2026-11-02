@@ -263,6 +263,9 @@ int Verbose;
 int DepthShow;
 
 int SkipIntro = 0;
+// Debug quick start (`-quickstart`): skip the main menu and the first escave,
+// start a new game straight on the map (world 0, Fostral).
+int QuickStartGame = 0;
 
 int PalIterLock = 0;
 
@@ -914,9 +917,8 @@ void FirstEscaveOutRTO::Init(int id)
 	XGR_Obj.fill(0, XGR_Obj.get_2d_rgba_render_buffer());
 	XGR_Obj.set_is_scaled_renderer(true);
 #ifdef ISCREEN
-#ifndef _ACI_SKIP_SHOP_
-	iOutEscaveInit();
-#endif
+	if(!QuickStartGame)
+		iOutEscaveInit();
 #endif
 _MEM_STATISTIC_("AFTER FIRST ESCZVE INIT -> ");
 }
@@ -924,12 +926,7 @@ _MEM_STATISTIC_("AFTER FIRST ESCZVE INIT -> ");
 int FirstEscaveOutRTO::Quant(void)
 {
 #ifdef ISCREEN
-	int val;
-#ifndef _ACI_SKIP_SHOP_
-	val = iOutEscaveQuant();
-#else
-	val = 1;
-#endif
+	int val = QuickStartGame ? 1 : iOutEscaveQuant();
 	if(val){
 		if(iAbortGameFlag){
 			iAbortGameMode = 0;
@@ -949,10 +946,10 @@ void FirstEscaveOutRTO::Finit(void)
 {
 	XGR_Obj.set_is_scaled_renderer(false);
 #ifdef ISCREEN
-#ifndef _ACI_SKIP_SHOP_
-	iOutEscaveFinit();
-	aci_LocationQuantFinit();
-#endif
+	if(!QuickStartGame){
+		iOutEscaveFinit();
+		aci_LocationQuantFinit();
+	}
 #endif
 _MEM_STATISTIC_("AFTER FIRST ESCAVE FINIT -> ");
 }
@@ -1032,9 +1029,8 @@ _MEM_STATISTIC_("AFTER curGMap  -> ");
 	XGR_SetPal(palbufOrg,0,255);
 #endif
 
-#ifdef _ACI_SKIP_SHOP_
-	XGR_SetPal(palbuf,0,255);
-#endif
+	if(QuickStartGame)
+		XGR_SetPal(palbuf,0,255);
 
 	if(idOS == 1) vMap -> lockMem();
 	XGR_Flush(0,0,XGR_MAXX,XGR_MAXY);
@@ -1053,15 +1049,13 @@ _MEM_STATISTIC_("AFTER ACILOADDATA INIT -> ");
 	}
 	FirstShopPrepare(aciLoadLog);
 _MEM_STATISTIC_("AFTER FIRSTSHOP PREPARE INIT -> ");
-#ifndef _ACI_SKIP_SHOP_
-	aci_LocationQuantPrepare();
-_MEM_STATISTIC_("AFTER LOADQUANT PREPARE INIT -> ");
-	aciShowLocation();
-_MEM_STATISTIC_("AFTER SHOWLOCATION INIT -> ");
-#else
-	aciPrepareMenus();
-_MEM_STATISTIC_("AFTER PREPARE MENU INIT -> ");
-#endif
+	if(QuickStartGame){
+		aciPrepareMenus();
+	}
+	else {
+		aci_LocationQuantPrepare();
+		aciShowLocation();
+	}
 #endif
 _MEM_STATISTIC_("AFTER FIRST ESCAVE RTO INIT -> ");
 }
@@ -1091,12 +1085,7 @@ int FirstEscaveRTO::Quant(void)
 //std::cout<<"FirstEscaveRTO::Quant"<<std::endl;
 
 #ifdef ISCREEN
-	int code;
-#ifndef _ACI_SKIP_SHOP_
-	code = iQuantSecond();
-#else
-	code = 1;
-#endif
+	int code = QuickStartGame ? 1 : iQuantSecond();
 	if(code){
 		if(!iScrExitCode)
 			return RTO_SHOW_IMAGE_ID;

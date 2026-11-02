@@ -38,6 +38,7 @@
 
 #include "../sound/hmusic.h"
 #include "../sound/hsound.h"
+extern int QuickStartGame;
 
 
 #ifdef _NT
@@ -739,15 +740,11 @@ int iQuantSecond(void)
 	int count = 0;
 	XBuffer* XBufBMP,*XBufPAL;
 #endif
-#ifdef _ACI_SKIP_MAINMENU_
-	if(!actIntLog){
+	// `-quickstart`: leave the main menu as if "new game" was chosen.
+	if(QuickStartGame && !actIntLog){
 		iScrDisp -> flags |= SD_EXIT;
 		iScrDisp -> ret_val = 1;
-#ifdef _ACI_STARTUP_LOAD_GAME_
-		iScrDisp -> ret_val = ACI_LOAD_CODE;
-#endif
 	}
-#endif
 	if(!iPause) {
 		if(actIntLog && NetworkON){
 			if(iEscaveTimer == -1)

@@ -28,6 +28,7 @@
 #include "layout.h"
 
 #include "../vss/sys.h"
+extern int QuickStartGame;
 
 extern bool vss_experimental_menuChangeRequested();
 extern bool vss_experimental_menuUpRequested();
@@ -4028,11 +4029,10 @@ void actIntDispatcher::init(void)
 		p = (invMatrix*)p -> prev;
 	}
 
-#ifdef _ACI_SKIP_SHOP_
-	if(!curMatrix){
+	// `-quickstart` skips the shop, so no mechos was picked there.
+	if(QuickStartGame && !curMatrix){
 		curMatrix = alloc_matrix(curMatrixID);
 	}
-#endif
 
 	ibs = (ibsObject*)ibsList -> last;
 	while(ibs){

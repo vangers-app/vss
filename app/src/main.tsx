@@ -93,6 +93,9 @@ function Game() {
                     if (currentLanguage() === "ru") {
                         args.push("-russian");
                     }
+                    if (new URLSearchParams(window.location.search).has("quickstart")) {
+                        args.push("-quickstart");
+                    }
                     Module.callMain(args);
                 }
             };

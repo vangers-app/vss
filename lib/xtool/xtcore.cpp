@@ -14,6 +14,7 @@ extern void sys_initScripts(const char* folder);
 extern bool sys_readyQuant();
 extern void sys_tickQuant();
 extern void sys_runtimeObjectQuant(int runtimeObjectId);
+extern int QuickStartGame;
 
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 #include <locale.h>
@@ -234,6 +235,8 @@ int main(int argc, char *argv[])
 			XGR_FULL_SCREEN = true;
         } else if (cmd_key == "-russian") {
             setLang(RUSSIAN);
+        } else if (cmd_key == "-quickstart") {
+            QuickStartGame = 1;
         } else if (cmd_key == "-server") {
 			i++;
 			if (argc > i) {

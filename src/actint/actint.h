@@ -14,7 +14,6 @@
 //#define _FULLSCREEN_MODE_
 #endif
 
-//#define _ACI_SKIP_SHOP_
 //#define _ACI_NO_SHOP_ANIMATION_
 
 //#define _ACI_ESCAVE_DEBUG_
