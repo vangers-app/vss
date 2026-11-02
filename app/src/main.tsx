@@ -13,7 +13,7 @@ import { find_install, toggle_devtools, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
 import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
-import { DownloadMods } from "./ui/download-mods";
+import { DownloadDialog } from "./ui/download-mods";
 import { RENDER_PRESETS, readRenderSettings } from "./render-presets";
 import { installAudioFocus } from "./audio-focus";
 import { state as addonState } from "./addons/state";
@@ -78,7 +78,7 @@ function App() {
 
     return <>
         <Game />
-        {downloadActive && <DownloadMods />}
+        {downloadActive && <DownloadDialog />}
     </>;
 }
 

@@ -46,3 +46,22 @@ Example:
 ```
 mkdir -p app/src-tauri/resources/ && cp etc/game-data-v1.zip app/src-tauri/resources/game-data.zip
 ```
+
+### iOS
+
+The iOS build is produced by GitHub Actions only (no Mac required to build):
+every run of the `Tauri Release` workflow uploads an **unsigned** IPA as the
+`Vangers-ios-aarch64` artifact, and tagged releases attach
+`Vangers-<tag>-ios-aarch64.ipa` to the
+[GitHub Release](https://github.com/vangers-app/vss/releases).
+
+The IPA is not signed, so you sign it yourself with a free Apple ID and install
+it over USB with [Sideloadly](https://sideloadly.io/) (Windows/macOS) or
+[AltStore](https://altstore.io/). A free Apple ID signature expires after
+7 days: re-sideload the same IPA to renew it, the app data stays in place.
+
+Game data is not bundled into the IPA. On first launch the app shows the
+"Game data not found" screen with a **Download game data** button: the archive
+is downloaded from the URL compiled into the app (`GAME_DATA_URL` in
+`app/src-tauri/src/lib.rs`) and unpacked into the app storage. Pack the archive
+with `scripts/pack-game-data.sh` as described above.

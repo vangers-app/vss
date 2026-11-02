@@ -1,21 +1,35 @@
 import appIconUrl from "../assets/app-icon.png";
 import bgUrl from "../assets/vss-bg.jpg";
-import { useUiStore } from "../store";
-import { cancel_download, download_mods } from "../compat";
+import { useUiStore, type DownloadKind } from "../store";
+import { cancel_download, download_game_data, download_mods } from "../compat";
 
-// Starts the mods download flow and drives the progress modal via the store.
-export async function startModsDownload() {
+const texts: Record<DownloadKind, { subject: string; installed: string; restart: string }> = {
+    mods: {
+        subject: "mods",
+        installed: "Mods installed",
+        restart: "The game needs to restart to apply the mods.",
+    },
+    "game-data": {
+        subject: "game data",
+        installed: "Game data installed",
+        restart: "The game needs to restart to load the data.",
+    },
+};
+
+// Starts a download flow (mods or game data) and drives the progress modal via the store.
+export async function startDownload(kind: DownloadKind) {
     const setDownload = useUiStore.getState().setDownload;
     setDownload({
         active: true,
+        kind,
         phase: "downloading",
-        label: "Downloading mods",
+        label: "Downloading " + texts[kind].subject,
         loaded: 0,
         total: null,
         error: undefined,
     });
     try {
-        await download_mods((progress) => {
+        await (kind === "mods" ? download_mods : download_game_data)((progress) => {
             setDownload({
                 phase: progress.phase,
                 label: progress.label,
@@ -49,8 +63,9 @@ function formatBytes(bytes: number): string {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-export function DownloadMods() {
+export function DownloadDialog() {
     const download = useUiStore((state) => state.download);
+    const text = texts[download.kind];
     const percent = download.total !== null && download.total > 0
         ? Math.min(100, Math.round((download.loaded / download.total) * 100))
         : null;
@@ -68,7 +83,7 @@ export function DownloadMods() {
                     <p class="mb-6 text-lg leading-relaxed break-words">{download.error}</p>
                     <div class="flex flex-row gap-4">
                         <button class="cursor-pointer px-6 py-3 rounded border border-yellow-700 bg-yellow-900/40 hover:bg-yellow-800/60 text-xl"
-                            onClick={() => startModsDownload()}>Retry</button>
+                            onClick={() => startDownload(download.kind)}>Retry</button>
                         <button class="cursor-pointer px-6 py-3 rounded border border-zinc-600 bg-zinc-800/60 hover:bg-zinc-700/60 text-xl"
                             onClick={() => useUiStore.getState().setDownload({ active: false, phase: "idle" })}>Close</button>
                     </div>
@@ -76,8 +91,8 @@ export function DownloadMods() {
 
             {download.phase === "done" &&
                 <>
-                    <h1 class="text-3xl font-bold mb-4">Mods installed</h1>
-                    <p class="mb-6 text-lg leading-relaxed">The game needs to restart to apply the mods.</p>
+                    <h1 class="text-3xl font-bold mb-4">{text.installed}</h1>
+                    <p class="mb-6 text-lg leading-relaxed">{text.restart}</p>
                     <button class="cursor-pointer px-6 py-3 rounded border border-yellow-700 bg-yellow-900/40 hover:bg-yellow-800/60 text-xl"
                         onClick={() => location.reload()}>Restart</button>
                 </>}
@@ -85,7 +100,7 @@ export function DownloadMods() {
             {(download.phase === "downloading" || download.phase === "extracting") &&
                 <>
                     <h1 class="text-3xl font-bold mb-4">
-                        {download.phase === "extracting" ? "Extracting mods…" : "Downloading mods…"}
+                        {(download.phase === "extracting" ? "Extracting " : "Downloading ") + text.subject + "…"}
                     </h1>
                     <div class="w-full h-4 mb-3 rounded bg-zinc-800 overflow-hidden border border-yellow-900">
                         <div class={"h-full bg-yellow-600 " + (percent === null ? "animate-pulse w-full" : "")}

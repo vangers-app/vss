@@ -9,7 +9,7 @@ import {
 } from "./storage";
 import { getModAddons } from "../mods";
 import { read_file, vfileUrl } from "../compat";
-import { startModsDownload } from "../ui/download-mods";
+import { startDownload } from "../ui/download-mods";
 import { SettingsPanel } from "../settings/settings-panel";
 
 // Pinned first card; not a mod, so it never reaches writeInventoryItems.
@@ -102,7 +102,7 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
         </aside>
         <section class="inventory-details flex flex-col flex-grow min-h-0 ml-4 mr-8 overflow-auto">
             <div class="self-end flex flex-row my-4 mr-16">
-                <div class="cursor-pointer underline text-yellow-800 text-shadow-sm" onClick={() => startModsDownload()}>
+                <div class="cursor-pointer underline text-yellow-800 text-shadow-sm" onClick={() => startDownload("mods")}>
                     {t("refresh")}
                 </div>
             </div>
