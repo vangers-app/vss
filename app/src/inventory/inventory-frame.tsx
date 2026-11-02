@@ -22,7 +22,7 @@ const settingsId = "settings";
 
 export function InventoryFrame(props: { closeActiveUi: () => void }) {
     const [items, setItems] = useState<InventoryItem[]>(reconcileMods(getModAddons()));
-    const [activeId, setActiveId] = useState<string>("");
+    const [activeId, setActiveId] = useState<string>(settingsId);
     const [readme, setReadme] = useState<string>("");
     const [renderSettings, setRenderSettings] = useState<RenderSettings>(readRenderSettings());
     const active = items.find((item) => item.id === activeId) ?? null;

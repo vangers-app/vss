@@ -56,7 +56,7 @@
 
 ### UI: закреплённая карточка в `InventoryFrame`
 
-Карточка с id `settings` добавляется первой в список (не входит в `items` модов и не пишется в `writeInventoryItems`). При `activeId === "settings"` панель деталей рендерит два ряда переключателей (три/две кнопки в ряд, активная подсвечена как включённый мод) вместо описания и кнопок enable/disable. Качество при `render.3d == "0"` рендерится с `opacity` и без обработчика. Строки `settings`, `render_3d`, `quality_high/normal/low`, `on`, `off` в `i18n.ts` (en/ru).
+Карточка с id `settings` добавляется первой в список (не входит в `items` модов и не пишется в `writeInventoryItems`) и выбрана при открытии фрейма (`activeId` стартует с `settings`). При `activeId === "settings"` панель деталей рендерит два ряда переключателей (три/две кнопки в ряд, активная подсвечена как включённый мод) вместо описания и кнопок enable/disable. Качество при `render.3d == "0"` рендерится с `opacity` и без обработчика. Строки `settings`, `render_3d`, `quality_high/normal/low`, `on`, `off` в `i18n.ts` (en/ru).
 
 `DesktopFrame`: `InventoryOpenButton` показывается всегда; ветка с `DownloadModsButton` удаляется (скачивание — через «Обновить» внутри фрейма). Mobile не меняется.
 
