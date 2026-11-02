@@ -15,6 +15,7 @@ import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
 import { DownloadMods } from "./ui/download-mods";
 import { RENDER_PRESETS, readRenderSettings } from "./render-presets";
+import { installAudioFocus } from "./audio-focus";
 import { state as addonState } from "./addons/state";
 import { dismissCreditsOverlay } from "./addons/redraw-quant";
 import { currentLanguage, setCurrentLanguage } from "./language";
@@ -141,6 +142,9 @@ function Game() {
             canvas.current.addEventListener("mousedown", onMouseDown, true);
             canvas.current.addEventListener("mouseup", onMouseUp, true);
             canvas.current.addEventListener("contextmenu", onContextMenu, true);
+            if ((window as any).__VSS_MOBILE__ === true) {
+                installAudioFocus();
+            }
             Vangers(Module);
             return () => {
                 canvas.current?.removeEventListener("mousedown", onMouseDown, true);
