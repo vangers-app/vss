@@ -6,18 +6,16 @@ import { Api, UIType } from "./api";
 import { PauseFrame } from "./way83/pause-frame";
 import {
     isMirroredEnabled, setMirrored as setMirroredEnabled,
-    isCameraFollowEnabled, setCameraFollow as setCameraFollowEnabled,
     getControlsKind, setControlsKind as setControlsKindValue,
-    getRoadZoom, setRoadZoom as setRoadZoomValue,
 } from "./controls/options";
 import { Credits } from "./credits";
 import { ShopFrame } from "./way83/shop-frame";
 import { InappFrame } from "./inapp-frame";
 import { ScanCode } from "./controls/sdl-scancodes";
 import { EscaveControls } from "./controls/escave-controls";
-import { ControlSelector } from "./controls/control-selector";
 import { MapControlsKind, renderMapFrame } from "./map-frame";
 import { CalendarFrame } from "./calendar-frame";
+import { SettingsFrame } from "../settings/settings-frame";
 
 export function Frame(props: { mobileApi: Api }) {
     const [bridge, setBridge] = useState<Bridge | null>(null);
@@ -45,17 +43,20 @@ function FrameWithBridge(props: { bridge: Bridge }) {
     const bridge = props.bridge;
     const [portrait, setPortrait] = useState<boolean>(false);
     const [mirrored, _setMirrored] = useState<boolean>(isMirroredEnabled());
-    const [cameraFollow, _setCameraFollow] = useState<boolean>(isCameraFollowEnabled());
-    const [roadZoom, _setRoadZoom] = useState<number>(getRoadZoom());
     const [uiType, _setUiType] =
         useState<UIType>("main-menu");
     const [network, setNetwork] = useState<boolean>(false);
     const [controlsKind, _setControlsKind] =
         useState<MapControlsKind | null>(getControlsKind());
 
-    function setControlsKind(kind: MapControlsKind) {
+    // First-launch settings closed: the panel wrote its values to storage,
+    // pick them up and make sure a controls kind is saved so the screen does
+    // not come back on the next launch.
+    function closeFirstLaunchSettings() {
+        const kind = getControlsKind() ?? "way83+";
         setControlsKindValue(kind);
         _setControlsKind(kind);
+        _setMirrored(isMirroredEnabled());
     }
 
     async function setUiType(newUiType: UIType) {
@@ -73,19 +74,9 @@ function FrameWithBridge(props: { bridge: Bridge }) {
         _setUiType(newUiType);
     }
 
-    function setRoadZoom(value: number) {
-        setRoadZoomValue(value);
-        _setRoadZoom(value);
-    }
-
     function setMirrored(enabled: boolean) {
         setMirroredEnabled(enabled);
         _setMirrored(enabled);
-    }
-
-    function setCameraFollow(enabled: boolean) {
-        setCameraFollowEnabled(enabled);
-        _setCameraFollow(enabled);
     }
 
     function closeActiveUi() {
@@ -130,38 +121,12 @@ function FrameWithBridge(props: { bridge: Bridge }) {
     if (controlsKind === null) {
         return <div class="frame">
             <BridgeContext.Provider value={bridge}>
-                <ControlSelector
-                    mirrored={mirrored}
-                    setMirrored={setMirrored}
-                    cameraFollow={cameraFollow}
-                    setCameraFollow={setCameraFollow}
-                    roadZoom={roadZoom}
-                    setRoadZoom={setRoadZoom}
-                    selected="way83+"
-                    onChange={setControlsKind} />
+                <SettingsFrame onClose={closeFirstLaunchSettings} />
             </BridgeContext.Provider>
         </div>;
     }
 
     switch (uiType) {
-        case "controls-select":
-            return <div class="frame">
-                <BridgeContext.Provider value={bridge}>
-                    <ControlSelector
-                        mirrored={mirrored}
-                        setMirrored={setMirrored}
-                        cameraFollow={cameraFollow}
-                        setCameraFollow={setCameraFollow}
-                        roadZoom={roadZoom}
-                        setRoadZoom={setRoadZoom}
-                        selected={controlsKind}
-                        onChange={(selected) => {
-                            setControlsKind(selected);
-                            setUiType(prevUiType);
-                        }} />
-                </BridgeContext.Provider>
-            </div>;
-
         case "menu":
         case "way83-text":
         case "way83+":
@@ -222,7 +187,6 @@ function FrameWithBridge(props: { bridge: Bridge }) {
                         showSizeToggle={!network}
                         setUiType={setUiType}
                         showSocial={true}
-                        showControlsSelector={true}
                         showNetworkCalendar={bridge.native.login().length > 0} />;
                 </BridgeContext.Provider>
             </div>;

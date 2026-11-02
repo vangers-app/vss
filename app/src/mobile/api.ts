@@ -3,7 +3,6 @@ export type UIType = "default" | "main-menu" |
     "way83+" | "way83-inventory" | "way83-text" |
     "menu" | "pause" |
     "inapp" | "credits" | "shop" |
-    "controls-select" |
     "calendar";
 
 export interface Event {

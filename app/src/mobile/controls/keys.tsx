@@ -45,7 +45,6 @@ import checkUrl from "../../assets/check.png";
 import enUrl from "../../assets/gb.png";
 import ruUrl from "../../assets/ru.png";
 import fontUrl from "../../assets/font.png";
-import mobileUrl from "../../assets/mobile.png";
 import calendarUrl from "../../assets/calendar.png";
 
 import { Switch } from "./switch-control";
@@ -512,21 +511,6 @@ export function SizeToggle(props: { class?: string, style?: JSX.CSSProperties })
         class={props.class}
         style={props.style}
         image={fontUrl} />;
-}
-
-export function MobileButton(props: {
-    class?: string,
-    style?: JSX.CSSProperties,
-    onButtonDown?: () => void,
-    onButtonUp?: () => void,
-}) {
-    return <Button
-        onButtonDown={props.onButtonDown}
-        onButtonUp={props.onButtonUp}
-        class={props.class}
-        style={props.style}
-        image={mobileUrl}
-    />;
 }
 
 

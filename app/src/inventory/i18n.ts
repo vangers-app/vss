@@ -18,6 +18,12 @@ const tData: { [lang: string]: { [key: string]: string } } = {
         quality_low: "Low",
         on: "On",
         off: "Off",
+        select_controls_type: "Select controls type",
+        controls_options: "Controls",
+        mirrored_controls: "Mirrored controls",
+        follow_camera: "Bind joystick to mechos",
+        follow_camera_desc: "* if enabled, then joystick movements will take into account the direction of the mechos",
+        road_zoom: "Camera zoom out",
     },
     ru: {
         refresh: "Обновить",
@@ -34,6 +40,12 @@ const tData: { [lang: string]: { [key: string]: string } } = {
         quality_low: "Низкое",
         on: "Включено",
         off: "Выключено",
+        select_controls_type: "Выберите вариант управления",
+        controls_options: "Управление",
+        mirrored_controls: "Отразить управление",
+        follow_camera: "Привязка джойстика к мехосу",
+        follow_camera_desc: "* если включено, то движения джойстика будут учитывать направление движения мехоса",
+        road_zoom: "Отдаление камеры",
     },
 };
 

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { BridgeContext } from "../bridge";
 import { UIType } from "../api";
-import { CalendarButton, InappOpen, Lang, MobileButton, QuestionButton, SizeToggle, Telegram, TextInput } from "./keys";
+import { CalendarButton, InappOpen, Lang, QuestionButton, SizeToggle, Telegram, TextInput } from "./keys";
 import { bindMouseControl } from "./mouse";
 
 const showDebugButton = false;
@@ -12,7 +12,6 @@ export function DefaultControls(props: {
     showSizeToggle: boolean,
     showSocial: boolean,
     showTextInput: boolean,
-    showControlsSelector: boolean,
     showNetworkCalendar: boolean,
 }) {
     const bridge = useContext(BridgeContext);
@@ -47,9 +46,6 @@ export function DefaultControls(props: {
         {props.showTextInput && <TextInput class="absolute cl-2 ct-0" position={bridge.rendererHeight - 100} />}
         {props.showLang && <Lang class="absolute cr-0 ct-2" />}
         {props.showSocial && <Telegram class="absolute cr-0 t-0" />}
-        {props.showControlsSelector && <MobileButton class="absolute cr-0 cb-0" onButtonUp={() => {
-            props.setUiType("controls-select");
-        }} />}
         {props.showNetworkCalendar && <div class="absolute cl-0 cb-0">
             <CalendarButton onButtonUp={() => {
                 props.setUiType("calendar");
