@@ -60,7 +60,7 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
     }
 
     const background = active?.background !== undefined ? vfileUrl(active.background) : inventoryBgUrl;
-    return <div class="inventory-frame h-full flex flex-row" style={{ backgroundImage: `url(${background})` }}>
+    return <div class="inventory-frame touch h-full flex flex-row" style={{ backgroundImage: `url(${background})` }}>
         <button class="inventory-close absolute right-8 top-4 cursor-pointer"
             onClick={closeInventory} aria-label="Close inventory">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -100,7 +100,7 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                     </span>
                 </button>)}
         </aside>
-        <section class="inventory-details flex flex-col flex-grow ml-4 mr-8 overflow-auto">
+        <section class="inventory-details flex flex-col flex-grow min-h-0 ml-4 mr-8 overflow-auto">
             <div class="self-end flex flex-row my-4 mr-16">
                 <div class="cursor-pointer underline text-yellow-800 text-shadow-sm" onClick={() => startModsDownload()}>
                     {t("refresh")}
