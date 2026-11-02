@@ -205,6 +205,12 @@ fn toggle_devtools(app: AppHandle) {
     }
 }
 
+// Window::close is not supported on mobile; exiting the app works everywhere.
+#[tauri::command]
+fn exit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 #[tauri::command]
 fn read_local_file(app: AppHandle, path: String) -> Result<tauri::ipc::Response, String> {
     let path = allowed_local_file(&app, &path)?;
@@ -532,6 +538,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             find_install,
             toggle_devtools,
+            exit_app,
             read_local_file,
             list_mods,
             download_mods,

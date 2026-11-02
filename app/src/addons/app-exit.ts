@@ -1,4 +1,4 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { TAURI_BUILD } from "../compat";
 import vss from "./vss";
 
@@ -9,8 +9,8 @@ export function init() {
         }
 
         if (TAURI_BUILD) {
-            getCurrentWindow().close().catch((err) => {
-                console.error("Failed to close application window", err);
+            invoke("exit_app").catch((err) => {
+                console.error("Failed to exit application", err);
             });
             return;
         }
