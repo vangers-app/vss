@@ -15,6 +15,9 @@ using namespace renderer;
 using namespace renderer::visualbackend;
 using namespace renderer::visualbackend::rust;
 
+// Defined in src/road.cpp, set from the `-render-config` command line argument.
+extern const char* RenderConfigPath;
+
 RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 	: _map_created(false)
 {
@@ -34,8 +37,7 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 		.width = (uint32_t) width,
 		.height = (uint32_t) height,
 #ifdef RV_API_3
-		//TODO: consider "render-full"
-		.render_config = "res/ffi/render-compat.ron",
+		.render_config = RenderConfigPath,
 #endif
 		.gl_functor = SDL_GL_GetProcAddress,
 	};
@@ -43,6 +45,9 @@ RustVisualBackend::RustVisualBackend(int32_t width, int32_t height)
 	std::cout << "rv_init(context=" << _context << ", {" << std::endl
 				<< "\t.width="<<desc.width << std::endl
 				<< "\t.height="<<desc.height << std::endl
+#ifdef RV_API_3
+				<< "\t.render_config="<< desc.render_config << std::endl
+#endif
 				<< "\t.gl_functor="<< (void*)desc.gl_functor << std::endl
 				<< "}" << std::endl;
 	_context = rv_init(desc);

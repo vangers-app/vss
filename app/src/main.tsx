@@ -6,14 +6,15 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { installVssBrowser, localInstall } from "./vss-browser";
 import { InventoryFrame } from "./inventory/inventory-frame";
 import { installCellStyle, renderCellStyle } from "./ui/cell-style";
-import { DownloadModsButton, InventoryOpenButton, LanguageButton, Telegram } from "./mobile/controls/keys";
+import { InventoryOpenButton, LanguageButton, Telegram } from "./mobile/controls/keys";
 import { Credits } from "./mobile/credits";
 import type { Api, Event, UIType } from "./mobile/api";
 import { find_install, toggle_devtools, TAURI_BUILD } from "./compat";
 import { loadMods, modsPresent } from "./mods";
 import { useUiStore } from "./store";
 import { DataNotFound } from "./ui/data-not-found";
-import { DownloadMods, startModsDownload } from "./ui/download-mods";
+import { DownloadMods } from "./ui/download-mods";
+import { RENDER_PRESETS, readRenderSettings } from "./render-presets";
 import { state as addonState } from "./addons/state";
 import { dismissCreditsOverlay } from "./addons/redraw-quant";
 import { currentLanguage, setCurrentLanguage } from "./language";
@@ -95,6 +96,13 @@ function Game() {
                     }
                     if (new URLSearchParams(window.location.search).has("quickstart")) {
                         args.push("-quickstart");
+                    }
+                    const renderSettings = readRenderSettings();
+                    if (renderSettings.use3d) {
+                        Module.FS.writeFile("/res/ffi/render-vss.ron", RENDER_PRESETS[renderSettings.quality]);
+                        args.push("-render-config", "/res/ffi/render-vss.ron");
+                    } else {
+                        args.push("-no3d");
                     }
                     Module.callMain(args);
                 }
@@ -192,7 +200,6 @@ function DesktopControlsOverlay() {
 function DesktopFrame() {
     const [open, setOpen] = useState(false);
     const [uiType, setUiType] = useState<UIType>(() => addonState().uiType);
-    const modsPresentState = useUiStore((state) => state.modsPresent);
     const style = useRef<HTMLStyleElement | null>(null);
     useEffect(() => {
         function renderStyle() {
@@ -241,13 +248,6 @@ function DesktopFrame() {
     }
     if (uiType !== "main-menu") {
         return null;
-    }
-    if (!modsPresentState && TAURI_BUILD) {
-        return <>
-            <DownloadModsButton class="absolute cl-0 ct-0" onButtonUp={() => startModsDownload()} />
-            <DesktopLanguageButton />
-            <Telegram class="absolute cr-0 ct-2" openUrl={openUrl} />
-        </>;
     }
     return <>
         <InventoryOpenButton class="absolute cl-0 ct-0" onButtonUp={() => setOpen(true)} />

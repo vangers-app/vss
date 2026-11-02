@@ -316,8 +316,10 @@ vrtMap::~vrtMap(void)
 	delete[] freeNodes_c; freeNodes_c = NULL;
 }
 
+extern int Use3D;
+
 vrtMap::vrtMap(void)
-	: fmap(0), kmap(0), __use_external_renderer(true)
+	: fmap(0), kmap(0), __use_external_renderer(Use3D != 0)
 {
 	pFile = new PrmFile;
 	cWorld = 0;

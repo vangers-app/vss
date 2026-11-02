@@ -10,12 +10,27 @@ import {
 import { getModAddons } from "../mods";
 import { read_file, vfileUrl } from "../compat";
 import { startModsDownload } from "../ui/download-mods";
+import {
+    type RenderQuality,
+    type RenderSettings,
+    readRenderSettings,
+    writeRenderSettings,
+} from "../render-presets";
+
+// Pinned first card; not a mod, so it never reaches writeInventoryItems.
+const settingsId = "settings";
 
 export function InventoryFrame(props: { closeActiveUi: () => void }) {
     const [items, setItems] = useState<InventoryItem[]>(reconcileMods(getModAddons()));
     const [activeId, setActiveId] = useState<string>("");
     const [readme, setReadme] = useState<string>("");
+    const [renderSettings, setRenderSettings] = useState<RenderSettings>(readRenderSettings());
     const active = items.find((item) => item.id === activeId) ?? null;
+
+    function updateRenderSettings(next: RenderSettings) {
+        writeRenderSettings(next);
+        setRenderSettings(next);
+    }
 
     useEffect(() => {
         if (active?.readme === undefined) {
@@ -66,6 +81,19 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
             </svg>
         </button>
         <aside class="inventory-list flex flex-col flex-shrink-0 overflow-auto smooth">
+            <button
+                class={"inventory-card cursor-pointer w-52 my-4 mx-8 overflow-hidden relative border " +
+                    "border-slate-800 flex-shrink-0 rounded" +
+                    (activeId === settingsId ? " outline-double outline-green-400" : "")}
+                onClick={() => setActiveId(settingsId)}>
+                <span class="relative block w-full h-32 bg-no-repeat bg-center bg-cover bg-slate-800"
+                    style={{ backgroundImage: `url(${appIconUrl})` }}>
+                    <span class="bg-slate-200 absolute opacity-90 flex flex-row mt-4 px-4 pt-1 text-lg font-bold items-center rounded-r-sm">
+                        <span class="bg-slate-500 rounded-full w-2 h-2 mr-2 mb-1"></span>
+                        <span class="overflow-ellipsis whitespace-nowrap">{t("settings")}</span>
+                    </span>
+                </span>
+            </button>
             {items.map((item) =>
                 <button
                     class={"inventory-card cursor-pointer w-52 my-4 mx-8 overflow-hidden relative border " +
@@ -89,7 +117,29 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                     {t("refresh")}
                 </div>
             </div>
-            {active === null &&
+            {activeId === settingsId &&
+                <div class="flex flex-col">
+                    <p class="text-2xl font-bold">{t("settings")}</p>
+                    <p class="mt-4 ml-4 text-lg text-shadow-sm">{t("render_3d")}</p>
+                    <div class="flex flex-row ml-4 mt-1">
+                        {([["1", true], ["0", false]] as const).map(([key, use3d]) =>
+                            <SettingOption key={key}
+                                label={t(use3d ? "on" : "off")}
+                                selected={renderSettings.use3d === use3d}
+                                onSelect={() => updateRenderSettings({ ...renderSettings, use3d })} />)}
+                    </div>
+                    <p class="mt-4 ml-4 text-lg text-shadow-sm">{t("render_quality")}</p>
+                    <div class={"flex flex-row ml-4 mt-1" + (renderSettings.use3d ? "" : " opacity-40")}>
+                        {(["high", "normal", "low"] as RenderQuality[]).map((quality) =>
+                            <SettingOption key={quality}
+                                label={t("quality_" + quality)}
+                                selected={renderSettings.quality === quality}
+                                onSelect={renderSettings.use3d ?
+                                    () => updateRenderSettings({ ...renderSettings, quality }) :
+                                    undefined} />)}
+                    </div>
+                </div>}
+            {activeId !== settingsId && active === null &&
                 <div class="flex flex-col">
                     <p class="text-2xl">{t("tap_item")}</p>
                 </div>}
@@ -118,5 +168,14 @@ export function InventoryFrame(props: { closeActiveUi: () => void }) {
                                 border border-black/70 text-sm font-mono whitespace-pre rounded resize-none" />}
                 </>}
         </section>
+    </div>;
+}
+
+function SettingOption(props: { label: string, selected: boolean, onSelect?: () => void }) {
+    return <div onClick={props.onSelect}
+        class={(props.onSelect !== undefined ? "cursor-pointer " : "") +
+            (props.selected ? "bg-green-500 text-slate-50 " : "bg-black/60 text-slate-300 ") +
+            "mr-2 px-4 py-1 text-xl font-bold rounded"}>
+        {props.label}
     </div>;
 }

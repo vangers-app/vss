@@ -110,6 +110,7 @@ XStream fmemory("memstats.dmp", XS_OUT);
 
 using VisualBackendContext = renderer::visualbackend::VisualBackendContext;
 using RustVisualBackend = renderer::visualbackend::rust::RustVisualBackend;
+using DummyVisualBackend = renderer::visualbackend::dummy::DummyVisualBackend;
 
 /* ----------------------------- EXTERN SECTION ---------------------------- */
 extern XStream fout;
@@ -266,6 +267,10 @@ int SkipIntro = 0;
 // Debug quick start (`-quickstart`): skip the main menu and the first escave,
 // start a new game straight on the map (world 0, Fostral).
 int QuickStartGame = 0;
+// `-no3d` selects the classic CPU 2D renderer: no RustVisualBackend is created.
+int Use3D = 1;
+// `-render-config <path>`: ron settings passed to rv_init when 3D is on.
+const char* RenderConfigPath = "res/ffi/render-compat.ron";
 
 int PalIterLock = 0;
 
@@ -484,7 +489,10 @@ int xtInitApplication(void) {
 		VisualBackendContext::backend()->destroy();
 	}
 
-	VisualBackendContext::create(std::make_unique<RustVisualBackend>(XGR_Obj.RealX, XGR_Obj.RealY));
+	if(Use3D)
+		VisualBackendContext::create(std::make_unique<RustVisualBackend>(XGR_Obj.RealX, XGR_Obj.RealY));
+	else
+		VisualBackendContext::create(std::make_unique<DummyVisualBackend>());
 
 //WORK	sWinVideo::Init();
 //	::ShowCursor(0);

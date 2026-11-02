@@ -15,6 +15,8 @@ extern bool sys_readyQuant();
 extern void sys_tickQuant();
 extern void sys_runtimeObjectQuant(int runtimeObjectId);
 extern int QuickStartGame;
+extern int Use3D;
+extern const char* RenderConfigPath;
 
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 #include <locale.h>
@@ -237,6 +239,15 @@ int main(int argc, char *argv[])
             setLang(RUSSIAN);
         } else if (cmd_key == "-quickstart") {
             QuickStartGame = 1;
+        } else if (cmd_key == "-no3d") {
+            Use3D = 0;
+        } else if (cmd_key == "-render-config") {
+            i++;
+            if (argc > i) {
+                RenderConfigPath = argv[i];
+            } else {
+                std::cout << "Invalid parameter usage: '-render-config <file>' expected" << std::endl;
+            }
         } else if (cmd_key == "-server") {
 			i++;
 			if (argc > i) {
