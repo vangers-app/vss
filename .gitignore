@@ -58,4 +58,6 @@ vangers.wasm
 res_gen
 emscripten
 game-data-*.zip
+app/src-tauri/resources/game-data.zip
+app/src-tauri/gen/android/app/src/main/assets/
 .tmp
