@@ -10,7 +10,7 @@
 - `app/src-tauri/gen/android` закоммичен (40 файлов): `build.gradle.kts` без `signingConfigs`, `key.properties`/`keystore.properties` в `.gitignore`, Gradle 8.14.3, `compileSdk = 36`, `minSdk = 24`. `tauri android init` в CI не нужен.
 - `@tauri-apps/cli` 2.11.2: `tauri android build` принимает `--aab`, `--apk`, `--target`, `--config`, `--ci`; `bundle.android.versionCode` есть в `config.schema.json`. Без него versionCode = `0*1000000 + 1*1000 + 0 = 1000` из `version: 0.1.0`.
 - Google Play для `com.caiiiycuk.github.vangers.gp`: последний загруженный versionCode 1027 (`vangers-android/app/build.gradle`), upload key — `vangers-android/etc/vandroid.keystore` (JKS, alias `vandroid`, SHA-256 `3A:57:B5:12:…:28:54`). Play App Signing переподписывает AAB своим ключом, но проверяет сертификат upload key → новый ключ не примет.
-- CDN-файл: `https://storage.yandexcloud.net/doszone-uploads/kdlab/vss/v1/game-data-v1.zip`, HTTP 200, 171 049 448 байт, etag = md5 локального `etc/game-data-v1.zip`, содержимое папки `data` в корне — формат, который ждёт `download_game_data`.
+- CDN-файл: `https://cdn.dos.zone/kdlab/vss/v1/game-data-v1.zip`, HTTP 200, 171 049 448 байт, etag = md5 локального `etc/game-data-v1.zip`, содержимое папки `data` в корне — формат, который ждёт `download_game_data`.
 
 ## Goals / Non-Goals
 
