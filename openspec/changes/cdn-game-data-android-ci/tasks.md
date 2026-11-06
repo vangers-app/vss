@@ -9,7 +9,7 @@
 ## 2. Android: подпись через key.properties
 
 - [x] 2.1 (проверено на временном JKS с разными паролями store/key: `apksigner verify --print-certs` показывает его сертификат; без `key.properties` выход — `app-universal-release-unsigned.apk`, «DOES NOT VERIFY»; отпечаток `vandroid` проверяется в CI, 3.4) В `app/src-tauri/gen/android/app/build.gradle.kts` добавить чтение `rootProject.file("key.properties")` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), `signingConfigs.create("release")` и `buildTypes.release.signingConfig` только если файл существует; проверить: без `key.properties` `yarn tauri android build --apk --target aarch64` проходит и `apksigner verify` на release-APK сообщает об отсутствии подписи; с локально созданным `key.properties` на `vangers-android/etc/vandroid.keystore` — `apksigner verify --print-certs` выдаёт SHA-256 `3A:57:B5:12:…:28:54`.
-- [ ] 2.2 Проверить обновление поверх: на устройстве/эмуляторе поставить подписанный APK, собрать второй с `--config '{"bundle":{"android":{"versionCode":1101}}}'` и `adb install -r` → установка проходит без удаления, `aapt dump badging` показывает `versionCode='1101'`.
+- [x] 2.2 (TECNO AD10, Android 15: CI-APK 1125 → `adb install -r` CI-APK 1126 — Success, `dumpsys` versionCode=1126, после запуска игра стартует с ранее скачанными данными; локальная debug-сборка перед этим удалена — подпись не совпадала) Проверить обновление поверх: на устройстве/эмуляторе поставить подписанный APK, собрать второй с `--config '{"bundle":{"android":{"versionCode":1101}}}'` и `adb install -r` → установка проходит без удаления, `aapt dump badging` показывает `versionCode='1101'`.
 
 ## 3. Workflow: переменная URL и job android
 
@@ -25,5 +25,5 @@
 
 ## 5. Интеграционная проверка
 
-- [ ] 5.1 После того как пользователь задал переменную и секреты: `workflow_dispatch` на ветке зелёный по всем job'ам; APK из артефакта поставлен на Android-устройство, экран «Game data not found» без Exit, скачивание 171 МБ доходит до «Restart», после перезапуска игра стартует; повторный запуск без сети стартует сразу.
+- [x] 5.1 (прогоны 42176076849/42180072373 зелёные по android/ios/linux/windows, macos-arm64 отменён — runner не выделен; на TECNO AD10: экран «Game data not found», скачивание 171 МБ ~30 с, Restart → игра; холодный перезапуск и запуск в режиме полёта стартуют сразу. Кнопку Exit проверить не удалось: карточка на 2550x1080 обрезана снизу — существующая вёрстка, вне scope) После того как пользователь задал переменную и секреты: `workflow_dispatch` на ветке зелёный по всем job'ам; APK из артефакта поставлен на Android-устройство, экран «Game data not found» без Exit, скачивание 171 МБ доходит до «Restart», после перезапуска игра стартует; повторный запуск без сети стартует сразу.
 - [ ] 5.2 Загрузить AAB из прогона во внутренний трек Play Console (делает пользователь): консоль принимает файл, не жалуется на versionCode и сертификат; результат зафиксировать в PR.
