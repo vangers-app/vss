@@ -15,6 +15,11 @@ concurrency:
   group: tauri-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Compiled into the app (option_env! in app/src-tauri/src/lib.rs); unset in
+  # fork pull requests, where the in-app download reports the missing URL.
+  GAME_DATA_URL: ${{ vars.GAME_DATA_URL }}
+
 jobs:
   build:
     name: Build (${{ matrix.target }})
@@ -266,9 +271,146 @@ jobs:
           path: dist-artifacts/*
           if-no-files-found: error
 
+  android:
+    name: Build (android-aarch64)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Rewrite SSH submodule URLs to HTTPS
+        shell: bash
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-36 build-tools;36.0.0 ndk;27.2.12479018 platform-tools
+
+      - name: Export NDK_HOME
+        shell: bash
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 5.0.2
+          actions-cache-folder: emsdk-cache-android-aarch64
+
+      - name: Setup CMake 4
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.0.3'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,wasm32-unknown-emscripten
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          key: android-aarch64
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: app/yarn.lock
+
+      - name: Build vangers (WebAssembly)
+        shell: bash
+        run: |
+          source "$EMSDK/emsdk_env.sh"
+          mkdir -p emscripten
+          cd emscripten
+          cmake -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
+            -DCMAKE_BUILD_TYPE=MinSizeRel ..
+          ninja vangers
+
+      - name: Install frontend dependencies
+        shell: bash
+        working-directory: app
+        run: yarn install --frozen-lockfile
+
+      - name: Configure Android signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::Android build is unsigned: ANDROID_KEYSTORE_BASE64 is not set"
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/vandroid.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          cat > app/src-tauri/gen/android/key.properties <<EOF
+          storeFile=$keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          echo "Signing with keystore $keystore"
+
+      - name: Build Android AAB and APK
+        shell: bash
+        working-directory: app
+        run: |
+          # Must stay above the last versionCode uploaded to Google Play (1027).
+          version_code=$(( 1100 + ${{ github.run_number }} ))
+          echo "versionCode=$version_code"
+          yarn tauri android build --aab --apk --target aarch64 --ci \
+            --config "{\"bundle\":{\"android\":{\"versionCode\":$version_code}}}"
+
+      - name: Collect & rename artifacts
+        shell: bash
+        run: |
+          set -e
+          mkdir -p dist-artifacts
+          shopt -s nullglob
+          outputs=app/src-tauri/gen/android/app/build/outputs
+          aabs=( "$outputs"/bundle/*/*.aab )
+          apks=( "$outputs"/apk/universal/release/*.apk )
+          if [ ${#aabs[@]} -eq 0 ] || [ ${#apks[@]} -eq 0 ]; then
+            echo "::error::No AAB/APK found under $outputs"
+            find "$outputs" -name '*.aab' -o -name '*.apk'
+            exit 1
+          fi
+          ref_name="${GITHUB_REF_NAME//\//-}"
+          cp "${aabs[0]}" "dist-artifacts/Vangers-${ref_name}-android-aarch64.aab"
+          cp "${apks[0]}" "dist-artifacts/Vangers-${ref_name}-android-aarch64.apk"
+          ls -la dist-artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vangers-android-aarch64
+          path: dist-artifacts/*
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: [build, ios]
+    needs: [build, ios, android]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

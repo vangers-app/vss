@@ -36,16 +36,51 @@ Example:
 ./scripts/pack-game-data.sh Vangers-Steam/game_data v1
 ```
 
-The output will be in etc folder.
+The output will be in etc folder. Upload the archive to a CDN: game data is
+not bundled into the apps, every platform downloads it on first launch.
+
+### Game data URL
+
+The download URL is compiled into the app from the `GAME_DATA_URL`
+environment variable at build time. The `Tauri Release` workflow takes it from
+the repository variable of the same name:
+
+```
+gh variable set GAME_DATA_URL -R vangers-app/vss --body "https://example.com/game-data-v1.zip"
+```
+
+For a local build export it before `tauri dev` / `tauri build`:
+
+```
+GAME_DATA_URL=https://example.com/game-data-v1.zip yarn tauri dev
+```
+
+Without the variable the app still builds, but **Download game data** reports
+`GAME_DATA_URL is not set at build time`.
 
 ### Android
 
-Copy actual data to `src-tauri/resources/game-data.zip`:
+The Android build is produced by GitHub Actions: every run of the
+`Tauri Release` workflow uploads the `Vangers-android-aarch64` artifact with
+`Vangers-<ref>-android-aarch64.aab` (upload it to Google Play Console) and
+`Vangers-<ref>-android-aarch64.apk` (install it directly with `adb install -r`
+or from the phone). Tagged releases attach both files to the
+[GitHub Release](https://github.com/vangers-app/vss/releases).
 
-Example:
+Both files are signed with the Play upload key stored in repository secrets;
+without the secrets (for example in a pull request from a fork) the build is
+unsigned and cannot be installed:
+
 ```
-mkdir -p app/src-tauri/resources/ && cp etc/game-data-v1.zip app/src-tauri/resources/game-data.zip
+gh secret set ANDROID_KEYSTORE_BASE64 -R vangers-app/vss --body "$(base64 -w0 path/to/upload.keystore)"
+gh secret set ANDROID_KEYSTORE_PASSWORD -R vangers-app/vss
+gh secret set ANDROID_KEY_ALIAS -R vangers-app/vss
+gh secret set ANDROID_KEY_PASSWORD -R vangers-app/vss
 ```
+
+`versionCode` is `1100 + <workflow run number>`, so every run can be uploaded
+to Play after the previous one. The first launch shows the
+"Game data not found" screen with **Download game data**.
 
 ### iOS
 
@@ -62,6 +97,5 @@ it over USB with [Sideloadly](https://sideloadly.io/) (Windows/macOS) or
 
 Game data is not bundled into the IPA. On first launch the app shows the
 "Game data not found" screen with a **Download game data** button: the archive
-is downloaded from the URL compiled into the app (`GAME_DATA_URL` in
-`app/src-tauri/src/lib.rs`) and unpacked into the app storage. Pack the archive
-with `scripts/pack-game-data.sh` as described above.
+is downloaded from the URL compiled into the app (see "Game data URL" above)
+and unpacked into the app storage.

@@ -7,10 +7,6 @@ use futures_util::StreamExt;
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use tauri_plugin_fs::{FsExt, OpenOptions};
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use tauri::{path::BaseDirectory};
 
 // The release archive must contain `mods.json` (new declarative schema, see the
 // `mods` orphan branch of vss-geerah-super-set) alongside the mod data folders.
@@ -18,8 +14,9 @@ const MODS_URL: &str =
     "https://github.com/vangers-app/vss-geerah-super-set/releases/download/v1.3/vss-mods.zip";
 
 // Archive layout: the game `data` folder contents at the root, as produced by
-// scripts/pack-game-data.sh.
-const GAME_DATA_URL: &str = "https://cdn.dos.zone/kdlab/vangers/1011/vangers.zip";
+// scripts/pack-game-data.sh. The URL is fixed at build time from the
+// environment (the release workflow takes it from the GitHub variable).
+const GAME_DATA_URL: Option<&str> = option_env!("GAME_DATA_URL");
 
 static CANCEL_DOWNLOAD: AtomicBool = AtomicBool::new(false);
 
@@ -161,21 +158,6 @@ fn walk_dir(root: &Path, dir: &Path, out: &mut Vec<LocalFile>) {
 fn get_local_data_path(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(data_dir) = app.path().app_data_dir() {
         let local_dir = data_dir.join("data");
-        #[cfg(target_os = "android")]
-        if !local_dir.exists() {
-            if let Some(resource) = app
-                .path()
-                .resolve("resources/game-data.zip", BaseDirectory::Resource)
-                .ok()
-            {
-                let mut opts = OpenOptions::new();
-                opts.read(true);
-                match app.fs().open(&resource, opts) {
-                    Ok(file) => extract_zip_file(&file, &local_dir).ok()?,
-                    Err(error) => eprintln!("DATA-ERROR {}", error),
-                }
-            }
-        }
         if local_dir.exists() {
             return Some(local_dir);
         }
@@ -452,11 +434,12 @@ async fn download_game_data(
     app: AppHandle,
     on_progress: Channel<DownloadProgress>,
 ) -> Result<(), String> {
+    let url = GAME_DATA_URL.ok_or("GAME_DATA_URL is not set at build time")?;
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
     download_archive(
         &on_progress,
-        GAME_DATA_URL,
+        url,
         "game data",
         cache_dir.join("game-data-download.zip"),
         data_dir.join("data-tmp"),
