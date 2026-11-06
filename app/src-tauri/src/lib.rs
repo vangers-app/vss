@@ -13,11 +13,6 @@ use tauri::{AppHandle, Manager};
 const MODS_URL: &str =
     "https://github.com/vangers-app/vss-geerah-super-set/releases/download/v1.3/vss-mods.zip";
 
-// Archive layout: the game `data` folder contents at the root, as produced by
-// scripts/pack-game-data.sh. The URL is fixed at build time from the
-// environment (the release workflow takes it from the GitHub variable).
-const GAME_DATA_URL: Option<&str> = option_env!("GAME_DATA_URL");
-
 static CANCEL_DOWNLOAD: AtomicBool = AtomicBool::new(false);
 
 #[derive(Serialize)]
@@ -429,22 +424,27 @@ async fn download_mods(
     .await
 }
 
+// `url` is GAME_DATA_URL fixed into the frontend bundle at build time (see
+// vite.config.ts); the archive layout is the game `data` folder contents at the
+// root, as produced by scripts/pack-game-data.sh.
 #[tauri::command]
 async fn download_game_data(
     app: AppHandle,
+    url: String,
     on_progress: Channel<DownloadProgress>,
 ) -> Result<(), String> {
-    let url = GAME_DATA_URL.ok_or("GAME_DATA_URL is not set at build time")?;
+    if url.is_empty() {
+        return Err("GAME_DATA_URL is not set at build time".into());
+    }
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
     download_archive(
         &on_progress,
-        url,
+        &url,
         "game data",
         cache_dir.join("game-data-download.zip"),
         data_dir.join("data-tmp"),
         data_dir.join("data"),
-        // scripts/pack-game-data.sh zips the data folder contents directly.
         |tmp_dir| Ok(tmp_dir.to_path_buf()),
     )
     .await

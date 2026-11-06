@@ -8,6 +8,12 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [preact()],
 
+  // GAME_DATA_URL is fixed into the bundle here rather than in Rust: the iOS
+  // cargo build runs inside an Xcode script phase that does not receive the
+  // workflow environment, while `yarn build` runs in the workflow shell on
+  // every platform.
+  envPrefix: ["VITE_", "GAME_DATA_URL"],
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

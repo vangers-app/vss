@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Compiled into the app (option_env! in app/src-tauri/src/lib.rs); unset in
-  # fork pull requests, where the in-app download reports the missing URL.
+  # Fixed into the frontend bundle by app/vite.config.ts; unset in fork pull
+  # requests, where the in-app download reports the missing URL.
   GAME_DATA_URL: ${{ vars.GAME_DATA_URL }}
 
 jobs:

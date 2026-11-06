@@ -28,8 +28,8 @@
 
 ## Decisions
 
-### D1. `option_env!("GAME_DATA_URL")` вместо `env!` и вместо константы
-`const GAME_DATA_URL: Option<&str> = option_env!("GAME_DATA_URL");` `download_game_data` при `None` возвращает `Err("GAME_DATA_URL is not set at build time")` — модалка уже показывает текст ошибки с Retry/Close. `env!` отвергнут: ломает любой локальный `cargo build`/`tauri dev` и pull request из форка. Константа с дефолтом отвергнута: URL должен меняться без коммита. Cargo отслеживает `option_env!` через dep-info (`# env-dep:`) → смена переменной инвалидирует только `app_lib`, `rust-cache` сбрасывать не нужно (проверить на первом прогоне со сменой значения).
+### D1. `GAME_DATA_URL` фиксируется во frontend-бандле (Vite), не в Rust
+`vite.config.ts` добавляет `GAME_DATA_URL` в `envPrefix` → `import.meta.env.GAME_DATA_URL` подставляется при `yarn build`; `compat.ts` передаёт его аргументом `url` в `download_game_data`, которая при пустой строке возвращает `Err("GAME_DATA_URL is not set at build time")` — модалка уже показывает текст ошибки с Retry/Close. Первый вариант — `option_env!("GAME_DATA_URL")` в `lib.rs` — отвергнут по результату прогона 42176076849: на Linux и Android URL попал в бинарь, а в IPA — нет, потому что `tauri ios build` запускает cargo из script-фазы Xcode без окружения job'а. `yarn build` (`beforeBuildCommand`) выполняется самим Tauri CLI в шелле job'а на всех платформах, поэтому Vite-переменная доходит везде; локально работает `GAME_DATA_URL=... yarn tauri dev` (Vite dev-сервер тоже наследует окружение). `env!` отвергнут: ломал бы локальную сборку и pull request из форка. Константа с дефолтом отвергнута: URL должен меняться без коммита.
 
 ### D2. Переменная репозитория, не секрет, на уровне workflow
 `env: GAME_DATA_URL: ${{ vars.GAME_DATA_URL }}` в корне workflow → достаётся `build`, `ios`, `android` без дублирования. URL не секретный (извлекается из бинаря), а секрет маскировал бы его в логах при отладке скачивания. Pull request из форка не получает `vars` → сборка без URL, что допускает D1.

@@ -94,7 +94,10 @@ export async function download_game_data(onProgress: (progress: DownloadProgress
 
     const channel = new Channel<DownloadProgress>();
     channel.onmessage = onProgress;
-    return invoke<void>('download_game_data', { onProgress: channel });
+    return invoke<void>('download_game_data', {
+        url: import.meta.env.GAME_DATA_URL ?? "",
+        onProgress: channel,
+    });
 }
 
 export async function cancel_download() {
